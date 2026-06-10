@@ -2,25 +2,25 @@
 
 #[derive(Debug, PartialEq)]
 pub enum GameCommand {
-    Connect(String),          // CONNECT <username>
-    Look,                     // LOOK
-    Move(String),             // MOVE <direction>
-    Take(String),             // TAKE <item_name>
-    Drop(String),             // DROP <item_name>
-    Inventory,                // INVENTORY
-    Attack(String),           // ATTACK <npc_name>
-    Status,                   // STATUS
-    Talk(String),             // TALK <npc_name>
-    Quests,                   // QUESTS
-    Quest(String),            // QUEST <id>
-    Chat { channel: String, message: String }, // CHAT <channel> <msg>
-    Who,                      // WHO
-    Quit,                     // QUIT
-    Unknown,                  // Commande invalide
+    Connect(String),
+    Look,
+    Move(String),
+    Take(String),
+    Drop(String),
+    Inventory,
+    Attack(String),
+    Status,
+    Talk(String),
+    Quests,
+    Quest(String),
+    Chat { channel: String, message: String },
+    Who,
+    Quit,
+    Unknown,
 }
 
 impl GameCommand {
-    /// Analyse une ligne de texte brute reçue du client et la transforme en GameCommand
+    // Analyse une ligne de texte brute reçue du client et la transforme en GameCommand
     pub fn parse(input: &str) -> Self {
         let trimmed = input.trim();
         if trimmed.is_empty() {

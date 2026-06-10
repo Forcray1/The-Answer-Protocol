@@ -37,13 +37,8 @@ fn log_event(event_type: &str, player: &str, details: serde_json::Value) {
             "details": details
         });
         
-        // On stocke le résultat dans log_string
         let log_string = log_entry.to_string();
-        
-        // On l'affiche dans le terminal
         println!("{}", log_string);
-
-        // On l'écrit dans le fichier
         if let Ok(mut file) = OpenOptions::new()
             .create(true)
             .append(true)
@@ -54,7 +49,6 @@ fn log_event(event_type: &str, player: &str, details: serde_json::Value) {
     }
 }
 
-// 🌟 NOUVEAU : Le cerveau d'Aldous propulsé par Groq (Ultra-basse latence)
 async fn ask_aldous(player_name: &str, inventory: &[String], exp: i32) -> String {
     let client = Client::new();
     
@@ -69,11 +63,11 @@ async fn ask_aldous(player_name: &str, inventory: &[String], exp: i32) -> String
         player_name, exp, inventory
     );
 
-    let api_key = "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"; // 🔑 N'oublie pas de coller ta vraie clé commençant par gsk_...
-    let url = "https://api.groq.com/openai/v1/chat/completions"; // 🌐 L'endpoint de Groq
+    let api_key = "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";
+    let url = "https://api.groq.com/openai/v1/chat/completions";
 
     let payload = json!({
-        "model": "llama-3.1-8b-instant", // 🧠 Modèle très léger et fulgurant
+        "model": "llama-3.1-8b-instant",
         "messages": [{"role": "system", "content": prompt}],
         "max_tokens": 150,
         "temperature": 0.7
@@ -87,7 +81,6 @@ async fn ask_aldous(player_name: &str, inventory: &[String], exp: i32) -> String
 
     match res {
         Ok(response) => {
-            // 🌟 NOUVEAU : On lit la réponse brute de Groq pour voir l'erreur exacte
             let raw_text = response.text().await.unwrap_or_default();
             println!("[DEBUG IA] Réponse de Groq : {}", raw_text);
 
@@ -130,8 +123,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (tx, _rx) = broadcast::channel::<GlobalEvent>(32);
     let shared_tx = Arc::new(tx);
 
-    let listener = TcpListener::bind("127.0.0.1:4242").await?;
-    println!("[SERVEUR] En écoute sur le port 4242... Système de Quêtes activé.");
+    let listener = TcpListener::bind("127.0.0.1:4243").await?;
+    println!("[SERVEUR] En écoute sur le port 4243... Système de Quêtes activé.");
 
     loop {
         let (mut socket, addr) = listener.accept().await?;
@@ -289,7 +282,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         }
 
                                         GameCommand::Talk(cible) => {
-                                            let mut salle_actuelle; // 🛠️ Warning corrigé ici
+                                            let mut salle_actuelle;
                                             let mut npc_trouve = None;
                                             let mut quete_validee = false;
                                             let mut quest_msg = String::new();
@@ -334,7 +327,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                     }
 
                                                     if !quete_validee && npc.id == "npc_vieux_sage" {
-                                                        // 🌟 On prépare les infos pour l'IA, qu'on lancera APRÈS le lock
                                                         trigger_ai = Some((npc.name.clone(), player.username.clone(), player.inventory.clone(), player.exp));
                                                     }
                                                 }
@@ -477,9 +469,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         GameCommand::Unknown => "S: ERR malformed_command\n".to_string(),
                                         _ => "S: OK commande reçue mais pas encore codée\n".to_string(),
                                     }
-                                }; // 🌟 FIN DU BLOC : `guard` et `server_state` sont détruits ici naturellement !
+                                };
 
-                                // 🌟 2. On appelle l'IA librement, sans bloquer le serveur
                                 if let Some((npc_name, p_name, p_inv, p_exp)) = trigger_ai {
                                     let phrase_ia = ask_aldous(&p_name, &p_inv, p_exp).await;
                                     reponse = format!("S: OK {} te scrute de son œil unique : \"{}\"\n", npc_name, phrase_ia);
@@ -487,7 +478,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                                 if writer.write_all(reponse.as_bytes()).await.is_err() { break; }
 
-                                // 🌟 3. On gère la déconnexion en reprenant un lock propre très rapide
                                 if client_veut_quitter {
                                     let mut guard = state.lock().await;
                                     let server_state = &mut *guard;

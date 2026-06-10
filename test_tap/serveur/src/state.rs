@@ -38,11 +38,11 @@ impl ServerState {
         let new_player = Player {
             username,
             hp: 100,
-            exp: 0, // On commence à zéro EXP
+            exp: 0,
             current_room: "village_square".to_string(),
             inventory: Vec::new(),
             completed_quests: Vec::new(),
-            last_move: None,   // Chronos à zéro
+            last_move: None,
             last_attack: None,
             last_chat: None,
         };

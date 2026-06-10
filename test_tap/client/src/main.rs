@@ -5,10 +5,10 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("[CLIENT] Connexion au serveur 127.0.0.1:4242...");
+    println!("[CLIENT] Connexion au serveur 127.0.0.1:4243...");
     
     // Connexion au serveur
-    let mut stream = TcpStream::connect("127.0.0.1:4242").await?;
+    let mut stream = TcpStream::connect("127.0.0.1:4243").await?;
     let (reader, mut writer) = stream.split();
     
     let mut server_reader = BufReader::new(reader);

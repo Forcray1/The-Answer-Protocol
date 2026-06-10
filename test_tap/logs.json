@@ -1,0 +1,3 @@
+{"details":{"ip":"127.0.0.1:38966"},"event":"CONNECT","player":"axel","timestamp":"2026-06-10T14:50:09"}
+{"details":{"channel":"GLOBAL","message":"1"},"event":"CHAT","player":"axel","timestamp":"2026-06-10T14:50:31"}
+{"details":{"reason":"QUIT command"},"event":"DISCONNECT","player":"axel","timestamp":"2026-06-10T14:50:45"}

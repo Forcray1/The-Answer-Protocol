@@ -17,15 +17,14 @@ Projet Rust implémentant un serveur TAP avec exploration, inventaire, chat glob
 Depuis le dossier du serveur :
 
 ```bash
-cd serveur
-cargo run
+cargo run -p serveur
 ```
 
 Le terminal doit confirmer :
 
 - le chargement réussi du fichier `world.yaml` ;
 - la détection des 9 lieux de la carte ;
-- l’écoute réseau sur le port `4242` ;
+- l’écoute réseau sur le port `4243` ;
 - l’activation du système de quêtes.
 
 Sortie attendue :
@@ -40,8 +39,7 @@ Système de Quêtes activé.
 Ouvrez un deuxième terminal, puis lancez le client :
 
 ```bash
-cd client
-cargo run
+cargo run -p client
 ```
 
 Vous pouvez aussi utiliser un client réseau générique comme `nc` ou `telnet`.
@@ -51,8 +49,8 @@ Vous pouvez aussi utiliser un client réseau générique comme `nc` ou `telnet`.
 Optionnel, mais recommandé pour tester les interactions multijoueur en direct :
 
 ```bash
-cd client
-cargo run
+cargo run -p client OU
+cargo run -p client_bevy
 ```
 
 ## Connexion au serveur
