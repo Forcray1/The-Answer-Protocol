@@ -1,0 +1,1710 @@
+warning: virtual workspace defaulting to `resolver = "1"` despite one or more workspace members being on edition 2024 which implies `resolver = "3"`
+  |
+  = note: to keep the current resolver, specify `workspace.resolver = "1"` in the workspace root's manifest
+  = note: to use the edition 2024 resolver, specify `workspace.resolver = "3"` in the workspace root's manifest
+  = note: for more details see https://doc.rust-lang.org/cargo/reference/resolver.html#resolver-versions
+   0.351632833s  INFO prepare_target{force=false package_id=client v0.1.0 (/Users/martin/Desktop/The-Answer-Protocol/test_tap/client) target="client"}: cargo::core::compiler::fingerprint: fingerprint error for client v0.1.0 (/Users/martin/Desktop/The-Answer-Protocol/test_tap/client)/Check { test: false }/TargetInner { name: "client", doc: true, ..: with_path("/Users/martin/Desktop/The-Answer-Protocol/test_tap/client/src/main.rs", Edition2021) }
+   0.351652625s  INFO prepare_target{force=false package_id=client v0.1.0 (/Users/martin/Desktop/The-Answer-Protocol/test_tap/client) target="client"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/client-cbc9bfcc65223902/bin-client`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: <cargo::core::compiler::build_runner::BuildRunner>::compile
+   7: cargo::ops::cargo_compile::compile_ws
+   8: cargo::ops::cargo_compile::compile_with_exec
+   9: cargo::ops::cargo_compile::compile
+  10: cargo::commands::check::exec
+  11: <cargo::cli::Exec>::exec
+  12: cargo::main
+  13: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  14: std::rt::lang_start::<()>::{closure#0}
+  15: std::rt::lang_start_internal
+  16: _main
+   0.354396333s  INFO prepare_target{force=false package_id=tokio v1.52.3 target="tokio"}: cargo::core::compiler::fingerprint: fingerprint error for tokio v1.52.3/Check { test: false }/TargetInner { ..: lib_target("tokio", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tokio-1.52.3/src/lib.rs", Edition2021) }
+   0.354404583s  INFO prepare_target{force=false package_id=tokio v1.52.3 target="tokio"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/tokio-23d8477bc156439b/lib-tokio`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: <cargo::core::compiler::build_runner::BuildRunner>::compile
+   8: cargo::ops::cargo_compile::compile_ws
+   9: cargo::ops::cargo_compile::compile_with_exec
+  10: cargo::ops::cargo_compile::compile
+  11: cargo::commands::check::exec
+  12: <cargo::cli::Exec>::exec
+  13: cargo::main
+  14: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  15: std::rt::lang_start::<()>::{closure#0}
+  16: std::rt::lang_start_internal
+  17: _main
+   0.354779583s  INFO prepare_target{force=false package_id=bytes v1.11.1 target="bytes"}: cargo::core::compiler::fingerprint: fingerprint error for bytes v1.11.1/Check { test: false }/TargetInner { ..: lib_target("bytes", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.11.1/src/lib.rs", Edition2021) }
+   0.354784041s  INFO prepare_target{force=false package_id=bytes v1.11.1 target="bytes"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bytes-b97c213f13ba2d2c/lib-bytes`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: <cargo::core::compiler::build_runner::BuildRunner>::compile
+   9: cargo::ops::cargo_compile::compile_ws
+  10: cargo::ops::cargo_compile::compile_with_exec
+  11: cargo::ops::cargo_compile::compile
+  12: cargo::commands::check::exec
+  13: <cargo::cli::Exec>::exec
+  14: cargo::main
+  15: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  16: std::rt::lang_start::<()>::{closure#0}
+  17: std::rt::lang_start_internal
+  18: _main
+   0.355267416s  INFO prepare_target{force=false package_id=mio v1.2.1 target="mio"}: cargo::core::compiler::fingerprint: fingerprint error for mio v1.2.1/Check { test: false }/TargetInner { ..: lib_target("mio", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/mio-1.2.1/src/lib.rs", Edition2021) }
+   0.355273416s  INFO prepare_target{force=false package_id=mio v1.2.1 target="mio"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/mio-9d7ab110c7e38f8e/lib-mio`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: <cargo::core::compiler::build_runner::BuildRunner>::compile
+   9: cargo::ops::cargo_compile::compile_ws
+  10: cargo::ops::cargo_compile::compile_with_exec
+  11: cargo::ops::cargo_compile::compile
+  12: cargo::commands::check::exec
+  13: <cargo::cli::Exec>::exec
+  14: cargo::main
+  15: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  16: std::rt::lang_start::<()>::{closure#0}
+  17: std::rt::lang_start_internal
+  18: _main
+   0.355435416s  INFO prepare_target{force=false package_id=parking_lot v0.12.5 target="parking_lot"}: cargo::core::compiler::fingerprint: fingerprint error for parking_lot v0.12.5/Check { test: false }/TargetInner { ..: lib_target("parking_lot", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/parking_lot-0.12.5/src/lib.rs", Edition2021) }
+   0.355439625s  INFO prepare_target{force=false package_id=parking_lot v0.12.5 target="parking_lot"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/parking_lot-19ee6870cbc7002b/lib-parking_lot`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: <cargo::core::compiler::build_runner::BuildRunner>::compile
+   9: cargo::ops::cargo_compile::compile_ws
+  10: cargo::ops::cargo_compile::compile_with_exec
+  11: cargo::ops::cargo_compile::compile
+  12: cargo::commands::check::exec
+  13: <cargo::cli::Exec>::exec
+  14: cargo::main
+  15: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  16: std::rt::lang_start::<()>::{closure#0}
+  17: std::rt::lang_start_internal
+  18: _main
+   0.355888333s  INFO prepare_target{force=false package_id=parking_lot_core v0.9.12 target="parking_lot_core"}: cargo::core::compiler::fingerprint: fingerprint error for parking_lot_core v0.9.12/Check { test: false }/TargetInner { ..: lib_target("parking_lot_core", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/parking_lot_core-0.9.12/src/lib.rs", Edition2021) }
+   0.355894166s  INFO prepare_target{force=false package_id=parking_lot_core v0.9.12 target="parking_lot_core"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/parking_lot_core-0cf9a78f449d5471/lib-parking_lot_core`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  10: cargo::ops::cargo_compile::compile_ws
+  11: cargo::ops::cargo_compile::compile_with_exec
+  12: cargo::ops::cargo_compile::compile
+  13: cargo::commands::check::exec
+  14: <cargo::cli::Exec>::exec
+  15: cargo::main
+  16: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  17: std::rt::lang_start::<()>::{closure#0}
+  18: std::rt::lang_start_internal
+  19: _main
+   0.357223083s  INFO prepare_target{force=false package_id=signal-hook-registry v1.4.8 target="signal_hook_registry"}: cargo::core::compiler::fingerprint: fingerprint error for signal-hook-registry v1.4.8/Check { test: false }/TargetInner { ..: lib_target("signal_hook_registry", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/signal-hook-registry-1.4.8/src/lib.rs", Edition2015) }
+   0.357228916s  INFO prepare_target{force=false package_id=signal-hook-registry v1.4.8 target="signal_hook_registry"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/signal-hook-registry-0b3276e1d79b75d3/lib-signal_hook_registry`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: <cargo::core::compiler::build_runner::BuildRunner>::compile
+   9: cargo::ops::cargo_compile::compile_ws
+  10: cargo::ops::cargo_compile::compile_with_exec
+  11: cargo::ops::cargo_compile::compile
+  12: cargo::commands::check::exec
+  13: <cargo::cli::Exec>::exec
+  14: cargo::main
+  15: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  16: std::rt::lang_start::<()>::{closure#0}
+  17: std::rt::lang_start_internal
+  18: _main
+   0.357381458s  INFO prepare_target{force=false package_id=errno v0.3.14 target="errno"}: cargo::core::compiler::fingerprint: fingerprint error for errno v0.3.14/Check { test: false }/TargetInner { ..: lib_target("errno", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/errno-0.3.14/src/lib.rs", Edition2018) }
+   0.357385208s  INFO prepare_target{force=false package_id=errno v0.3.14 target="errno"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/errno-6c2fc048e9f4d1be/lib-errno`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  10: cargo::ops::cargo_compile::compile_ws
+  11: cargo::ops::cargo_compile::compile_with_exec
+  12: cargo::ops::cargo_compile::compile
+  13: cargo::commands::check::exec
+  14: <cargo::cli::Exec>::exec
+  15: cargo::main
+  16: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  17: std::rt::lang_start::<()>::{closure#0}
+  18: std::rt::lang_start_internal
+  19: _main
+   0.357515416s  INFO prepare_target{force=false package_id=socket2 v0.6.4 target="socket2"}: cargo::core::compiler::fingerprint: fingerprint error for socket2 v0.6.4/Check { test: false }/TargetInner { ..: lib_target("socket2", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/socket2-0.6.4/src/lib.rs", Edition2021) }
+   0.357518875s  INFO prepare_target{force=false package_id=socket2 v0.6.4 target="socket2"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/socket2-1bde7ce8122ffebe/lib-socket2`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: <cargo::core::compiler::build_runner::BuildRunner>::compile
+   9: cargo::ops::cargo_compile::compile_ws
+  10: cargo::ops::cargo_compile::compile_with_exec
+  11: cargo::ops::cargo_compile::compile
+  12: cargo::commands::check::exec
+  13: <cargo::cli::Exec>::exec
+  14: cargo::main
+  15: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  16: std::rt::lang_start::<()>::{closure#0}
+  17: std::rt::lang_start_internal
+  18: _main
+   0.357709666s  INFO prepare_target{force=false package_id=client v0.1.0 (/Users/martin/Desktop/The-Answer-Protocol/test_tap/client) target="client"}: cargo::core::compiler::fingerprint: fingerprint error for client v0.1.0 (/Users/martin/Desktop/The-Answer-Protocol/test_tap/client)/Check { test: true }/TargetInner { name: "client", doc: true, ..: with_path("/Users/martin/Desktop/The-Answer-Protocol/test_tap/client/src/main.rs", Edition2021) }
+   0.357714000s  INFO prepare_target{force=false package_id=client v0.1.0 (/Users/martin/Desktop/The-Answer-Protocol/test_tap/client) target="client"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/client-d556c3d410352583/test-bin-client`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: <cargo::core::compiler::build_runner::BuildRunner>::compile
+   7: cargo::ops::cargo_compile::compile_ws
+   8: cargo::ops::cargo_compile::compile_with_exec
+   9: cargo::ops::cargo_compile::compile
+  10: cargo::commands::check::exec
+  11: <cargo::cli::Exec>::exec
+  12: cargo::main
+  13: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  14: std::rt::lang_start::<()>::{closure#0}
+  15: std::rt::lang_start_internal
+  16: _main
+   0.374237750s  INFO prepare_target{force=false package_id=client_bevy v0.1.0 (/Users/martin/Desktop/The-Answer-Protocol/test_tap/client_bevy) target="client_bevy"}: cargo::core::compiler::fingerprint: fingerprint error for client_bevy v0.1.0 (/Users/martin/Desktop/The-Answer-Protocol/test_tap/client_bevy)/Check { test: false }/TargetInner { name: "client_bevy", doc: true, ..: with_path("/Users/martin/Desktop/The-Answer-Protocol/test_tap/client_bevy/src/main.rs", Edition2024) }
+   0.374252958s  INFO prepare_target{force=false package_id=client_bevy v0.1.0 (/Users/martin/Desktop/The-Answer-Protocol/test_tap/client_bevy) target="client_bevy"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/client_bevy-b705323dbc735d7a/bin-client_bevy`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: <cargo::core::compiler::build_runner::BuildRunner>::compile
+   7: cargo::ops::cargo_compile::compile_ws
+   8: cargo::ops::cargo_compile::compile_with_exec
+   9: cargo::ops::cargo_compile::compile
+  10: cargo::commands::check::exec
+  11: <cargo::cli::Exec>::exec
+  12: cargo::main
+  13: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  14: std::rt::lang_start::<()>::{closure#0}
+  15: std::rt::lang_start_internal
+  16: _main
+   0.374952250s  INFO prepare_target{force=false package_id=bevy v0.13.2 target="bevy"}: cargo::core::compiler::fingerprint: fingerprint error for bevy v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy-0.13.2/src/lib.rs", Edition2021) }
+   0.374957875s  INFO prepare_target{force=false package_id=bevy v0.13.2 target="bevy"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy-8878d24321499507/lib-bevy`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: <cargo::core::compiler::build_runner::BuildRunner>::compile
+   8: cargo::ops::cargo_compile::compile_ws
+   9: cargo::ops::cargo_compile::compile_with_exec
+  10: cargo::ops::cargo_compile::compile
+  11: cargo::commands::check::exec
+  12: <cargo::cli::Exec>::exec
+  13: cargo::main
+  14: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  15: std::rt::lang_start::<()>::{closure#0}
+  16: std::rt::lang_start_internal
+  17: _main
+   0.375527291s  INFO prepare_target{force=false package_id=bevy_internal v0.13.2 target="bevy_internal"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_internal v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_internal", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_internal-0.13.2/src/lib.rs", Edition2021) }
+   0.375532250s  INFO prepare_target{force=false package_id=bevy_internal v0.13.2 target="bevy_internal"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_internal-147fb9ae3c03d84a/lib-bevy_internal`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: <cargo::core::compiler::build_runner::BuildRunner>::compile
+   9: cargo::ops::cargo_compile::compile_ws
+  10: cargo::ops::cargo_compile::compile_with_exec
+  11: cargo::ops::cargo_compile::compile
+  12: cargo::commands::check::exec
+  13: <cargo::cli::Exec>::exec
+  14: cargo::main
+  15: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  16: std::rt::lang_start::<()>::{closure#0}
+  17: std::rt::lang_start_internal
+  18: _main
+   0.376479958s  INFO prepare_target{force=false package_id=bevy_a11y v0.13.2 target="bevy_a11y"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_a11y v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_a11y", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_a11y-0.13.2/src/lib.rs", Edition2021) }
+   0.376484083s  INFO prepare_target{force=false package_id=bevy_a11y v0.13.2 target="bevy_a11y"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_a11y-fce2b7f883366b13/lib-bevy_a11y`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  10: cargo::ops::cargo_compile::compile_ws
+  11: cargo::ops::cargo_compile::compile_with_exec
+  12: cargo::ops::cargo_compile::compile
+  13: cargo::commands::check::exec
+  14: <cargo::cli::Exec>::exec
+  15: cargo::main
+  16: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  17: std::rt::lang_start::<()>::{closure#0}
+  18: std::rt::lang_start_internal
+  19: _main
+   0.376755083s  INFO prepare_target{force=false package_id=bevy_app v0.13.2 target="bevy_app"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_app v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_app", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_app-0.13.2/src/lib.rs", Edition2021) }
+   0.376758750s  INFO prepare_target{force=false package_id=bevy_app v0.13.2 target="bevy_app"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_app-48fb97a34fd0d649/lib-bevy_app`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  11: cargo::ops::cargo_compile::compile_ws
+  12: cargo::ops::cargo_compile::compile_with_exec
+  13: cargo::ops::cargo_compile::compile
+  14: cargo::commands::check::exec
+  15: <cargo::cli::Exec>::exec
+  16: cargo::main
+  17: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  18: std::rt::lang_start::<()>::{closure#0}
+  19: std::rt::lang_start_internal
+  20: _main
+   0.377404083s  INFO prepare_target{force=false package_id=bevy_ecs v0.13.2 target="bevy_ecs"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_ecs v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_ecs", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_ecs-0.13.2/src/lib.rs", Edition2021) }
+   0.377408625s  INFO prepare_target{force=false package_id=bevy_ecs v0.13.2 target="bevy_ecs"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_ecs-e8c49e0e19c803f3/lib-bevy_ecs`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  12: cargo::ops::cargo_compile::compile_ws
+  13: cargo::ops::cargo_compile::compile_with_exec
+  14: cargo::ops::cargo_compile::compile
+  15: cargo::commands::check::exec
+  16: <cargo::cli::Exec>::exec
+  17: cargo::main
+  18: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  19: std::rt::lang_start::<()>::{closure#0}
+  20: std::rt::lang_start_internal
+  21: _main
+   0.379579375s  INFO prepare_target{force=false package_id=bevy_reflect v0.13.2 target="bevy_reflect"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_reflect v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_reflect", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_reflect-0.13.2/src/lib.rs", Edition2021) }
+   0.379586291s  INFO prepare_target{force=false package_id=bevy_reflect v0.13.2 target="bevy_reflect"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_reflect-17c1b491572d4efe/lib-bevy_reflect`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  13: cargo::ops::cargo_compile::compile_ws
+  14: cargo::ops::cargo_compile::compile_with_exec
+  15: cargo::ops::cargo_compile::compile
+  16: cargo::commands::check::exec
+  17: <cargo::cli::Exec>::exec
+  18: cargo::main
+  19: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  20: std::rt::lang_start::<()>::{closure#0}
+  21: std::rt::lang_start_internal
+  22: _main
+   0.379990916s  INFO prepare_target{force=false package_id=bevy_math v0.13.2 target="bevy_math"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_math v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_math", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_math-0.13.2/src/lib.rs", Edition2021) }
+   0.379995291s  INFO prepare_target{force=false package_id=bevy_math v0.13.2 target="bevy_math"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_math-3ea31911023fad4a/lib-bevy_math`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: cargo::core::compiler::compile
+  13: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  14: cargo::ops::cargo_compile::compile_ws
+  15: cargo::ops::cargo_compile::compile_with_exec
+  16: cargo::ops::cargo_compile::compile
+  17: cargo::commands::check::exec
+  18: <cargo::cli::Exec>::exec
+  19: cargo::main
+  20: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  21: std::rt::lang_start::<()>::{closure#0}
+  22: std::rt::lang_start_internal
+  23: _main
+   0.380165875s  INFO prepare_target{force=false package_id=glam v0.25.0 target="glam"}: cargo::core::compiler::fingerprint: fingerprint error for glam v0.25.0/Check { test: false }/TargetInner { name_inferred: true, benched: false, ..: lib_target("glam", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/glam-0.25.0/src/lib.rs", Edition2021) }
+   0.380169833s  INFO prepare_target{force=false package_id=glam v0.25.0 target="glam"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/glam-a7da812cdf505bb7/lib-glam`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: cargo::core::compiler::compile
+  13: cargo::core::compiler::compile
+  14: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  15: cargo::ops::cargo_compile::compile_ws
+  16: cargo::ops::cargo_compile::compile_with_exec
+  17: cargo::ops::cargo_compile::compile
+  18: cargo::commands::check::exec
+  19: <cargo::cli::Exec>::exec
+  20: cargo::main
+  21: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  22: std::rt::lang_start::<()>::{closure#0}
+  23: std::rt::lang_start_internal
+  24: _main
+   0.380947333s  INFO prepare_target{force=false package_id=bevy_utils v0.13.2 target="bevy_utils"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_utils v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_utils", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_utils-0.13.2/src/lib.rs", Edition2021) }
+   0.380952791s  INFO prepare_target{force=false package_id=bevy_utils v0.13.2 target="bevy_utils"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_utils-a8b4e71e97ff628f/lib-bevy_utils`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: cargo::core::compiler::compile
+  13: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  14: cargo::ops::cargo_compile::compile_ws
+  15: cargo::ops::cargo_compile::compile_with_exec
+  16: cargo::ops::cargo_compile::compile
+  17: cargo::commands::check::exec
+  18: <cargo::cli::Exec>::exec
+  19: cargo::main
+  20: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  21: std::rt::lang_start::<()>::{closure#0}
+  22: std::rt::lang_start_internal
+  23: _main
+   0.381343750s  INFO prepare_target{force=false package_id=ahash v0.8.12 target="ahash"}: cargo::core::compiler::fingerprint: fingerprint error for ahash v0.8.12/Check { test: false }/TargetInner { ..: lib_target("ahash", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ahash-0.8.12/src/lib.rs", Edition2018) }
+   0.381347625s  INFO prepare_target{force=false package_id=ahash v0.8.12 target="ahash"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/ahash-f8103b29de7916b7/lib-ahash`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: cargo::core::compiler::compile
+  13: cargo::core::compiler::compile
+  14: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  15: cargo::ops::cargo_compile::compile_ws
+  16: cargo::ops::cargo_compile::compile_with_exec
+  17: cargo::ops::cargo_compile::compile
+  18: cargo::commands::check::exec
+  19: <cargo::cli::Exec>::exec
+  20: cargo::main
+  21: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  22: std::rt::lang_start::<()>::{closure#0}
+  23: std::rt::lang_start_internal
+  24: _main
+   0.382225083s  INFO prepare_target{force=false package_id=zerocopy v0.8.52 target="zerocopy"}: cargo::core::compiler::fingerprint: fingerprint error for zerocopy v0.8.52/Check { test: false }/TargetInner { ..: lib_target("zerocopy", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zerocopy-0.8.52/src/lib.rs", Edition2021) }
+   0.382231833s  INFO prepare_target{force=false package_id=zerocopy v0.8.52 target="zerocopy"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/zerocopy-23691c4b1bba81e6/lib-zerocopy`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: cargo::core::compiler::compile
+  13: cargo::core::compiler::compile
+  14: cargo::core::compiler::compile
+  15: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  16: cargo::ops::cargo_compile::compile_ws
+  17: cargo::ops::cargo_compile::compile_with_exec
+  18: cargo::ops::cargo_compile::compile
+  19: cargo::commands::check::exec
+  20: <cargo::cli::Exec>::exec
+  21: cargo::main
+  22: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  23: std::rt::lang_start::<()>::{closure#0}
+  24: std::rt::lang_start_internal
+  25: _main
+   0.382627416s  INFO prepare_target{force=false package_id=hashbrown v0.14.5 target="hashbrown"}: cargo::core::compiler::fingerprint: fingerprint error for hashbrown v0.14.5/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("hashbrown", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hashbrown-0.14.5/src/lib.rs", Edition2021) }
+   0.382632125s  INFO prepare_target{force=false package_id=hashbrown v0.14.5 target="hashbrown"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/hashbrown-ad845ec4d481ad2e/lib-hashbrown`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: cargo::core::compiler::compile
+  13: cargo::core::compiler::compile
+  14: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  15: cargo::ops::cargo_compile::compile_ws
+  16: cargo::ops::cargo_compile::compile_with_exec
+  17: cargo::ops::cargo_compile::compile
+  18: cargo::commands::check::exec
+  19: <cargo::cli::Exec>::exec
+  20: cargo::main
+  21: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  22: std::rt::lang_start::<()>::{closure#0}
+  23: std::rt::lang_start_internal
+  24: _main
+   0.388460750s  INFO prepare_target{force=false package_id=bevy_animation v0.13.2 target="bevy_animation"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_animation v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_animation", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_animation-0.13.2/src/lib.rs", Edition2021) }
+   0.388469625s  INFO prepare_target{force=false package_id=bevy_animation v0.13.2 target="bevy_animation"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_animation-178af0aa6a1e82cb/lib-bevy_animation`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  10: cargo::ops::cargo_compile::compile_ws
+  11: cargo::ops::cargo_compile::compile_with_exec
+  12: cargo::ops::cargo_compile::compile
+  13: cargo::commands::check::exec
+  14: <cargo::cli::Exec>::exec
+  15: cargo::main
+  16: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  17: std::rt::lang_start::<()>::{closure#0}
+  18: std::rt::lang_start_internal
+  19: _main
+   0.389217875s  INFO prepare_target{force=false package_id=bevy_asset v0.13.2 target="bevy_asset"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_asset v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_asset", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_asset-0.13.2/src/lib.rs", Edition2021) }
+   0.389222833s  INFO prepare_target{force=false package_id=bevy_asset v0.13.2 target="bevy_asset"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_asset-585764bd9d97f7a5/lib-bevy_asset`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  11: cargo::ops::cargo_compile::compile_ws
+  12: cargo::ops::cargo_compile::compile_with_exec
+  13: cargo::ops::cargo_compile::compile
+  14: cargo::commands::check::exec
+  15: <cargo::cli::Exec>::exec
+  16: cargo::main
+  17: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  18: std::rt::lang_start::<()>::{closure#0}
+  19: std::rt::lang_start_internal
+  20: _main
+   0.389816791s  INFO prepare_target{force=false package_id=async-broadcast v0.5.1 target="async_broadcast"}: cargo::core::compiler::fingerprint: fingerprint error for async-broadcast v0.5.1/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("async_broadcast", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-broadcast-0.5.1/src/lib.rs", Edition2018) }
+   0.389820708s  INFO prepare_target{force=false package_id=async-broadcast v0.5.1 target="async_broadcast"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/async-broadcast-e30f4878288798a3/lib-async_broadcast`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  12: cargo::ops::cargo_compile::compile_ws
+  13: cargo::ops::cargo_compile::compile_with_exec
+  14: cargo::ops::cargo_compile::compile
+  15: cargo::commands::check::exec
+  16: <cargo::cli::Exec>::exec
+  17: cargo::main
+  18: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  19: std::rt::lang_start::<()>::{closure#0}
+  20: std::rt::lang_start_internal
+  21: _main
+   0.389971083s  INFO prepare_target{force=false package_id=event-listener v2.5.3 target="event_listener"}: cargo::core::compiler::fingerprint: fingerprint error for event-listener v2.5.3/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("event_listener", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/event-listener-2.5.3/src/lib.rs", Edition2018) }
+   0.389974750s  INFO prepare_target{force=false package_id=event-listener v2.5.3 target="event_listener"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/event-listener-078ce30c5486cbca/lib-event_listener`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  13: cargo::ops::cargo_compile::compile_ws
+  14: cargo::ops::cargo_compile::compile_with_exec
+  15: cargo::ops::cargo_compile::compile
+  16: cargo::commands::check::exec
+  17: <cargo::cli::Exec>::exec
+  18: cargo::main
+  19: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  20: std::rt::lang_start::<()>::{closure#0}
+  21: std::rt::lang_start_internal
+  22: _main
+   0.390080375s  INFO prepare_target{force=false package_id=async-fs v2.2.0 target="async_fs"}: cargo::core::compiler::fingerprint: fingerprint error for async-fs v2.2.0/Check { test: false }/TargetInner { ..: lib_target("async_fs", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-fs-2.2.0/src/lib.rs", Edition2021) }
+   0.390083791s  INFO prepare_target{force=false package_id=async-fs v2.2.0 target="async_fs"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/async-fs-acde18bedf56184b/lib-async_fs`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  12: cargo::ops::cargo_compile::compile_ws
+  13: cargo::ops::cargo_compile::compile_with_exec
+  14: cargo::ops::cargo_compile::compile
+  15: cargo::commands::check::exec
+  16: <cargo::cli::Exec>::exec
+  17: cargo::main
+  18: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  19: std::rt::lang_start::<()>::{closure#0}
+  20: std::rt::lang_start_internal
+  21: _main
+   0.390260208s  INFO prepare_target{force=false package_id=async-lock v3.4.2 target="async_lock"}: cargo::core::compiler::fingerprint: fingerprint error for async-lock v3.4.2/Check { test: false }/TargetInner { ..: lib_target("async_lock", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-lock-3.4.2/src/lib.rs", Edition2021) }
+   0.390263916s  INFO prepare_target{force=false package_id=async-lock v3.4.2 target="async_lock"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/async-lock-7c523e76ffd9b86d/lib-async_lock`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  13: cargo::ops::cargo_compile::compile_ws
+  14: cargo::ops::cargo_compile::compile_with_exec
+  15: cargo::ops::cargo_compile::compile
+  16: cargo::commands::check::exec
+  17: <cargo::cli::Exec>::exec
+  18: cargo::main
+  19: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  20: std::rt::lang_start::<()>::{closure#0}
+  21: std::rt::lang_start_internal
+  22: _main
+   0.390444791s  INFO prepare_target{force=false package_id=blocking v1.6.2 target="blocking"}: cargo::core::compiler::fingerprint: fingerprint error for blocking v1.6.2/Check { test: false }/TargetInner { ..: lib_target("blocking", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/blocking-1.6.2/src/lib.rs", Edition2021) }
+   0.390448000s  INFO prepare_target{force=false package_id=blocking v1.6.2 target="blocking"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/blocking-e6e8b24538f05642/lib-blocking`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  13: cargo::ops::cargo_compile::compile_ws
+  14: cargo::ops::cargo_compile::compile_with_exec
+  15: cargo::ops::cargo_compile::compile
+  16: cargo::commands::check::exec
+  17: <cargo::cli::Exec>::exec
+  18: cargo::main
+  19: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  20: std::rt::lang_start::<()>::{closure#0}
+  21: std::rt::lang_start_internal
+  22: _main
+   0.390780458s  INFO prepare_target{force=false package_id=bevy_log v0.13.2 target="bevy_log"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_log v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_log", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_log-0.13.2/src/lib.rs", Edition2021) }
+   0.390785250s  INFO prepare_target{force=false package_id=bevy_log v0.13.2 target="bevy_log"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_log-9be11ce771665ec3/lib-bevy_log`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  12: cargo::ops::cargo_compile::compile_ws
+  13: cargo::ops::cargo_compile::compile_with_exec
+  14: cargo::ops::cargo_compile::compile
+  15: cargo::commands::check::exec
+  16: <cargo::cli::Exec>::exec
+  17: cargo::main
+  18: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  19: std::rt::lang_start::<()>::{closure#0}
+  20: std::rt::lang_start_internal
+  21: _main
+   0.391319958s  INFO prepare_target{force=false package_id=tracing-subscriber v0.3.23 target="tracing_subscriber"}: cargo::core::compiler::fingerprint: fingerprint error for tracing-subscriber v0.3.23/Check { test: false }/TargetInner { ..: lib_target("tracing_subscriber", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tracing-subscriber-0.3.23/src/lib.rs", Edition2018) }
+   0.391325416s  INFO prepare_target{force=false package_id=tracing-subscriber v0.3.23 target="tracing_subscriber"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/tracing-subscriber-68de8863d454d336/lib-tracing_subscriber`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  13: cargo::ops::cargo_compile::compile_ws
+  14: cargo::ops::cargo_compile::compile_with_exec
+  15: cargo::ops::cargo_compile::compile
+  16: cargo::commands::check::exec
+  17: <cargo::cli::Exec>::exec
+  18: cargo::main
+  19: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  20: std::rt::lang_start::<()>::{closure#0}
+  21: std::rt::lang_start_internal
+  22: _main
+   0.391729041s  INFO prepare_target{force=false package_id=matchers v0.2.0 target="matchers"}: cargo::core::compiler::fingerprint: fingerprint error for matchers v0.2.0/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("matchers", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/matchers-0.2.0/src/lib.rs", Edition2018) }
+   0.391733166s  INFO prepare_target{force=false package_id=matchers v0.2.0 target="matchers"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/matchers-e2c6395bab0c9a02/lib-matchers`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: cargo::core::compiler::compile
+  13: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  14: cargo::ops::cargo_compile::compile_ws
+  15: cargo::ops::cargo_compile::compile_with_exec
+  16: cargo::ops::cargo_compile::compile
+  17: cargo::commands::check::exec
+  18: <cargo::cli::Exec>::exec
+  19: cargo::main
+  20: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  21: std::rt::lang_start::<()>::{closure#0}
+  22: std::rt::lang_start_internal
+  23: _main
+   0.391874208s  INFO prepare_target{force=false package_id=regex-automata v0.4.14 target="regex_automata"}: cargo::core::compiler::fingerprint: fingerprint error for regex-automata v0.4.14/Check { test: false }/TargetInner { benched: false, ..: lib_target("regex_automata", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/regex-automata-0.4.14/src/lib.rs", Edition2021) }
+   0.391878208s  INFO prepare_target{force=false package_id=regex-automata v0.4.14 target="regex_automata"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/regex-automata-eaca58e1e571ce92/lib-regex_automata`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: cargo::core::compiler::compile
+  13: cargo::core::compiler::compile
+  14: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  15: cargo::ops::cargo_compile::compile_ws
+  16: cargo::ops::cargo_compile::compile_with_exec
+  17: cargo::ops::cargo_compile::compile
+  18: cargo::commands::check::exec
+  19: <cargo::cli::Exec>::exec
+  20: cargo::main
+  21: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  22: std::rt::lang_start::<()>::{closure#0}
+  23: std::rt::lang_start_internal
+  24: _main
+   0.394347500s  INFO prepare_target{force=false package_id=blake3 v1.8.5 target="blake3"}: cargo::core::compiler::fingerprint: fingerprint error for blake3 v1.8.5/Check { test: false }/TargetInner { ..: lib_target("blake3", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/blake3-1.8.5/src/lib.rs", Edition2024) }
+   0.394353708s  INFO prepare_target{force=false package_id=blake3 v1.8.5 target="blake3"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/blake3-7417bc24cc73a35d/lib-blake3`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  12: cargo::ops::cargo_compile::compile_ws
+  13: cargo::ops::cargo_compile::compile_with_exec
+  14: cargo::ops::cargo_compile::compile
+  15: cargo::commands::check::exec
+  16: <cargo::cli::Exec>::exec
+  17: cargo::main
+  18: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  19: std::rt::lang_start::<()>::{closure#0}
+  20: std::rt::lang_start_internal
+  21: _main
+   0.394604666s  INFO prepare_target{force=false package_id=arrayref v0.3.9 target="arrayref"}: cargo::core::compiler::fingerprint: fingerprint error for arrayref v0.3.9/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("arrayref", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/arrayref-0.3.9/src/lib.rs", Edition2015) }
+   0.394608708s  INFO prepare_target{force=false package_id=arrayref v0.3.9 target="arrayref"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/arrayref-019d513db09d74a2/lib-arrayref`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  13: cargo::ops::cargo_compile::compile_ws
+  14: cargo::ops::cargo_compile::compile_with_exec
+  15: cargo::ops::cargo_compile::compile
+  16: cargo::commands::check::exec
+  17: <cargo::cli::Exec>::exec
+  18: cargo::main
+  19: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  20: std::rt::lang_start::<()>::{closure#0}
+  21: std::rt::lang_start_internal
+  22: _main
+   0.395096833s  INFO prepare_target{force=false package_id=constant_time_eq v0.4.2 target="constant_time_eq"}: cargo::core::compiler::fingerprint: fingerprint error for constant_time_eq v0.4.2/Check { test: false }/TargetInner { ..: lib_target("constant_time_eq", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/constant_time_eq-0.4.2/src/lib.rs", Edition2024) }
+   0.395101208s  INFO prepare_target{force=false package_id=constant_time_eq v0.4.2 target="constant_time_eq"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/constant_time_eq-22957cf51f088daa/lib-constant_time_eq`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  13: cargo::ops::cargo_compile::compile_ws
+  14: cargo::ops::cargo_compile::compile_with_exec
+  15: cargo::ops::cargo_compile::compile
+  16: cargo::commands::check::exec
+  17: <cargo::cli::Exec>::exec
+  18: cargo::main
+  19: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  20: std::rt::lang_start::<()>::{closure#0}
+  21: std::rt::lang_start_internal
+  22: _main
+   0.395246833s  INFO prepare_target{force=false package_id=ron v0.8.1 target="ron"}: cargo::core::compiler::fingerprint: fingerprint error for ron v0.8.1/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("ron", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ron-0.8.1/src/lib.rs", Edition2021) }
+   0.395250375s  INFO prepare_target{force=false package_id=ron v0.8.1 target="ron"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/ron-812042050224c0d6/lib-ron`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  12: cargo::ops::cargo_compile::compile_ws
+  13: cargo::ops::cargo_compile::compile_with_exec
+  14: cargo::ops::cargo_compile::compile
+  15: cargo::commands::check::exec
+  16: <cargo::cli::Exec>::exec
+  17: cargo::main
+  18: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  19: std::rt::lang_start::<()>::{closure#0}
+  20: std::rt::lang_start_internal
+  21: _main
+   0.395528041s  INFO prepare_target{force=false package_id=bevy_core v0.13.2 target="bevy_core"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_core v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_core", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_core-0.13.2/src/lib.rs", Edition2021) }
+   0.395531875s  INFO prepare_target{force=false package_id=bevy_core v0.13.2 target="bevy_core"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_core-44d510e9d1ad2568/lib-bevy_core`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  11: cargo::ops::cargo_compile::compile_ws
+  12: cargo::ops::cargo_compile::compile_with_exec
+  13: cargo::ops::cargo_compile::compile
+  14: cargo::commands::check::exec
+  15: <cargo::cli::Exec>::exec
+  16: cargo::main
+  17: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  18: std::rt::lang_start::<()>::{closure#0}
+  19: std::rt::lang_start_internal
+  20: _main
+   0.396312666s  INFO prepare_target{force=false package_id=bevy_hierarchy v0.13.2 target="bevy_hierarchy"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_hierarchy v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_hierarchy", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_hierarchy-0.13.2/src/lib.rs", Edition2021) }
+   0.396319916s  INFO prepare_target{force=false package_id=bevy_hierarchy v0.13.2 target="bevy_hierarchy"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_hierarchy-a7297e5cd9ac5317/lib-bevy_hierarchy`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  11: cargo::ops::cargo_compile::compile_ws
+  12: cargo::ops::cargo_compile::compile_with_exec
+  13: cargo::ops::cargo_compile::compile
+  14: cargo::commands::check::exec
+  15: <cargo::cli::Exec>::exec
+  16: cargo::main
+  17: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  18: std::rt::lang_start::<()>::{closure#0}
+  19: std::rt::lang_start_internal
+  20: _main
+   0.396665125s  INFO prepare_target{force=false package_id=bevy_render v0.13.2 target="bevy_render"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_render v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_render", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_render-0.13.2/src/lib.rs", Edition2021) }
+   0.396669250s  INFO prepare_target{force=false package_id=bevy_render v0.13.2 target="bevy_render"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_render-4f086d5906bd74f2/lib-bevy_render`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  11: cargo::ops::cargo_compile::compile_ws
+  12: cargo::ops::cargo_compile::compile_with_exec
+  13: cargo::ops::cargo_compile::compile
+  14: cargo::commands::check::exec
+  15: <cargo::cli::Exec>::exec
+  16: cargo::main
+  17: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  18: std::rt::lang_start::<()>::{closure#0}
+  19: std::rt::lang_start_internal
+  20: _main
+   0.397787791s  INFO prepare_target{force=false package_id=bevy_mikktspace v0.13.2 target="bevy_mikktspace"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_mikktspace v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_mikktspace", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_mikktspace-0.13.2/src/lib.rs", Edition2021) }
+   0.397792208s  INFO prepare_target{force=false package_id=bevy_mikktspace v0.13.2 target="bevy_mikktspace"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_mikktspace-5a54eb7872c25ee0/lib-bevy_mikktspace`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  12: cargo::ops::cargo_compile::compile_ws
+  13: cargo::ops::cargo_compile::compile_with_exec
+  14: cargo::ops::cargo_compile::compile
+  15: cargo::commands::check::exec
+  16: <cargo::cli::Exec>::exec
+  17: cargo::main
+  18: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  19: std::rt::lang_start::<()>::{closure#0}
+  20: std::rt::lang_start_internal
+  21: _main
+   0.398015500s  INFO prepare_target{force=false package_id=bevy_time v0.13.2 target="bevy_time"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_time v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_time", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_time-0.13.2/src/lib.rs", Edition2021) }
+   0.398019041s  INFO prepare_target{force=false package_id=bevy_time v0.13.2 target="bevy_time"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_time-c98628a5cdebbe19/lib-bevy_time`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  12: cargo::ops::cargo_compile::compile_ws
+  13: cargo::ops::cargo_compile::compile_with_exec
+  14: cargo::ops::cargo_compile::compile
+  15: cargo::commands::check::exec
+  16: <cargo::cli::Exec>::exec
+  17: cargo::main
+  18: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  19: std::rt::lang_start::<()>::{closure#0}
+  20: std::rt::lang_start_internal
+  21: _main
+   0.398344083s  INFO prepare_target{force=false package_id=bevy_transform v0.13.2 target="bevy_transform"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_transform v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_transform", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_transform-0.13.2/src/lib.rs", Edition2021) }
+   0.398347666s  INFO prepare_target{force=false package_id=bevy_transform v0.13.2 target="bevy_transform"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_transform-6089c73a53a67f80/lib-bevy_transform`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  12: cargo::ops::cargo_compile::compile_ws
+  13: cargo::ops::cargo_compile::compile_with_exec
+  14: cargo::ops::cargo_compile::compile
+  15: cargo::commands::check::exec
+  16: <cargo::cli::Exec>::exec
+  17: cargo::main
+  18: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  19: std::rt::lang_start::<()>::{closure#0}
+  20: std::rt::lang_start_internal
+  21: _main
+   0.398673333s  INFO prepare_target{force=false package_id=bevy_window v0.13.2 target="bevy_window"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_window v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_window", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_window-0.13.2/src/lib.rs", Edition2021) }
+   0.398676916s  INFO prepare_target{force=false package_id=bevy_window v0.13.2 target="bevy_window"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_window-1805aaa7f4aa29f1/lib-bevy_window`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  12: cargo::ops::cargo_compile::compile_ws
+  13: cargo::ops::cargo_compile::compile_with_exec
+  14: cargo::ops::cargo_compile::compile
+  15: cargo::commands::check::exec
+  16: <cargo::cli::Exec>::exec
+  17: cargo::main
+  18: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  19: std::rt::lang_start::<()>::{closure#0}
+  20: std::rt::lang_start_internal
+  21: _main
+   0.399063250s  INFO prepare_target{force=false package_id=bevy_input v0.13.2 target="bevy_input"}: cargo::core::compiler::fingerprint: fingerprint error for bevy_input v0.13.2/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("bevy_input", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bevy_input-0.13.2/src/lib.rs", Edition2021) }
+   0.399066708s  INFO prepare_target{force=false package_id=bevy_input v0.13.2 target="bevy_input"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/bevy_input-561a9e3af91b8ccc/lib-bevy_input`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  13: cargo::ops::cargo_compile::compile_ws
+  14: cargo::ops::cargo_compile::compile_with_exec
+  15: cargo::ops::cargo_compile::compile
+  16: cargo::commands::check::exec
+  17: <cargo::cli::Exec>::exec
+  18: cargo::main
+  19: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  20: std::rt::lang_start::<()>::{closure#0}
+  21: std::rt::lang_start_internal
+  22: _main
+   0.399585166s  INFO prepare_target{force=false package_id=encase v0.7.0 target="encase"}: cargo::core::compiler::fingerprint: fingerprint error for encase v0.7.0/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("encase", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/encase-0.7.0/src/lib.rs", Edition2021) }
+   0.399589250s  INFO prepare_target{force=false package_id=encase v0.7.0 target="encase"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/encase-6f42312b1a3710e0/lib-encase`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  12: cargo::ops::cargo_compile::compile_ws
+  13: cargo::ops::cargo_compile::compile_with_exec
+  14: cargo::ops::cargo_compile::compile
+  15: cargo::commands::check::exec
+  16: <cargo::cli::Exec>::exec
+  17: cargo::main
+  18: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  19: std::rt::lang_start::<()>::{closure#0}
+  20: std::rt::lang_start_internal
+  21: _main
+   0.399824208s  INFO prepare_target{force=false package_id=const_panic v0.2.15 target="const_panic"}: cargo::core::compiler::fingerprint: fingerprint error for const_panic v0.2.15/Check { test: false }/TargetInner { ..: lib_target("const_panic", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const_panic-0.2.15/src/lib.rs", Edition2021) }
+   0.399827666s  INFO prepare_target{force=false package_id=const_panic v0.2.15 target="const_panic"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/const_panic-844e8d7e925f4656/lib-const_panic`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  13: cargo::ops::cargo_compile::compile_ws
+  14: cargo::ops::cargo_compile::compile_with_exec
+  15: cargo::ops::cargo_compile::compile
+  16: cargo::commands::check::exec
+  17: <cargo::cli::Exec>::exec
+  18: cargo::main
+  19: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  20: std::rt::lang_start::<()>::{closure#0}
+  21: std::rt::lang_start_internal
+  22: _main
+   0.399981458s  INFO prepare_target{force=false package_id=typewit v1.15.2 target="typewit"}: cargo::core::compiler::fingerprint: fingerprint error for typewit v1.15.2/Check { test: false }/TargetInner { ..: lib_target("typewit", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/typewit-1.15.2/src/lib.rs", Edition2021) }
+   0.399984666s  INFO prepare_target{force=false package_id=typewit v1.15.2 target="typewit"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/typewit-42541a9840667b04/lib-typewit`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: cargo::core::compiler::compile
+  13: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  14: cargo::ops::cargo_compile::compile_ws
+  15: cargo::ops::cargo_compile::compile_with_exec
+  16: cargo::ops::cargo_compile::compile
+  17: cargo::commands::check::exec
+  18: <cargo::cli::Exec>::exec
+  19: cargo::main
+  20: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  21: std::rt::lang_start::<()>::{closure#0}
+  22: std::rt::lang_start_internal
+  23: _main
+   0.400169125s  INFO prepare_target{force=false package_id=hexasphere v10.0.0 target="hexasphere"}: cargo::core::compiler::fingerprint: fingerprint error for hexasphere v10.0.0/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("hexasphere", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/hexasphere-10.0.0/src/lib.rs", Edition2018) }
+   0.400172500s  INFO prepare_target{force=false package_id=hexasphere v10.0.0 target="hexasphere"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/hexasphere-370028fa86368274/lib-hexasphere`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  12: cargo::ops::cargo_compile::compile_ws
+  13: cargo::ops::cargo_compile::compile_with_exec
+  14: cargo::ops::cargo_compile::compile
+  15: cargo::commands::check::exec
+  16: <cargo::cli::Exec>::exec
+  17: cargo::main
+  18: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  19: std::rt::lang_start::<()>::{closure#0}
+  20: std::rt::lang_start_internal
+  21: _main
+   0.400364166s  INFO prepare_target{force=false package_id=constgebra v0.1.4 target="constgebra"}: cargo::core::compiler::fingerprint: fingerprint error for constgebra v0.1.4/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("constgebra", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/constgebra-0.1.4/src/lib.rs", Edition2021) }
+   0.400367666s  INFO prepare_target{force=false package_id=constgebra v0.1.4 target="constgebra"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/constgebra-070d44cedd92e49f/lib-constgebra`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  13: cargo::ops::cargo_compile::compile_ws
+  14: cargo::ops::cargo_compile::compile_with_exec
+  15: cargo::ops::cargo_compile::compile
+  16: cargo::commands::check::exec
+  17: <cargo::cli::Exec>::exec
+  18: cargo::main
+  19: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  20: std::rt::lang_start::<()>::{closure#0}
+  21: std::rt::lang_start_internal
+  22: _main
+   0.400526291s  INFO prepare_target{force=false package_id=const_soft_float v0.1.4 target="const_soft_float"}: cargo::core::compiler::fingerprint: fingerprint error for const_soft_float v0.1.4/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("const_soft_float", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/const_soft_float-0.1.4/src/lib.rs", Edition2021) }
+   0.400529875s  INFO prepare_target{force=false package_id=const_soft_float v0.1.4 target="const_soft_float"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/const_soft_float-a87debf433fe7f3c/lib-const_soft_float`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: cargo::core::compiler::compile
+  13: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  14: cargo::ops::cargo_compile::compile_ws
+  15: cargo::ops::cargo_compile::compile_with_exec
+  16: cargo::ops::cargo_compile::compile
+  17: cargo::commands::check::exec
+  18: <cargo::cli::Exec>::exec
+  19: cargo::main
+  20: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  21: std::rt::lang_start::<()>::{closure#0}
+  22: std::rt::lang_start_internal
+  23: _main
+   0.400660208s  INFO prepare_target{force=false package_id=image v0.24.9 target="image"}: cargo::core::compiler::fingerprint: fingerprint error for image v0.24.9/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("image", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/image-0.24.9/src/lib.rs", Edition2021) }
+   0.400663625s  INFO prepare_target{force=false package_id=image v0.24.9 target="image"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/image-8a60bf38620607fc/lib-image`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  12: cargo::ops::cargo_compile::compile_ws
+  13: cargo::ops::cargo_compile::compile_with_exec
+  14: cargo::ops::cargo_compile::compile
+  15: cargo::commands::check::exec
+  16: <cargo::cli::Exec>::exec
+  17: cargo::main
+  18: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  19: std::rt::lang_start::<()>::{closure#0}
+  20: std::rt::lang_start_internal
+  21: _main
+   0.400948250s  INFO prepare_target{force=false package_id=color_quant v1.1.0 target="color_quant"}: cargo::core::compiler::fingerprint: fingerprint error for color_quant v1.1.0/Check { test: false }/TargetInner { name_inferred: true, ..: lib_target("color_quant", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/color_quant-1.1.0/src/lib.rs", Edition2015) }
+   0.400951500s  INFO prepare_target{force=false package_id=color_quant v1.1.0 target="color_quant"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/color_quant-f3bebc570a68ff3e/lib-color_quant`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  13: cargo::ops::cargo_compile::compile_ws
+  14: cargo::ops::cargo_compile::compile_with_exec
+  15: cargo::ops::cargo_compile::compile
+  16: cargo::commands::check::exec
+  17: <cargo::cli::Exec>::exec
+  18: cargo::main
+  19: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  20: std::rt::lang_start::<()>::{closure#0}
+  21: std::rt::lang_start_internal
+  22: _main
+   0.401400375s  INFO prepare_target{force=false package_id=png v0.17.16 target="png"}: cargo::core::compiler::fingerprint: fingerprint error for png v0.17.16/Check { test: false }/TargetInner { ..: lib_target("png", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/png-0.17.16/src/lib.rs", Edition2018) }
+   0.401405791s  INFO prepare_target{force=false package_id=png v0.17.16 target="png"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/png-01f4e3f3ee9cf5f7/lib-png`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  13: cargo::ops::cargo_compile::compile_ws
+  14: cargo::ops::cargo_compile::compile_with_exec
+  15: cargo::ops::cargo_compile::compile
+  16: cargo::commands::check::exec
+  17: <cargo::cli::Exec>::exec
+  18: cargo::main
+  19: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  20: std::rt::lang_start::<()>::{closure#0}
+  21: std::rt::lang_start_internal
+  22: _main
+   0.401781791s  INFO prepare_target{force=false package_id=crc32fast v1.5.0 target="crc32fast"}: cargo::core::compiler::fingerprint: fingerprint error for crc32fast v1.5.0/Check { test: false }/TargetInner { ..: lib_target("crc32fast", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/crc32fast-1.5.0/src/lib.rs", Edition2021) }
+   0.401786291s  INFO prepare_target{force=false package_id=crc32fast v1.5.0 target="crc32fast"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/crc32fast-ac45d42ecb831c92/lib-crc32fast`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: cargo::core::compiler::compile
+  13: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  14: cargo::ops::cargo_compile::compile_ws
+  15: cargo::ops::cargo_compile::compile_with_exec
+  16: cargo::ops::cargo_compile::compile
+  17: cargo::commands::check::exec
+  18: <cargo::cli::Exec>::exec
+  19: cargo::main
+  20: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  21: std::rt::lang_start::<()>::{closure#0}
+  22: std::rt::lang_start_internal
+  23: _main
+   0.402078750s  INFO prepare_target{force=false package_id=fdeflate v0.3.7 target="fdeflate"}: cargo::core::compiler::fingerprint: fingerprint error for fdeflate v0.3.7/Check { test: false }/TargetInner { ..: lib_target("fdeflate", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/fdeflate-0.3.7/src/lib.rs", Edition2021) }
+   0.402082791s  INFO prepare_target{force=false package_id=fdeflate v0.3.7 target="fdeflate"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/fdeflate-f903fb74c58bf06f/lib-fdeflate`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: cargo::core::compiler::compile
+  13: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  14: cargo::ops::cargo_compile::compile_ws
+  15: cargo::ops::cargo_compile::compile_with_exec
+  16: cargo::ops::cargo_compile::compile
+  17: cargo::commands::check::exec
+  18: <cargo::cli::Exec>::exec
+  19: cargo::main
+  20: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  21: std::rt::lang_start::<()>::{closure#0}
+  22: std::rt::lang_start_internal
+  23: _main
+   0.402286666s  INFO prepare_target{force=false package_id=flate2 v1.1.9 target="flate2"}: cargo::core::compiler::fingerprint: fingerprint error for flate2 v1.1.9/Check { test: false }/TargetInner { ..: lib_target("flate2", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/flate2-1.1.9/src/lib.rs", Edition2018) }
+   0.402290250s  INFO prepare_target{force=false package_id=flate2 v1.1.9 target="flate2"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/flate2-4352e5fde9c03611/lib-flate2`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: cargo::core::compiler::compile
+  13: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  14: cargo::ops::cargo_compile::compile_ws
+  15: cargo::ops::cargo_compile::compile_with_exec
+  16: cargo::ops::cargo_compile::compile
+  17: cargo::commands::check::exec
+  18: <cargo::cli::Exec>::exec
+  19: cargo::main
+  20: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  21: std::rt::lang_start::<()>::{closure#0}
+  22: std::rt::lang_start_internal
+  23: _main
+   0.402482708s  INFO prepare_target{force=false package_id=miniz_oxide v0.8.9 target="miniz_oxide"}: cargo::core::compiler::fingerprint: fingerprint error for miniz_oxide v0.8.9/Check { test: false }/TargetInner { ..: lib_target("miniz_oxide", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/miniz_oxide-0.8.9/src/lib.rs", Edition2021) }
+   0.402486125s  INFO prepare_target{force=false package_id=miniz_oxide v0.8.9 target="miniz_oxide"}: cargo::core::compiler::fingerprint:     err: failed to read `/Users/martin/Desktop/The-Answer-Protocol/test_tap/target/debug/.fingerprint/miniz_oxide-f197526ae8b757f6/lib-miniz_oxide`
+
+Caused by:
+    No such file or directory (os error 2)
+
+Stack backtrace:
+   0: <std::backtrace::Backtrace>::create
+   1: cargo_util::paths::read_bytes
+   2: cargo_util::paths::read
+   3: cargo::core::compiler::fingerprint::_compare_old_fingerprint
+   4: cargo::core::compiler::fingerprint::prepare_target
+   5: cargo::core::compiler::compile
+   6: cargo::core::compiler::compile
+   7: cargo::core::compiler::compile
+   8: cargo::core::compiler::compile
+   9: cargo::core::compiler::compile
+  10: cargo::core::compiler::compile
+  11: cargo::core::compiler::compile
+  12: cargo::core::compiler::compile
+  13: cargo::core::compiler::compile
+  14: <cargo::core::compiler::build_runner::BuildRunner>::compile
+  15: cargo::ops::cargo_compile::compile_ws
+  16: cargo::ops::cargo_compile::compile_with_exec
+  17: cargo::ops::cargo_compile::compile
+  18: cargo::commands::check::exec
+  19: <cargo::cli::Exec>::exec
+  20: cargo::main
+  21: std::sys::backtrace::__rust_begin_short_backtrace::<fn(), ()>
+  22: std::rt::lang_start::<()>::{closure#0}
+  23: std::rt::lang_start_internal
+  24: _main
+   0.402646250s  INFO prepare_target{force=false package_id=adler2 v2.0.1 target="adler2"}: cargo::core::compiler::fingerprint: fingerprint error for adler2 v2.0.1/Check { test: false }/TargetInner { ..: lib_target("adler2", ["lib"], "/Users/martin/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/adler2-2.0.1/src/lib.rs", Edition2021) }
