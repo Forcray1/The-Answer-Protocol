@@ -1,0 +1,151 @@
+world:
+  name: "Ombreval : Terres Maudites"
+  
+  # 1. LES NPC
+  npcs:
+    - id: "npc_vieux_sage"
+      name: "Aldous le Borgne"
+      role: "quest_giver"
+      hp: 50
+      dialogue:
+        - "Les ruines du château ne sont plus sûres, voyageur..."
+        - "Apporte-moi l'Œil de Corbeau, et je guiderai tes pas."
+
+    - id: "npc_marchand"
+      name: "Le Colporteur Macabre"
+      role: "dialogue"
+      hp: 100
+      dialogue:
+        - "Des babioles pour survivre une nuit de plus ?"
+
+    - id: "mob_loup_maudit"
+      name: "Loup des Ombres"
+      role: "enemy"
+      hp: 40
+      dialogue:
+        - "Le loup grogne et montre ses crocs acérés."
+
+  # 2. LES ITEMS
+  items:
+    - id: "item_epee_rouillee"
+      name: "Épée Rouillée"
+      description: "Une lame usée par le sang et le temps. (+5 ATK)"
+      obtainable: true
+    - id: "item_potion_sang"
+      name: "Potion de Sang"
+      description: "Un liquide visqueux qui restaure 30 PV."
+      obtainable: true
+    - id: "item_oeil_corbeau"
+      name: "L'Œil de Corbeau"
+      description: "Une gemme sombre demandée par Aldous."
+      obtainable: true
+    - id: "item_cle_donjon"
+      name: "Clé en Os"
+      description: "Ouvre l'accès aux catacombes."
+      obtainable: false
+
+  # 3. LES LIEUX
+  locations:
+    village_square:
+      name: "Place d'Ombreval"
+      description: "Le centre du village, enveloppé de brume."
+      exits:
+        north: "ruines_entree"
+        east: "taverne_sombre"
+        south: "cimetiere"
+        west: "route_ouest"
+      npcs: ["npc_vieux_sage"]
+      items: []
+
+    taverne_sombre:
+      name: "La Taverne du Pendu"
+      description: "L'odeur d'hydromel rance se mêle à la peur."
+      exits:
+        west: "village_square"
+        south: "route_est"
+      npcs: ["npc_marchand"]
+      items: ["item_epee_rouillee"]
+
+    route_est:
+      name: "Sentier de l'Est"
+      description: "Un chemin terreux bordé d'arbres morts."
+      exits:
+        north: "taverne_sombre"
+        west: "cimetiere"
+      npcs: []
+      items: []
+
+    cimetiere:
+      name: "Cimetière Oublié"
+      description: "Des pierres tombales brisées émergent du sol."
+      exits:
+        north: "village_square"
+        east: "route_est"
+        west: "foret_sombre"
+      npcs: []
+      items: ["item_potion_sang"]
+
+    foret_sombre:
+      name: "Forêt des Murmures"
+      description: "Les arbres semblent observer chacun de vos pas."
+      exits:
+        north: "route_ouest"
+        east: "cimetiere"
+      npcs: ["mob_loup_maudit"]
+      items: []
+
+    route_ouest:
+      name: "Sentier de l'Ouest"
+      description: "Le vent hurle entre les rochers pointus."
+      exits:
+        north: "marais_brumeux"
+        east: "village_square"
+        south: "foret_sombre"
+      npcs: []
+      items: []
+
+    marais_brumeux:
+      name: "Marais des Agonisants"
+      description: "Une eau croupie qui s'étend à perte de vue."
+      exits:
+        east: "ruines_entree"
+        south: "route_ouest"
+      npcs: []
+      items: ["item_oeil_corbeau"]
+
+    ruines_entree:
+      name: "Porte des Ruines"
+      description: "L'entrée fortifiée d'un ancien château fort."
+      exits:
+        south: "village_square"
+        west: "marais_brumeux"
+        north: "donjon_branche"
+      npcs: []
+      items: []
+
+    donjon_branche:
+      name: "Les Catacombes d'Ombreval"
+      description: "Un couloir sombre et humide d'où émanent des bruits de chaînes."
+      exits:
+        south: "ruines_entree"
+      npcs: ["mob_loup_maudit"]
+      items: ["item_cle_donjon"]
+
+  # 4. LES QUÊTES
+  quests:
+    - id: "quest_premiere_arme"
+      name: "S'armer pour survivre"
+      description: |
+        Trouve une arme pour te défendre dans la taverne.
+      type: "fetch_item"
+      target_id: "item_epee_rouillee"
+      reward_exp: 50
+
+    - id: "quest_oeil_sage"
+      name: "La vision d'Aldous"
+      description: |
+        Rapporte l'Oeil de Corbeau trouvé dans le marais à Aldous.
+      type: "deliver_item"
+      target_id: "item_oeil_corbeau"
+      giver_id: "npc_vieux_sage"
+      reward_item: "item_cle_donjon"

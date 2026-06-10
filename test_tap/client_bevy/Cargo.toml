@@ -1,0 +1,9 @@
+[package]
+name = "client_bevy"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = "0.13"
+tokio = { version = "1", features = ["full"] }
+crossbeam-channel = "0.5"
