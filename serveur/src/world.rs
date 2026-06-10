@@ -51,6 +51,8 @@ pub struct Item {
     pub obtainable: bool,
     #[serde(default = "default_item_type")]
     pub r#type: ItemType,
+    #[serde(default)]
+    pub damage: Option<i32>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -64,11 +66,12 @@ pub struct Location {
     pub items: Vec<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum QuestObjective {
-	FetchItem { item: ItemId },
-	DefeatNpc { npc: NpcId },
-	DeliverItem { item: ItemId, to: NpcId },
+	FetchItem { item: String },
+	DefeatNpc { npc: String },
+	DeliverItem { item: String, to: String },
 }
 
 #[derive(Debug, Deserialize, Clone)]

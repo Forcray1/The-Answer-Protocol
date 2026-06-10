@@ -240,12 +240,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                 if player.inventory.is_empty() {
                                                     "S: OK Ton inventaire est vide.\n".to_string()
                                                 } else {
-                                                    let noms_inv: Vec<String> = player.inventory.iter().map(|id| {
-                                                        world.world.items.iter().find(|i| &i.id == id).map(|i| i.name.clone()).unwrap_or_else(|| id.clone())
+                                                    let noms_objets: Vec<String> = player.inventory.iter().map(|(id, count)| {
+                                                        let name = world.world.items.iter()
+                                                            .find(|i| &i.id == id)
+                                                            .map(|i| i.name.clone())
+                                                            .unwrap_or_else(|| id.clone());
+                                                        
+                                                        // Si on a plus d'un objet, on affiche le "(x2)"
+                                                        if *count > 1 {
+                                                            format!("{} (x{})", name, count)
+                                                        } else {
+                                                            name
+                                                        }
                                                     }).collect();
-                                                    format!("S: OK Inventaire : [{}]\n", noms_inv.join(", "))
+                                                    
+                                                    format!("S: OK Inventaire : [{}]\n", noms_objets.join(", "))
                                                 }
-                                            } else { "S: ERR utilize_connect_first\n".to_string() }
+                                            } else { 
+                                                "S: ERR utilize_connect_first\n".to_string() 
+                                            }
                                         }
 
                                         GameCommand::Take(cible) => {
@@ -280,16 +293,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                             if deja_ramasse {
                                                                 "S: ERR Tu as déjà ramassé cet objet de quête.\n".to_string()
                                                             } else {
-                                                                player.inventory.push(item.id.clone());
+                                                                *player.inventory.entry(item.id.clone()).or_insert(0) += 1;
                                                                 log_event("TAKE", &player.username, json!({"item_id": item.id, "item_name": item.name}));
 
                                                                 let mut quest_msg = String::new();
                                                                 for q in &world.world.quests {
-                                                                    if q.r#type == "fetch_item" && q.target_id == item.id && !player.completed_quests.contains(&q.id) {
-                                                                        player.completed_quests.push(q.id.clone());
-                                                                        if let Some(xp) = q.reward_exp {
-                                                                            player.exp += xp;
-                                                                            quest_msg = format!(" 🌟 [QUÊTE ACCOMPLIE] {} ! (+{} EXP)", q.name, xp);
+                                                                    if let crate::world::QuestObjective::FetchItem { item: target_id } = &q.objective {
+                                                                        if target_id == &item.id && !player.completed_quests.contains(&q.id) {
+                                                                            player.completed_quests.push(q.id.clone());
+                                                                            if let Some(xp) = q.reward_exp {
+                                                                                player.exp += xp;
+                                                                                quest_msg = format!(" 🌟 [QUÊTE ACCOMPLIE] {} ! (+{} EXP)", q.name, xp);
+                                                                            }
                                                                         }
                                                                     }
                                                                 }
@@ -301,7 +316,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             } else { "S: ERR utilize_connect_first\n".to_string() }
                                         }
 
-                                        GameCommand::Drop(cible) => {
+                                       GameCommand::Drop(cible) => {
                                             if let Some(player) = server_state.players.get_mut(&addr) {
                                                 
                                                 let item_existant = world.world.items.iter().find(|i| { 
@@ -309,12 +324,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                 });
 
                                                 if let Some(item) = item_existant {
-                                                    if let Some(index_inv) = player.inventory.iter().position(|id| id == &item.id) {
+                                                    if player.inventory.contains_key(&item.id) {
                                                         
                                                         if item.r#type == crate::world::ItemType::Quest {
                                                             "S: ERR Impossible de se débarrasser d'un objet de quête !\n".to_string()
                                                         } else {
-                                                            player.inventory.remove(index_inv);
+                                                            
+                                                            if let Some(count) = player.inventory.get_mut(&item.id) {
+                                                                if *count > 1 {
+                                                                    *count -= 1;
+                                                                } else {
+                                                                    player.inventory.remove(&item.id);
+                                                                }
+                                                            }
+
                                                             let salle_actuelle = player.current_room.clone();
                                                             
                                                             server_state.room_items.entry(salle_actuelle).or_default().push(crate::state::RuntimeItem {
@@ -323,7 +346,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                                 collected_by: std::collections::HashSet::new(),
                                                             });
                                                             
-                                                            log_event("DROP", &player.username, json!({"item_id": item.id, "item_name": item.name}));
+                                                            log_event("DROP", &player.username, serde_json::json!({"item_id": item.id, "item_name": item.name}));
                                                             format!("S: OK Tu as posé au sol : {}\n", item.name)
                                                         }
                                                     } else { 
@@ -354,36 +377,47 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                 }
 
                                                 if let Some(npc) = &npc_trouve {
-                                                    for q in &world.world.quests {
-                                                        if q.r#type == "deliver_item" 
-                                                            && q.giver_id.as_deref() == Some(&npc.id) 
-                                                            && player.inventory.contains(&q.target_id) 
+                                                for q in &world.world.quests {
+                                                    if let crate::world::QuestObjective::DeliverItem { .. } = &q.objective {
+                                                        if q.giver_id.as_deref() == Some(&npc.id) 
+                                                            && player.inventory.contains_key(&q.target_id) 
                                                             && !player.completed_quests.contains(&q.id) 
                                                         {
                                                             player.completed_quests.push(q.id.clone());
-                                                            player.inventory.retain(|id| id != &q.target_id);
+                                                            
+                                                            if let Some(count) = player.inventory.get_mut(&q.target_id) {
+                                                                if *count > 1 {
+                                                                    *count -= 1;
+                                                                } else {
+                                                                    player.inventory.remove(&q.target_id);
+                                                                }
+                                                            }
                                                             
                                                             if let Some(ref reward_id) = q.reward_item {
-                                                                player.inventory.push(reward_id.clone());
+                                                                *player.inventory.entry(reward_id.clone()).or_insert(0) += 1;
+                                                                
                                                                 let item_name = world.world.items.iter().find(|i| &i.id == reward_id).map(|i| i.name.clone()).unwrap_or_else(|| reward_id.clone());
-                                                                log_event("DELIVER_ITEM", &player.username, json!({"quest_id": q.id, "item_id": reward_id, "item_name": item_name}));
+                                                                log_event("DELIVER_ITEM", &player.username, serde_json::json!({"quest_id": q.id, "item_id": reward_id, "item_name": item_name}));
                                                                 quest_msg = format!("\n🌟 [QUÊTE ACCOMPLIE] {} ! Tu reçois : {}.", q.name, item_name);
                                                             }
+                                                            
                                                             if let Some(xp) = q.reward_exp {
                                                                 player.exp += xp;
                                                                 quest_msg.push_str(&format!(" (+{} EXP)", xp));
                                                             }
+                                                            
                                                             quete_validee = true;
                                                             break;
                                                         }
                                                     }
-
+                                                }
+                                                let items_list: Vec<String> = player.inventory.keys().cloned().collect();
+                                                let phrase_ia = ask_aldous(&player.username, &items_list, player.exp).await;
                                                     if !quete_validee && npc.id == "npc_vieux_sage" {
                                                         trigger_ai = Some((npc.name.clone(), player.username.clone(), player.inventory.clone(), player.exp));
                                                     }
                                                 }
                                             }
-
                                             if let Some(npc) = npc_trouve {
                                                 if quete_validee {
                                                     format!("S: OK {} prend l'objet. {}\n", npc.name, quest_msg)
@@ -398,14 +432,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                                         GameCommand::Attack(cible) => {
                                             let mut salle_actuelle = String::new();
-                                            let mut degats_joueur = 10;
+                                            let mut degats_joueur = 10; // Dégâts de base à mains nues
                                             let mut monstre_id_trouve = None;
                                             let mut monstre_nom = String::new();
                                             let mut joueur_nom = String::new();
                                             
                                             let mut en_cooldown = false;
                                             if let Some(player) = server_state.players.get(&addr) {
-                                                if player.last_attack.map_or(false, |last| last.elapsed() < Duration::from_millis(1000)) {
+                                                if player.last_attack.map_or(false, |last| last.elapsed() < std::time::Duration::from_millis(1000)) {
                                                     en_cooldown = true;
                                                 }
                                             }
@@ -417,7 +451,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                     salle_actuelle = player.current_room.clone();
                                                     joueur_nom = player.username.clone();
                                                     player.last_attack = Some(Instant::now()); 
-                                                    if player.inventory.contains(&"item_epee_rouillee".to_string()) { degats_joueur += 5; }
+                                                    
+                                                    let mut bonus_arme = 0;
+                                                    for item_id in player.inventory.keys() { // On parcourt les clés (les IDs des objets)
+                                                        if let Some(item_def) = world.world.items.iter().find(|i| &i.id == item_id) {
+                                                            if let Some(dmg) = item_def.damage {
+                                                                if dmg > bonus_arme {
+                                                                    bonus_arme = dmg;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                    degats_joueur += bonus_arme; 
                                                 }
 
                                                 if let Some(npcs_dans_salle) = server_state.room_npcs.get(&salle_actuelle) {
@@ -440,7 +485,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                     if let Some(hp) = server_state.npc_hps.get_mut(&m_id) {
                                                         *hp -= degats_joueur;
                                                         pv_monstre_restants = *hp;
-                                                        log_event("COMBAT", &joueur_nom, json!({"target": monstre_nom, "damage_dealt": degats_joueur, "target_hp_left": pv_monstre_restants}));
+                                                        log_event("COMBAT", &joueur_nom, serde_json::json!({"target": monstre_nom, "damage_dealt": degats_joueur, "target_hp_left": pv_monstre_restants}));
                                                         if *hp <= 0 { monstre_mort = true; }
                                                     }
 
@@ -465,8 +510,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                                                         if joueur_mort {
                                                             let _ = tx.send(GlobalEvent { sender_addr: addr, message: format!("S: EVT GLOBAL CHAT Serveur ☠️ Un joueur a été tué par {} !\n", monstre_nom) });
-                                                            log_event("DEATH", &joueur_nom, json!({"killer": monstre_nom}));
-                                                            format!("S: OK Tu infliges {} dégâts, mais le {} t'achève. Tu es MORT ! Tu te réveilles sur la Place d'Ombreval.\n", degats_joueur, monstre_nom)
+                                                            log_event("DEATH", &joueur_nom, serde_json::json!({"killer": monstre_nom}));
+                                                            format!("S: OK Tu infliges {} dégâts, mais le {} t'achève. Tu es MORT ! Tu te réveilles au village.\n", degats_joueur, monstre_nom)
                                                         } else {
                                                             format!("S: OK Tu attaques {} ({} PV restants). Il riposte (-{} PV). (Tes PV: {})\n", monstre_nom, pv_monstre_restants, degats_monstre, pv_joueur)
                                                         }
@@ -523,7 +568,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 };
 
                                 if let Some((npc_name, p_name, p_inv, p_exp)) = trigger_ai {
-                                    let phrase_ia = ask_aldous(&p_name, &p_inv, p_exp).await;
+                                    let items_list: Vec<String> = p_inv.keys().cloned().collect();
+                                    let phrase_ia = ask_aldous(&p_name, &items_list, p_exp).await;
                                     reponse = format!("S: OK {} te scrute de son œil unique : \"{}\"\n", npc_name, phrase_ia);
                                 }
 

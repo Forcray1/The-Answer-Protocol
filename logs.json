@@ -74,3 +74,26 @@
 {"details":{"damage_dealt":10,"target":"Loup des Ombres","target_hp_left":10},"event":"COMBAT","player":"axel","timestamp":"2026-06-10T18:42:44"}
 {"details":{"damage_dealt":10,"target":"Loup des Ombres","target_hp_left":0},"event":"COMBAT","player":"axel","timestamp":"2026-06-10T18:42:50"}
 {"details":{"reason":"QUIT command"},"event":"DISCONNECT","player":"axel","timestamp":"2026-06-10T18:47:03"}
+{"details":{"ip":"127.0.0.1:50370"},"event":"CONNECT","player":"axel","timestamp":"2026-06-10T19:53:07"}
+{"details":{"item_id":"epee_rouillee","item_name":"Épée Rouillée"},"event":"TAKE","player":"axel","timestamp":"2026-06-10T19:53:24"}
+{"details":{"ip":"127.0.0.1:50376"},"event":"CONNECT","player":"axel","timestamp":"2026-06-10T19:53:54"}
+{"details":{"ip":"127.0.0.1:50380"},"event":"CONNECT","player":"axel","timestamp":"2026-06-10T19:54:44"}
+{"details":{"ip":"127.0.0.1:50390"},"event":"CONNECT","player":"atag","timestamp":"2026-06-10T19:56:05"}
+{"details":{"item_id":"epee_rouillee","item_name":"Épée Rouillée"},"event":"TAKE","player":"atag","timestamp":"2026-06-10T19:56:11"}
+{"details":{"reason":"QUIT command"},"event":"DISCONNECT","player":"atag","timestamp":"2026-06-10T19:56:17"}
+{"details":{"ip":"127.0.0.1:50391"},"event":"CONNECT","player":"atag","timestamp":"2026-06-10T19:56:27"}
+{"details":{"reason":"QUIT command"},"event":"DISCONNECT","player":"atag","timestamp":"2026-06-10T19:56:30"}
+{"details":{"ip":"127.0.0.1:50411"},"event":"CONNECT","player":"axel","timestamp":"2026-06-10T19:57:57"}
+{"details":{"item_id":"epee_rouillee","item_name":"Épée Rouillée"},"event":"TAKE","player":"axel","timestamp":"2026-06-10T19:58:02"}
+{"details":{"ip":"127.0.0.1:50420"},"event":"CONNECT","player":"axel2","timestamp":"2026-06-10T19:58:22"}
+{"details":{"item_id":"epee_rouillee","item_name":"Épée Rouillée"},"event":"TAKE","player":"axel2","timestamp":"2026-06-10T19:58:26"}
+{"details":{"item_id":"item_oeil_corbeau","item_name":"L'Œil de Corbeau"},"event":"TAKE","player":"axel2","timestamp":"2026-06-10T19:59:34"}
+{"details":{"item_id":"item_cle_donjon","item_name":"Clé en Os","quest_id":"quest_oeil_sage"},"event":"DELIVER_ITEM","player":"axel2","timestamp":"2026-06-10T19:59:48"}
+{"details":{"damage_dealt":10,"target":"Loup des Ombres","target_hp_left":30},"event":"COMBAT","player":"axel2","timestamp":"2026-06-10T20:01:49"}
+{"details":{"damage_dealt":10,"target":"Loup des Ombres","target_hp_left":20},"event":"COMBAT","player":"axel2","timestamp":"2026-06-10T20:01:57"}
+{"details":{"damage_dealt":10,"target":"Loup des Ombres","target_hp_left":10},"event":"COMBAT","player":"axel2","timestamp":"2026-06-10T20:02:01"}
+{"details":{"damage_dealt":10,"target":"Loup des Ombres","target_hp_left":0},"event":"COMBAT","player":"axel2","timestamp":"2026-06-10T20:02:07"}
+{"details":{"item_id":"item_cle_donjon","item_name":"Clé en Os"},"event":"TAKE","player":"axel2","timestamp":"2026-06-10T20:02:15"}
+{"details":{"ip":"127.0.0.1:50469"},"event":"CONNECT","player":"axel","timestamp":"2026-06-10T20:05:10"}
+{"details":{"ip":"127.0.0.1:50468"},"event":"CONNECT","player":"eline","timestamp":"2026-06-10T20:05:13"}
+{"details":{"channel":"GLOBAL","message":"test"},"event":"CHAT","player":"axel","timestamp":"2026-06-10T20:05:17"}

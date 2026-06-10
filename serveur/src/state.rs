@@ -6,6 +6,7 @@ use std::time::Instant;
 use crate::world::{WorldData, ItemType};
 use std::collections::HashSet;
 use std::time::Duration;
+use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ItemSource {

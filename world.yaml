@@ -73,7 +73,7 @@ world:
         west: "village_square"
         south: "route_est"
       npcs: ["npc_marchand"]
-      items: ["item_epee_rouillee"]
+      items: [""]
 
     route_est:
       name: "Sentier de l'Est"
@@ -146,15 +146,21 @@ world:
       name: "S'armer pour survivre"
       description: |
         Trouve une arme pour te défendre dans la taverne.
-      type: "fetch_item"
-      target_id: "item_epee_rouillee"
+      target_id: "epee_rouillee"
       reward_exp: 50
+      objective:
+        type: "fetch_item"
+        item: "epee_rouillee"
 
     - id: "quest_oeil_sage"
       name: "La vision d'Aldous"
       description: |
         Rapporte l'Oeil de Corbeau trouvé dans le marais à Aldous.
-      type: "deliver_item"
+      objective:
+        type: "deliver_item"
+        item: "item_oeil_corbeau"
+        to: "npc_vieux_sage"
+      reward_exp: 100
       target_id: "item_oeil_corbeau"
       giver_id: "npc_vieux_sage"
       reward_item: "item_cle_donjon"

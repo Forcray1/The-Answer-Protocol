@@ -76,7 +76,7 @@ CONNECT <VotrePseudo>
 Exemple :
 
 ```text
-CONNECT Axel
+CONNECT Test
 ```
 
 Réponse attendue :
