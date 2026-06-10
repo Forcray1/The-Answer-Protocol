@@ -114,7 +114,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("[SERVEUR] Chargement de la carte...");
-    let world_data = WorldData::load_from_file("../world.yaml").expect("Erreur world.yaml");
+    let world_data = WorldData::load_from_file("world.yaml").expect("Erreur world.yaml");
     let shared_world = Arc::new(world_data);
 
     let mut initial_state = ServerState::new();
