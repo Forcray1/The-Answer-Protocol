@@ -3,6 +3,22 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Instant;
+use crate::world::{WorldData, ItemType};
+use std::collections::HashSet;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ItemSource {
+    World, 
+    MobDrop, 
+    PlayerDrop, 
+}
+
+#[derive(Debug, Clone)]
+pub struct RuntimeItem {
+    pub item_id: String,
+    pub source: ItemSource,
+    pub collected_by: HashSet<String>,
+}
 
 #[derive(Debug, Clone)]
 pub struct Player {
@@ -19,7 +35,7 @@ pub struct Player {
 
 pub struct ServerState {
     pub players: HashMap<SocketAddr, Player>,
-    pub room_items: HashMap<String, Vec<String>>,
+    pub room_items: HashMap<String, Vec<RuntimeItem>>,
     pub room_npcs: HashMap<String, Vec<String>>,
     pub npc_hps: HashMap<String, i32>,
 }
@@ -32,6 +48,29 @@ impl ServerState {
             room_npcs: HashMap::new(),
             npc_hps: HashMap::new(),
         }
+    }
+
+    pub fn initialize_from_world(&mut self, world_data: &WorldData) {
+        // 1. On peuple les pièces avec leurs objets et PNJ initiaux
+        for (room_id, location) in &world_data.world.locations {
+            
+            // On convertit les simples chaînes d'ID du YAML en RuntimeItems complexes
+            let runtime_items: Vec<RuntimeItem> = location.items.iter().map(|id| RuntimeItem {
+                item_id: id.clone(),
+                source: ItemSource::World,
+                collected_by: HashSet::new(),
+            }).collect();
+
+            self.room_items.insert(room_id.clone(), runtime_items);
+            self.room_npcs.insert(room_id.clone(), location.npcs.clone());
+        }
+
+        // 2. On instancie la vie de chaque PNJ à partir de la liste globale
+        for npc in &world_data.world.npcs {
+            self.npc_hps.insert(npc.id.clone(), npc.hp);
+        }
+        
+        println!("[STATE] État de jeu initialisé avec succès depuis le YAML !");
     }
 
     pub fn add_player(&mut self, addr: SocketAddr, username: String) {

@@ -27,12 +27,25 @@ pub struct Npc {
     pub dialogue: Vec<String>,
 }
 
+#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum ItemType {
+    Standard,
+    Quest,
+}
+
+fn default_item_type() -> ItemType {
+    ItemType::Standard
+}
+
 #[derive(Debug, Deserialize, Clone)]
 pub struct Item {
     pub id: String,
     pub name: String,
     pub description: String,
     pub obtainable: bool,
+    #[serde(default = "default_item_type")]
+    pub r#type: ItemType,
 }
 
 #[derive(Debug, Deserialize, Clone)]

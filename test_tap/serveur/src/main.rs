@@ -111,13 +111,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let shared_world = Arc::new(world_data);
 
     let mut initial_state = ServerState::new();
-    for (room_id, location) in &shared_world.world.locations {
-        initial_state.room_items.insert(room_id.clone(), location.items.clone());
-        initial_state.room_npcs.insert(room_id.clone(), location.npcs.clone());
-    }
-    for npc in &shared_world.world.npcs {
-        initial_state.npc_hps.insert(npc.id.clone(), npc.hp);
-    }
+    initial_state.initialize_from_world(&shared_world);
+
     let shared_state = Arc::new(Mutex::new(initial_state));
 
     let (tx, _rx) = broadcast::channel::<GlobalEvent>(32);
@@ -187,10 +182,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                 if let Some(loc) = world.world.locations.get(&player.current_room) {
                                                     let mut objets_text = String::from("Aucun objet au sol.");
                                                     if let Some(items_au_sol) = server_state.room_items.get(&player.current_room) {
-                                                        if !items_au_sol.is_empty() {
-                                                            let noms_objets: Vec<String> = items_au_sol.iter().map(|id| {
-                                                                world.world.items.iter().find(|i| &i.id == id).map(|i| format!("\"{}\"", i.name)).unwrap_or_else(|| id.clone())
-                                                            }).collect();
+
+                                                        let noms_objets: Vec<String> = items_au_sol.iter()
+                                                            .filter(|ri| {
+                                                                if let Some(static_item) = world.world.items.iter().find(|i| i.id == ri.item_id) {
+                                                                    match static_item.r#type {
+                                                                        crate::world::ItemType::Standard => true, // Tout le monde voit les objets standards
+                                                                        crate::world::ItemType::Quest => {
+                                                                            !ri.collected_by.contains(&player.username)
+                                                                        }
+                                                                    }
+                                                                } else {
+                                                                    false
+                                                                }
+                                                            })
+                                                            .map(|ri| {
+                                                                world.world.items.iter()
+                                                                    .find(|i| i.id == ri.item_id)
+                                                                    .map(|i| format!("\"{}\"", i.name))
+                                                                    .unwrap_or_else(|| ri.item_id.clone())
+                                                            })
+                                                            .collect();
+
+                                                        if !noms_objets.is_empty() {
                                                             objets_text = format!("Objets au sol : {}", noms_objets.join(", "));
                                                         }
                                                     }
@@ -239,26 +253,50 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         GameCommand::Take(cible) => {
                                             if let Some(player) = server_state.players.get_mut(&addr) {
                                                 let salle_actuelle = player.current_room.clone();
-                                                let item_existant = world.world.items.iter().find(|i| { i.id.to_lowercase() == cible.to_lowercase() || i.name.to_lowercase() == cible.to_lowercase() });
+                                                let item_existant = world.world.items.iter().find(|i| { 
+                                                    i.id.to_lowercase() == cible.to_lowercase() || i.name.to_lowercase() == cible.to_lowercase() 
+                                                });
 
                                                 if let Some(item) = item_existant {
                                                     if let Some(items_salle) = server_state.room_items.get_mut(&salle_actuelle) {
-                                                        if let Some(index) = items_salle.iter().position(|id| id == &item.id) {
-                                                            items_salle.remove(index);
-                                                            player.inventory.push(item.id.clone());
-                                                            log_event("TAKE", &player.username, json!({"item_id": item.id, "item_name": item.name}));
+                                                        if let Some(index) = items_salle.iter().position(|ri| ri.item_id == item.id) {
+                                                            
+                                                            let mut deja_ramasse = false;
 
-                                                            let mut quest_msg = String::new();
-                                                            for q in &world.world.quests {
-                                                                if q.r#type == "fetch_item" && q.target_id == item.id && !player.completed_quests.contains(&q.id) {
-                                                                    player.completed_quests.push(q.id.clone());
-                                                                    if let Some(xp) = q.reward_exp {
-                                                                        player.exp += xp;
-                                                                        quest_msg = format!(" 🌟 [QUÊTE ACCOMPLIE] {} ! (+{} EXP)", q.name, xp);
+                                                            // On applique la logique selon le type
+                                                            match item.r#type {
+                                                                crate::world::ItemType::Standard => {
+                                                                    items_salle.remove(index);
+                                                                }
+                                                                crate::world::ItemType::Quest => {
+                                                                    let runtime_item = &mut items_salle[index];
+                                                                    if runtime_item.collected_by.contains(&player.username) {
+                                                                        deja_ramasse = true;
+                                                                    } else {
+                                                                        runtime_item.collected_by.insert(player.username.clone());
                                                                     }
                                                                 }
                                                             }
-                                                            format!("S: OK Tu as ramassé : {}{}\n", item.name, quest_msg)
+
+                                                            // On aiguille la réponse selon le statut de ramassage
+                                                            if deja_ramasse {
+                                                                "S: ERR Tu as déjà ramassé cet objet de quête.\n".to_string()
+                                                            } else {
+                                                                player.inventory.push(item.id.clone());
+                                                                log_event("TAKE", &player.username, json!({"item_id": item.id, "item_name": item.name}));
+
+                                                                let mut quest_msg = String::new();
+                                                                for q in &world.world.quests {
+                                                                    if q.r#type == "fetch_item" && q.target_id == item.id && !player.completed_quests.contains(&q.id) {
+                                                                        player.completed_quests.push(q.id.clone());
+                                                                        if let Some(xp) = q.reward_exp {
+                                                                            player.exp += xp;
+                                                                            quest_msg = format!(" 🌟 [QUÊTE ACCOMPLIE] {} ! (+{} EXP)", q.name, xp);
+                                                                        }
+                                                                    }
+                                                                }
+                                                                format!("S: OK Tu as ramassé : {}{}\n", item.name, quest_msg)
+                                                            }
                                                         } else { "S: ERR Cet objet n'est pas ici.\n".to_string() }
                                                     } else { "S: ERR room_error\n".to_string() }
                                                 } else { "S: ERR Objet inconnu.\n".to_string() }
@@ -267,16 +305,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                                         GameCommand::Drop(cible) => {
                                             if let Some(player) = server_state.players.get_mut(&addr) {
-                                                let salle_actuelle = player.current_room.clone();
-                                                let item_existant = world.world.items.iter().find(|i| { i.id.to_lowercase() == cible.to_lowercase() || i.name.to_lowercase() == cible.to_lowercase() });
+                                                
+                                                // 1. 🌟 On cherche d'abord l'objet dans le monde par son ID ou son NOM
+                                                let item_existant = world.world.items.iter().find(|i| { 
+                                                    i.id.to_lowercase() == cible.to_lowercase() || i.name.to_lowercase() == cible.to_lowercase() 
+                                                });
 
                                                 if let Some(item) = item_existant {
-                                                    if let Some(index) = player.inventory.iter().position(|id| id == &item.id) {
-                                                        player.inventory.remove(index);
-                                                        server_state.room_items.entry(salle_actuelle).or_default().push(item.id.clone());
-                                                        log_event("DROP", &player.username, json!({"item_id": item.id, "item_name": item.name}));
-                                                        format!("S: OK Tu as posé au sol : {}\n", item.name)
-                                                    } else { "S: ERR Tu ne possèdes pas cet objet.\n".to_string() }
+                                                    // 2. 🌟 Maintenant, on cherche si l'ID technique précis de cet objet est dans l'inventaire
+                                                    if let Some(index_inv) = player.inventory.iter().position(|id| id == &item.id) {
+                                                        
+                                                        // 3. Sécurité anti-duplication pour les objets de quête
+                                                        if item.r#type == crate::world::ItemType::Quest {
+                                                            "S: ERR Impossible de se débarrasser d'un objet de quête !\n".to_string()
+                                                        } else {
+                                                            // Retrait de l'inventaire
+                                                            player.inventory.remove(index_inv);
+                                                            let salle_actuelle = player.current_room.clone();
+                                                            
+                                                            // Ajout au sol
+                                                            server_state.room_items.entry(salle_actuelle).or_default().push(crate::state::RuntimeItem {
+                                                                item_id: item.id.clone(),
+                                                                source: crate::state::ItemSource::PlayerDrop,
+                                                                collected_by: std::collections::HashSet::new(),
+                                                            });
+                                                            
+                                                            log_event("DROP", &player.username, json!({"item_id": item.id, "item_name": item.name}));
+                                                            format!("S: OK Tu as posé au sol : {}\n", item.name)
+                                                        }
+                                                    } else { 
+                                                        format!("S: ERR Tu ne possèdes pas l'objet \"{}\" dans ton inventaire.\n", item.name) 
+                                                    }
                                                 } else { "S: ERR Objet inconnu.\n".to_string() }
                                             } else { "S: ERR utilize_connect_first\n".to_string() }
                                         }

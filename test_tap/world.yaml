@@ -27,22 +27,31 @@ world:
 
   # 2. LES ITEMS
   items:
-    - id: "item_epee_rouillee"
+    - id: "epee_rouillee"
       name: "Épée Rouillée"
       description: "Une lame usée par le sang et le temps. (+5 ATK)"
       obtainable: true
+      type: "standard"
+    - id: "lettre_mysterieuse"
+      name: "Lettre Mystérieuse"
+      description: "Un objet de quête."
+      obtainable: true
+      type: "quest"
     - id: "item_potion_sang"
       name: "Potion de Sang"
       description: "Un liquide visqueux qui restaure 30 PV."
       obtainable: true
+      type: "standard"
     - id: "item_oeil_corbeau"
       name: "L'Œil de Corbeau"
       description: "Une gemme sombre demandée par Aldous."
       obtainable: true
+      type: "standard"
     - id: "item_cle_donjon"
       name: "Clé en Os"
       description: "Ouvre l'accès aux catacombes."
       obtainable: false
+      type: "standard"
 
   # 3. LES LIEUX
   locations:
@@ -55,7 +64,7 @@ world:
         south: "cimetiere"
         west: "route_ouest"
       npcs: ["npc_vieux_sage"]
-      items: []
+      items: ["epee_rouillee", "lettre_mysterieuse"]
 
     taverne_sombre:
       name: "La Taverne du Pendu"
