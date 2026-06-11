@@ -69,6 +69,10 @@ pub struct Item {
     pub r#type: ItemType,
     #[serde(default)]
     pub damage: Option<i32>,
+    #[serde(default)]
+    pub defense: Option<i32>, 
+    #[serde(default)]
+    pub slot: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

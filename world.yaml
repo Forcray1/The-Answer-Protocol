@@ -42,12 +42,35 @@ world:
       obtainable: true
       type: "quest"
       damage: 10
+      slot: "weapon"
+    - id: "cuirasse_defectueuse"
+      name: "Cuirasse défectueuse"
+      description: "Une armure abîmée, offrant une protection minimale. (+2 DEF)"
+      obtainable: true
+      type: "quest"
+      defense: 2
+      slot: "armor"
+    - id: "casque_fendu"
+      name: "Casque Fendu"
+      description: "Un casque fissuré, offrant une défense limitée. (+2 DEF)"
+      obtainable: true
+      type: "quest"
+      defense: 2
+      slot: "head"
+    - id: "bottes_usees"
+      name: "Bottes Usées"
+      description: "Des bottes en cuir usées, offrant une protection minimale. (+2 DEF)"
+      obtainable: true
+      type: "quest"
+      defense: 2
+      slot: "legs"
     - id: "god_sword"
       name: "Lame du Destin"
       description: "Une épée légendaire, forgée par les dieux. (+300 ATK)"
       obtainable: true
       type: "quest"
       damage: 300
+      slot: "weapon"
     - id: "lettre_mysterieuse"
       name: "Lettre Mystérieuse"
       description: "Un objet de quête."
@@ -90,7 +113,7 @@ world:
         south: "cimetiere"
         west: "route_ouest"
       npcs: ["npc_vieux_sage", "mob_loup_maudit"]
-      items: ["god_sword", "lettre_mysterieuse"]
+      items: ["god_sword", "lettre_mysterieuse", "cuirasse_defectueuse", "casque_fendu", "bottes_usees", "epee_rouillee"]
 
     taverne_sombre:
       name: "La Taverne du Pendu"

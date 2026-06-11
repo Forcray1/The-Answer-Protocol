@@ -50,56 +50,6 @@ fn log_event(event_type: &str, player: &str, details: serde_json::Value) {
     }
 }
 
-async fn ask_aldous(player_name: &str, inventory: &[String], exp: i32) -> String {
-    let client = Client::new();
-    
-    // On forge le contexte de manière dynamique
-    let prompt = format!(
-        "Tu es Aldous le Borgne, un vieux sage grincheux et mystérieux dans un monde dark fantasy (Ombreval). \
-        Tu t'adresses directement au joueur nommé {}. Il a actuellement {} points d'expérience. \
-        Son inventaire contient ces objets : {:?}. \
-        Si son inventaire contient l'ID 'item_oeil_corbeau', exige qu'il te rende 'l'Œil de Corbeau' immédiatement. \
-        Sinon, donne-lui un avertissement cryptique sur les dangers qui rôdent. \
-        Réponds EN UNE SEULE PHRASE COURTE et très immersive. Ne sors jamais de ton rôle. Ne prononce JAMAIS les identifiants techniques comme 'item_...' à voix haute.",
-        player_name, exp, inventory
-    );
-
-    let api_key = "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";
-    let url = "https://api.groq.com/openai/v1/chat/completions";
-
-    let payload = json!({
-        "model": "llama-3.1-8b-instant",
-        "messages": [{"role": "system", "content": prompt}],
-        "max_tokens": 150,
-        "temperature": 0.7
-    });
-
-    let res = client.post(url)
-        .header("Authorization", format!("Bearer {}", api_key))
-        .json(&payload)
-        .send()
-        .await;
-
-    match res {
-        Ok(response) => {
-            let raw_text = response.text().await.unwrap_or_default();
-            println!("[DEBUG IA] Réponse de Groq : {}", raw_text);
-
-            // On essaie de lire le JSON
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&raw_text) {
-                if let Some(text) = json["choices"][0]["message"]["content"].as_str() {
-                    return text.trim().to_string();
-                }
-            }
-            "Les esprits de Llama sont confus...".to_string()
-        }
-        Err(e) => {
-            println!("[DEBUG IA] Erreur de connexion : {}", e);
-            "Je... je ne reçois plus les visions (Erreur API).".to_string()
-        }
-    }
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if std::env::args().any(|arg| arg == "--logs") {
@@ -155,7 +105,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             Ok(_) => {
                                 let commande_analysee = GameCommand::parse(&line);
                                 let mut client_veut_quitter = false;
-                                let mut trigger_ai = None; 
 
                                 let mut reponse = {
                                     let mut guard = state.lock().await;
@@ -289,6 +238,75 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             }
                                         }
 
+                                        GameCommand::Equip(cible) => {
+                                            if let Some(player) = server_state.players.get_mut(&addr) {
+                                                let item_trouve = world.world.items.iter().find(|i| { 
+                                                    i.id.to_lowercase() == cible.to_lowercase() || i.name.to_lowercase() == cible.to_lowercase() 
+                                                });
+
+                                                if let Some(item) = item_trouve {
+                                                    if player.inventory.contains_key(&item.id) {
+                                                        if let Some(slot) = &item.slot {
+                                                            player.equipment.insert(slot.clone(), item.id.clone());
+                                                            format!("S: OK Tu as équipé {} dans l'emplacement [{}].\n", item.name, slot)
+                                                        } else {
+                                                            "S: ERR Cet objet ne peut pas être équipé.\n".to_string()
+                                                        }
+                                                    } else { "S: ERR Tu ne possèdes pas cet objet.\n".to_string() }
+                                                } else { "S: ERR Objet inconnu.\n".to_string() }
+                                            } else { "S: ERR utilize_connect_first\n".to_string() }
+                                        }
+
+                                        GameCommand::Unequip(cible) => {
+                                            if let Some(player) = server_state.players.get_mut(&addr) {
+                                                let mut slot_a_retirer = None;
+                                                for (slot, item_id) in &player.equipment {
+                                                    if let Some(item) = world.world.items.iter().find(|i| &i.id == item_id) {
+                                                        if item.id.to_lowercase() == cible.to_lowercase() || item.name.to_lowercase() == cible.to_lowercase() {
+                                                            slot_a_retirer = Some((slot.clone(), item.name.clone()));
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                                if let Some((slot, name)) = slot_a_retirer {
+                                                    player.equipment.remove(&slot);
+                                                    format!("S: OK Tu as déséquipé {}.\n", name)
+                                                } else { "S: ERR Tu ne portes pas cet objet.\n".to_string() }
+                                            } else { "S: ERR utilize_connect_first\n".to_string() }
+                                        }
+                                        
+                                        GameCommand::Equipment => {
+                                            if let Some(player) = server_state.players.get(&addr) {
+                                                let mut head_name = "Aucun".to_string();
+                                                let mut chest_name = "Aucun".to_string();
+                                                let mut legs_name = "Aucun".to_string();
+                                                let mut weapon_name = "Aucun".to_string();
+
+                                                // On cherche le nom de chaque objet équipé dans la liste statique du monde
+                                                for (slot, item_id) in &player.equipment {
+                                                    let nom = world.world.items.iter()
+                                                        .find(|i| &i.id == item_id)
+                                                        .map(|i| i.name.clone())
+                                                        .unwrap_or_else(|| item_id.clone());
+
+                                                    match slot.as_str() {
+                                                        "head" => head_name = nom,
+                                                        "armor" => chest_name = nom,
+                                                        "legs" => legs_name = nom,
+                                                        "weapon" => weapon_name = nom,
+                                                        _ => {}
+                                                    }
+                                                }
+
+                                                format!(
+                                                    "S: OK --- ÉQUIPEMENT ACTUEL ---\n Tête     : {}\n Torse    : {}\n Jambes   : {}\n Arme     : {}\n",
+                                                    head_name, chest_name, legs_name, weapon_name
+                                                )
+                                            } else {
+                                                "S: ERR utilize_connect_first\n".to_string()
+                                            }
+                                        }
+
                                         GameCommand::Take(cible) => {
                                             if let Some(player) = server_state.players.get_mut(&addr) {
                                                 let salle_actuelle = player.current_room.clone();
@@ -405,62 +423,56 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                 }
 
                                                 if let Some(npc) = &npc_trouve {
-                                                for q in &world.world.quests {
-                                                    if let crate::world::QuestObjective::DeliverItem { .. } = &q.objective {
-                                                        if q.giver_id.as_deref() == Some(&npc.id) 
-                                                            && player.inventory.contains_key(&q.target_id) 
-                                                            && !player.completed_quests.contains(&q.id) 
-                                                        {
-                                                            player.completed_quests.push(q.id.clone());
-                                                            
-                                                            if let Some(count) = player.inventory.get_mut(&q.target_id) {
-                                                                if *count > 1 {
-                                                                    *count -= 1;
-                                                                } else {
-                                                                    player.inventory.remove(&q.target_id);
-                                                                }
-                                                            }
-                                                            
-                                                            if let Some(ref reward_id) = q.reward_item {
-                                                                *player.inventory.entry(reward_id.clone()).or_insert(0) += 1;
+                                                    for q in &world.world.quests {
+                                                        if let crate::world::QuestObjective::DeliverItem { .. } = &q.objective {
+                                                            if q.giver_id.as_deref() == Some(&npc.id) 
+                                                                && player.inventory.contains_key(&q.target_id) 
+                                                                && !player.completed_quests.contains(&q.id) 
+                                                            {
+                                                                player.completed_quests.push(q.id.clone());
                                                                 
-                                                                let item_name = world.world.items.iter().find(|i| &i.id == reward_id).map(|i| i.name.clone()).unwrap_or_else(|| reward_id.clone());
-                                                                log_event("DELIVER_ITEM", &player.username, serde_json::json!({"quest_id": q.id, "item_id": reward_id, "item_name": item_name}));
-                                                                quest_msg = format!("\n🌟 [QUÊTE ACCOMPLIE] {} ! Tu reçois : {}.", q.name, item_name);
+                                                                if let Some(count) = player.inventory.get_mut(&q.target_id) {
+                                                                    if *count > 1 {
+                                                                        *count -= 1;
+                                                                    } else {
+                                                                        player.inventory.remove(&q.target_id);
+                                                                    }
+                                                                }
+                                                                
+                                                                if let Some(ref reward_id) = q.reward_item {
+                                                                    *player.inventory.entry(reward_id.clone()).or_insert(0) += 1;
+                                                                    
+                                                                    let item_name = world.world.items.iter().find(|i| &i.id == reward_id).map(|i| i.name.clone()).unwrap_or_else(|| reward_id.clone());
+                                                                    log_event("DELIVER_ITEM", &player.username, serde_json::json!({"quest_id": q.id, "item_id": reward_id, "item_name": item_name}));
+                                                                    quest_msg = format!("\n🌟 [QUÊTE ACCOMPLIE] {} ! Tu reçois : {}.", q.name, item_name);
+                                                                }
+                                                                
+                                                                if let Some(xp) = q.reward_exp {
+                                                                    player.exp += xp;
+                                                                    quest_msg.push_str(&format!(" (+{} EXP)", xp));
+                                                                }
+                                                                
+                                                                quete_validee = true;
+                                                                break;
                                                             }
-                                                            
-                                                            if let Some(xp) = q.reward_exp {
-                                                                player.exp += xp;
-                                                                quest_msg.push_str(&format!(" (+{} EXP)", xp));
-                                                            }
-                                                            
-                                                            quete_validee = true;
-                                                            break;
                                                         }
                                                     }
                                                 }
-                                                let items_list: Vec<String> = player.inventory.keys().cloned().collect();
-                                                let phrase_ia = ask_aldous(&player.username, &items_list, player.exp).await;
-                                                    if !quete_validee && npc.id == "npc_vieux_sage" {
-                                                        trigger_ai = Some((npc.name.clone(), player.username.clone(), player.inventory.clone(), player.exp));
-                                                    }
-                                                }
                                             }
+                                            
                                             if let Some(npc) = npc_trouve {
                                                 if quete_validee {
                                                     format!("S: OK {} prend l'objet. {}\n", npc.name, quest_msg)
-                                                } else if trigger_ai.is_some() {
-                                                    String::new() 
                                                 } else {
                                                     let repliques = npc.dialogue.join(" ");
                                                     format!("S: OK {} dit : \"{}\"\n", npc.name, repliques)
                                                 }
                                             } else { "S: ERR Il n'y a personne de ce nom ici.\n".to_string() }
                                         }
-
                                         GameCommand::Attack(cible) => {
                                             let mut salle_actuelle = String::new();
                                             let mut degats_joueur = 10;
+                                            let mut armure_joueur = 0;
                                             let mut monstre_id_trouve = None;
                                             let mut monstre_nom = String::new();
                                             let mut joueur_nom = String::new();
@@ -486,16 +498,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                     player.last_attack = Some(Instant::now()); 
                                                     
                                                     let mut bonus_arme = 0;
-                                                    for item_id in player.inventory.keys() {
+                                                    for (slot, item_id) in &player.equipment {
                                                         if let Some(item_def) = world.world.items.iter().find(|i| &i.id == item_id) {
-                                                            if let Some(dmg) = item_def.damage {
-                                                                if dmg > bonus_arme {
-                                                                    bonus_arme = dmg;
-                                                                }
+                                                            if slot == "weapon" {
+                                                                bonus_arme += item_def.damage.unwrap_or(0);
+                                                            } else if slot == "head" || slot == "chest" || slot == "legs" {
+                                                                armure_joueur += item_def.defense.unwrap_or(0);
                                                             }
                                                         }
                                                     }
-                                                    degats_joueur += bonus_arme; 
+                                                    degats_joueur += bonus_arme;
                                                 }
 
                                                 if let Some(npcs_dans_salle) = server_state.room_npcs.get(&salle_actuelle) {
@@ -567,8 +579,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                         let mut joueur_mort = false;
                                                         let mut pv_joueur = 0;
                                                         
+                                                        let degats_monstre_finaux = (degats_monstre - armure_joueur).max(1);
+                                                        
                                                         if let Some(player) = server_state.players.get_mut(&addr) {
-                                                            player.hp -= degats_monstre;
+                                                            player.hp -= degats_monstre_finaux; 
                                                             pv_joueur = player.hp;
                                                             if player.hp <= 0 {
                                                                 joueur_mort = true;
@@ -582,18 +596,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                             log_event("DEATH", &joueur_nom, serde_json::json!({"killer": monstre_nom}));
                                                             format!("S: OK Tu infliges {} dégâts, mais le {} t'achève. Tu es MORT ! Tu te réveilles au village.\n", degats_finaux, monstre_nom)
                                                         } else {
-                                                            format!("S: OK Tu attaques {} ({} PV restants). Il riposte (-{} PV). (Tes PV: {})\n", monstre_nom, pv_monstre_restants, degats_monstre, pv_joueur)
+                                                            format!("S: OK Tu attaques {} ({} PV restants). Il riposte (-{} PV). (Tes PV: {})\n", monstre_nom, pv_monstre_restants, degats_monstre_finaux, pv_joueur)
                                                         }
                                                     }
                                                 } else { "S: ERR Impossible d'attaquer ça.\n".to_string() }
                                             } 
                                         }
 
-                                        GameCommand::Chat { channel, message } if channel == "GLOBAL" => {
+                                        GameCommand::Chat { channel, message } => {
                                             let mut en_cooldown = false;
+                                            let mut current_room = String::new();
+                                            
                                             if let Some(player) = server_state.players.get(&addr) {
-                                                if player.last_chat.map_or(false, |last| last.elapsed() < Duration::from_millis(2000)) {
+                                                if player.last_chat.map_or(false, |last| last.elapsed() < std::time::Duration::from_millis(2000)) {
                                                     en_cooldown = true;
+                                                } else {
+                                                    current_room = player.current_room.clone();
                                                 }
                                             }
 
@@ -601,13 +619,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                 "S: ERR spam_chat_interdit\n".to_string()
                                             } else if let Some(player) = server_state.players.get_mut(&addr) {
                                                 player.last_chat = Some(Instant::now());
+                                                let username = player.username.clone();
                                                 
-                                                let format_evt = format!("S: EVT GLOBAL CHAT {} {}\n", player.username, message);
-                                                log_event("CHAT", &player.username, json!({"channel": channel, "message": message}));
-
-                                                let _ = tx.send(GlobalEvent { sender_addr: addr, message: format_evt });
-                                                "S: OK\n".to_string()
-                                            } else { "S: ERR utilize_connect_first\n".to_string() }
+                                                match channel.as_str() {
+                                                    "GLOBAL" => {
+                                                        let format_evt = format!("S: EVT GLOBAL CHAT {} {}\n", username, message);
+                                                        log_event("CHAT", &username, serde_json::json!({"channel": "GLOBAL", "message": message}));
+                                                        let _ = tx.send(GlobalEvent { sender_addr: addr, message: format_evt });
+                                                        "S: OK\n".to_string()
+                                                    }
+                                                    "ROOM" => {
+                                                        let format_evt = format!("S: EVT ROOM {} CHAT {} {}\n", current_room, username, message);
+                                                        log_event("CHAT", &username, serde_json::json!({"channel": "ROOM", "room": current_room, "message": message}));
+                                                        let _ = tx.send(GlobalEvent { sender_addr: addr, message: format_evt });
+                                                        "S: OK\n".to_string()
+                                                    }
+                                                    "GROUP" => {
+                                                        // Prêt pour quand tu ajouteras la variable "group" à la structure Player
+                                                        let format_evt = format!("S: EVT GROUP CHAT {} {}\n", username, message);
+                                                        log_event("CHAT", &username, serde_json::json!({"channel": "GROUP", "message": message}));
+                                                        let _ = tx.send(GlobalEvent { sender_addr: addr, message: format_evt });
+                                                        "S: OK\n".to_string()
+                                                    }
+                                                    _ => "S: ERR channel_inconnu\n".to_string(),
+                                                }
+                                            } else { 
+                                                "S: ERR utilize_connect_first\n".to_string() 
+                                            }
                                         }
 
                                         GameCommand::Who => {
@@ -636,12 +674,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     }
                                 };
 
-                                if let Some((npc_name, p_name, p_inv, p_exp)) = trigger_ai {
-                                    let items_list: Vec<String> = p_inv.keys().cloned().collect();
-                                    let phrase_ia = ask_aldous(&p_name, &items_list, p_exp).await;
-                                    reponse = format!("S: OK {} te scrute de son œil unique : \"{}\"\n", npc_name, phrase_ia);
-                                }
-
                                 if writer.write_all(reponse.as_bytes()).await.is_err() { break; }
 
                                 if client_veut_quitter {
@@ -661,7 +693,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     evt_result = rx.recv() => {
                         if let Ok(evt) = evt_result {
                             if evt.sender_addr != addr {
-                                if writer.write_all(evt.message.as_bytes()).await.is_err() { break; }
+                                let mut should_send = true;
+                                
+                                // Filtrage du canal ROOM
+                                if evt.message.starts_with("S: EVT ROOM ") {
+                                    let parts: Vec<&str> = evt.message.splitn(5, ' ').collect();
+                                    if parts.len() >= 4 {
+                                        let room_cible = parts[3]; 
+                                        let guard = state.lock().await;
+                                        if let Some(player) = guard.players.get(&addr) {
+                                            if player.current_room != room_cible {
+                                                should_send = false; 
+                                            }
+                                        } else {
+                                            should_send = false;
+                                        }
+                                    }
+                                }
+
+                                if should_send {
+                                    if writer.write_all(evt.message.as_bytes()).await.is_err() { break; }
+                                }
                             }
                         }
                     }
