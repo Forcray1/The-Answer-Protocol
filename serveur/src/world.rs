@@ -38,6 +38,8 @@ pub struct Npc {
     pub exp_reward: Option<i32>,
     #[serde(default)] 
     pub drops: Vec<DropChance>,
+    #[serde(default)]
+    pub respawn_time: Option<u64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

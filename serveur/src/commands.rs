@@ -8,6 +8,7 @@ pub enum GameCommand {
     Take(String),
     Drop(String),
     Inventory,
+    Info(String),
     Attack(String),
     Status,
     Talk(String),
@@ -47,7 +48,7 @@ impl GameCommand {
             
             "ATTACK" if parts.len() > 1 => GameCommand::Attack(parts[1..].join(" ")),
             "TALK" if parts.len() > 1 => GameCommand::Talk(parts[1..].join(" ")),
-            
+            "INFO" if parts.len() > 1 => GameCommand::Info(parts[1..].join(" ")),
             "QUESTS" => GameCommand::Quests,
             "QUEST" if parts.len() > 1 => GameCommand::Quest(parts[1].to_string()),
             

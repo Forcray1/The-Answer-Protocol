@@ -161,6 +161,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     let mut guard = state.lock().await;
                                     let server_state = &mut *guard;
 
+                                    server_state.update_respawns(&world);
                                     match commande_analysee {
                                         GameCommand::Connect(pseudo) => {
                                             if server_state.players.contains_key(&addr) {
@@ -259,6 +260,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                 }
                                             } else { 
                                                 "S: ERR utilize_connect_first\n".to_string() 
+                                            }
+                                        }
+                                        
+                                        GameCommand::Info(cible) => {
+                                            if let Some(player) = server_state.players.get(&addr) {
+                                                let item_trouve = world.world.items.iter().find(|i| { 
+                                                    i.id.to_lowercase() == cible.to_lowercase() || i.name.to_lowercase() == cible.to_lowercase() 
+                                                });
+
+                                                if let Some(item) = item_trouve {
+                                                    if player.inventory.contains_key(&item.id) {
+                                                        let mut stats = String::new();
+                                                        
+                                                        if let Some(dmg) = item.damage {
+                                                            stats.push_str(&format!("\n Dégâts : +{}", dmg));
+                                                        }
+
+                                                        format!("S: OK --- {} ---\n {}{}\n", item.name, item.description, stats)
+                                                    } else {
+                                                        "S: ERR Tu ne possèdes pas cet objet.\n".to_string()
+                                                    }
+                                                } else {
+                                                    "S: ERR Objet inconnu.\n".to_string()
+                                                }
+                                            } else {
+                                                "S: ERR utilize_connect_first\n".to_string()
                                             }
                                         }
 
@@ -503,6 +530,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                     if monstre_mort {
                                                         if let Some(npcs_dans_salle) = server_state.room_npcs.get_mut(&salle_actuelle) {
                                                             npcs_dans_salle.retain(|id| id != &m_id);
+                                                        }
+
+                                                        if let Some(npc_static) = world.world.npcs.iter().find(|n| n.id == m_id) {
+                                                            let delay = npc_static.respawn_time.unwrap_or(30);
+                                                            server_state.dead_npcs.push(crate::state::DeadNpc {
+                                                                npc_id: m_id.clone(),
+                                                                room_id: salle_actuelle.clone(),
+                                                                respawn_at: std::time::Instant::now() + std::time::Duration::from_secs(delay),
+                                                            });
                                                         }
                                                         
                                                         let mut noms_drops = Vec::new();

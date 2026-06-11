@@ -25,6 +25,7 @@ world:
       damage: 15
       defense: 5
       exp_reward: 25
+      respawn_time: 20
       dialogue:
         - "Le loup grogne et montre ses crocs acérés."
       drops:

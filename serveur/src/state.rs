@@ -62,12 +62,19 @@ pub struct Stats {
     pub defense: i32,
 }
 
+pub struct DeadNpc {
+    pub npc_id: String,
+    pub room_id: String,
+    pub respawn_at: Instant,
+}
+
 pub struct ServerState {
     pub players: HashMap<SocketAddr, Player>,
     pub room_items: HashMap<String, Vec<RuntimeItem>>,
     pub room_npcs: HashMap<String, Vec<String>>,
     pub npc_hps: HashMap<String, i32>,
     pub active_combats: HashMap<SocketAddr, CombatInstance>,
+    pub dead_npcs: Vec<DeadNpc>,
 }
 
 impl ServerState {
@@ -78,6 +85,28 @@ impl ServerState {
             room_npcs: HashMap::new(),
             npc_hps: HashMap::new(),
             active_combats: HashMap::new(),
+            dead_npcs: Vec::new(),
+        }
+    }
+
+    pub fn update_respawns(&mut self, world_data: &crate::world::WorldData) {
+        let now = Instant::now();
+        let mut to_respawn = Vec::new();
+
+        self.dead_npcs.retain(|dead| {
+            if now >= dead.respawn_at {
+                to_respawn.push((dead.npc_id.clone(), dead.room_id.clone()));
+                false
+            } else {
+                true
+            }
+        });
+
+        for (npc_id, room_id) in to_respawn {
+            if let Some(npc) = world_data.world.npcs.iter().find(|n| n.id == npc_id) {
+                self.npc_hps.insert(npc_id.clone(), npc.hp);
+                self.room_npcs.entry(room_id).or_default().push(npc_id);
+            }
         }
     }
 
