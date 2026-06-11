@@ -17,6 +17,12 @@ pub struct World {
     pub quests: Vec<Quest>,
 }
 
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct DropChance {
+    pub item_id: String,
+    pub chance: u32,
+}
 #[derive(Debug, Deserialize, Clone)]
 pub struct Npc {
     pub id: String,
@@ -24,6 +30,14 @@ pub struct Npc {
     pub role: String,
     pub hp: i32,
     pub dialogue: Vec<String>,
+    #[serde(default)] 
+    pub damage: Option<i32>,
+    #[serde(default)] 
+    pub defense: Option<i32>,
+    #[serde(default)] 
+    pub exp_reward: Option<i32>,
+    #[serde(default)] 
+    pub drops: Vec<DropChance>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

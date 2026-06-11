@@ -22,16 +22,31 @@ world:
       name: "Loup des Ombres"
       role: "enemy"
       hp: 40
+      damage: 15
+      defense: 5
+      exp_reward: 25
       dialogue:
         - "Le loup grogne et montre ses crocs acérés."
+      drops:
+        - item_id: "item_peau_loup"
+          chance: 50
+        - item_id: "item_croc_loup"
+          chance: 50
 
   # 2. LES ITEMS
   items:
     - id: "epee_rouillee"
       name: "Épée Rouillée"
-      description: "Une lame usée par le sang et le temps. (+5 ATK)"
+      description: "Une lame usée par le sang et le temps. (+10 ATK)"
       obtainable: true
       type: "quest"
+      damage: 10
+    - id: "god_sword"
+      name: "Lame du Destin"
+      description: "Une épée légendaire, forgée par les dieux. (+300 ATK)"
+      obtainable: true
+      type: "quest"
+      damage: 300
     - id: "lettre_mysterieuse"
       name: "Lettre Mystérieuse"
       description: "Un objet de quête."
@@ -52,6 +67,16 @@ world:
       description: "Ouvre l'accès aux catacombes."
       obtainable: false
       type: "standard"
+    - id: "item_peau_loup"
+      name: "Peau de Loup Maudit"
+      description: "Une peau épaisse et malodorante."
+      obtainable: true
+      type: "standard"
+    - id: "item_croc_loup"
+      name: "Croc de Loup Maudit"
+      description: "Un croc pointu, gorgé de malédiction."
+      obtainable: true
+      type: "standard"
 
   # 3. LES LIEUX
   locations:
@@ -63,8 +88,8 @@ world:
         east: "taverne_sombre"
         south: "cimetiere"
         west: "route_ouest"
-      npcs: ["npc_vieux_sage"]
-      items: ["epee_rouillee", "lettre_mysterieuse"]
+      npcs: ["npc_vieux_sage", "mob_loup_maudit"]
+      items: ["god_sword", "lettre_mysterieuse"]
 
     taverne_sombre:
       name: "La Taverne du Pendu"
@@ -82,7 +107,7 @@ world:
         north: "taverne_sombre"
         west: "cimetiere"
       npcs: []
-      items: []
+      items: ["epee_rouillee"]
 
     cimetiere:
       name: "Cimetière Oublié"
@@ -138,7 +163,7 @@ world:
       exits:
         south: "ruines_entree"
       npcs: ["mob_loup_maudit"]
-      items: ["item_cle_donjon"]
+      items: []
 
   # 4. LES QUÊTES
   quests:

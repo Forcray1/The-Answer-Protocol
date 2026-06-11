@@ -19,6 +19,7 @@ mod state;
 use commands::GameCommand;
 use world::WorldData;
 use state::ServerState;
+use rand::Rng;
 
 #[derive(Clone, Debug)]
 struct GlobalEvent {
@@ -432,10 +433,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                                         GameCommand::Attack(cible) => {
                                             let mut salle_actuelle = String::new();
-                                            let mut degats_joueur = 10; // Dégâts de base à mains nues
+                                            let mut degats_joueur = 10;
                                             let mut monstre_id_trouve = None;
                                             let mut monstre_nom = String::new();
                                             let mut joueur_nom = String::new();
+                                            
+                                            let mut degats_monstre = 5;
+                                            let mut defense_monstre = 0;
+                                            let mut exp_gagnee = 0;
+                                            let mut drops_monstre = Vec::new();
                                             
                                             let mut en_cooldown = false;
                                             if let Some(player) = server_state.players.get(&addr) {
@@ -453,7 +459,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                     player.last_attack = Some(Instant::now()); 
                                                     
                                                     let mut bonus_arme = 0;
-                                                    for item_id in player.inventory.keys() { // On parcourt les clés (les IDs des objets)
+                                                    for item_id in player.inventory.keys() {
                                                         if let Some(item_def) = world.world.items.iter().find(|i| &i.id == item_id) {
                                                             if let Some(dmg) = item_def.damage {
                                                                 if dmg > bonus_arme {
@@ -471,6 +477,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                             if npc.role == "enemy" && (npc.id.to_lowercase() == cible.to_lowercase() || npc.name.to_lowercase() == cible.to_lowercase()) {
                                                                 monstre_id_trouve = Some(npc.id.clone());
                                                                 monstre_nom = npc.name.clone();
+                                                                degats_monstre = npc.damage.unwrap_or(5);
+                                                                defense_monstre = npc.defense.unwrap_or(0);
+                                                                exp_gagnee = npc.exp_reward.unwrap_or(0);
+                                                                drops_monstre = npc.drops.clone();
                                                                 break;
                                                             }
                                                         }
@@ -480,12 +490,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                 if let Some(m_id) = monstre_id_trouve {
                                                     let mut monstre_mort = false;
                                                     let mut pv_monstre_restants = 0;
-                                                    let degats_monstre = 15;
+                                                    
+                                                    let degats_finaux = (degats_joueur - defense_monstre).max(1);
                                                     
                                                     if let Some(hp) = server_state.npc_hps.get_mut(&m_id) {
-                                                        *hp -= degats_joueur;
+                                                        *hp -= degats_finaux;
                                                         pv_monstre_restants = *hp;
-                                                        log_event("COMBAT", &joueur_nom, serde_json::json!({"target": monstre_nom, "damage_dealt": degats_joueur, "target_hp_left": pv_monstre_restants}));
+                                                        log_event("COMBAT", &joueur_nom, serde_json::json!({"target": monstre_nom, "damage_dealt": degats_finaux, "target_hp_left": pv_monstre_restants}));
                                                         if *hp <= 0 { monstre_mort = true; }
                                                     }
 
@@ -493,7 +504,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                         if let Some(npcs_dans_salle) = server_state.room_npcs.get_mut(&salle_actuelle) {
                                                             npcs_dans_salle.retain(|id| id != &m_id);
                                                         }
-                                                        format!("S: OK Tu as infligé {} dégâts. Le {} s'effondre sans vie !\n", degats_joueur, monstre_nom)
+                                                        
+                                                        let mut noms_drops = Vec::new();
+                                                        if let Some(player) = server_state.players.get_mut(&addr) {
+                                                            player.exp += exp_gagnee;
+                                                            
+                                                            for drop in drops_monstre {
+                                                                if rand::thread_rng().gen_range(1..=100) <= drop.chance {
+                                                                    *player.inventory.entry(drop.item_id.clone()).or_insert(0) += 1;
+                                                                    
+                                                                    let nom_item = world.world.items.iter()
+                                                                        .find(|i| i.id == drop.item_id)
+                                                                        .map(|i| i.name.clone())
+                                                                        .unwrap_or(drop.item_id.clone());
+                                                                    noms_drops.push(nom_item);
+                                                                }
+                                                            }
+                                                        }
+
+                                                        let mut msg = format!("S: OK Tu as infligé {} dégâts. Le {} s'effondre sans vie ! (+{} EXP)\n", degats_finaux, monstre_nom, exp_gagnee);
+                                                        if !noms_drops.is_empty() {
+                                                            msg.push_str(&format!("Tu obtiens directement : {}\n", noms_drops.join(", ")));
+                                                        }
+                                                        msg
                                                     } else {
                                                         let mut joueur_mort = false;
                                                         let mut pv_joueur = 0;
@@ -511,7 +544,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                         if joueur_mort {
                                                             let _ = tx.send(GlobalEvent { sender_addr: addr, message: format!("S: EVT GLOBAL CHAT Serveur ☠️ Un joueur a été tué par {} !\n", monstre_nom) });
                                                             log_event("DEATH", &joueur_nom, serde_json::json!({"killer": monstre_nom}));
-                                                            format!("S: OK Tu infliges {} dégâts, mais le {} t'achève. Tu es MORT ! Tu te réveilles au village.\n", degats_joueur, monstre_nom)
+                                                            format!("S: OK Tu infliges {} dégâts, mais le {} t'achève. Tu es MORT ! Tu te réveilles au village.\n", degats_finaux, monstre_nom)
                                                         } else {
                                                             format!("S: OK Tu attaques {} ({} PV restants). Il riposte (-{} PV). (Tes PV: {})\n", monstre_nom, pv_monstre_restants, degats_monstre, pv_joueur)
                                                         }
