@@ -26,7 +26,7 @@ pub async fn process_command(
     pool: &DbPool,
 ) -> (String, bool) {
     match command {
-        GameCommand::Connect(pseudo) => (handle_connect(addr, pseudo, state, tx, pool).await, false),
+        GameCommand::Connect { username, password } => (handle_connect(addr, username, password, state, tx, pool).await, false),
         GameCommand::Look           => (handle_look(addr, state, world), false),
         GameCommand::Move(dir)      => (handle_move(addr, dir, state, world), false),
         GameCommand::Inventory      => (handle_inventory(addr, state, world), false),
@@ -73,6 +73,7 @@ pub async fn save_player_to_db(pool: &DbPool, player: &Player) {
 async fn handle_connect(
     addr: SocketAddr,
     pseudo: String,
+    password: String,
     state: &mut ServerState,
     tx: &Sender<GlobalEvent>,
     pool: &DbPool,
@@ -81,9 +82,31 @@ async fn handle_connect(
         return "S: ERR you_are_already_connected\n".to_string();
     }
 
+    if password.is_empty() {
+        return "S: ERR password_required\n".to_string();
+    }
+
+    // Empêche de se connecter deux fois sur le même compte
+    if state.players.values().any(|p| p.username == pseudo) {
+        return "S: ERR already_logged_in\n".to_string();
+    }
+
     // Essaie de charger un joueur existant
     match database::load_player(pool, &pseudo).await {
         Ok(Some(data)) => {
+            // Compte existant → on vérifie le mot de passe avant de restaurer
+            match database::verify_player(pool, &pseudo, &password).await {
+                Ok(true) => {} // mot de passe correct, on continue
+                Ok(false) => {
+                    log_event("AUTH_FAIL", &pseudo, json!({"ip": addr.to_string()}));
+                    return "S: ERR bad_credentials\n".to_string();
+                }
+                Err(e) => {
+                    eprintln!("[DB] Erreur vérification : {}", e);
+                    return "S: ERR internal_error\n".to_string();
+                }
+            }
+
             // Joueur trouvé → restaurer son état
             let player = Player {
                 username: pseudo.clone(),
@@ -106,10 +129,11 @@ async fn handle_connect(
             "S: OK connected\n".to_string()
         }
         Ok(None) => {
-            // Nouveau joueur → on le crée en BDD avec les valeurs par défaut
-            // Pour l'instant pas de mot de passe : on en crée un vide
-            // Ajouter le mdp^plus tard
-            let _ = database::register_player(pool, &pseudo, "").await;
+            // Nouveau joueur -> on crée le compte avec le mot de passe fourni
+            if let Err(e) = database::register_player(pool, &pseudo, &password).await {
+                eprintln!("[DB] Erreur création compte : {}", e);
+                return "S: ERR internal_error\n".to_string();
+            }
             state.add_player(addr, pseudo.clone());
             log_event("CONNECT", &pseudo, json!({"ip": addr.to_string(), "type": "new"}));
             let _ = tx.send(GlobalEvent {
@@ -120,8 +144,7 @@ async fn handle_connect(
         }
         Err(e) => {
             eprintln!("[DB] Erreur chargement joueur : {}", e);
-            state.add_player(addr, pseudo.clone());
-            "S: OK connected\n".to_string()
+            "S: ERR internal_error\n".to_string()
         }
     }
 }

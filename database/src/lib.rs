@@ -5,7 +5,8 @@
 // - save_player : sauvegarde les données d'un joueur
 
 use std::collections::HashMap;
-use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
+use std::str::FromStr;
+use sqlx::{SqlitePool, sqlite::SqlitePoolOptions, sqlite::SqliteConnectOptions};
 use argon2::{Argon2, PasswordHasher, PasswordVerifier};
 use argon2::password_hash::{rand_core::OsRng, SaltString, PasswordHash};
 
@@ -24,9 +25,13 @@ pub struct PlayerData {
 // Le fichier game.db est créé s'il n'existe pas.
 
 pub async fn init_db(database_url: &str) -> Result<SqlitePool, sqlx::Error> {
+    // create_if_missing : crée le fichier game.db s'il n'existe pas encore
+    let options = SqliteConnectOptions::from_str(database_url)?
+        .create_if_missing(true);
+
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
-        .connect(database_url)
+        .connect_with(options)
         .await?;
 
     // Exécute tous les fichiers dans migrations dans l'ordre

@@ -2,7 +2,7 @@
 
 #[derive(Debug, PartialEq)]
 pub enum GameCommand {
-    Connect(String),
+    Connect { username: String, password: String },
     Look,
     Move(String),
     Take(String),
@@ -37,7 +37,11 @@ impl GameCommand {
         let cmd_type = parts[0].to_uppercase(); // On passe en majuscules pour éviter les bugs
 
         match cmd_type.as_str() {
-            "CONNECT" if parts.len() > 1 => GameCommand::Connect(parts[1].to_string()),
+            // CONNECT <pseudo> [mot_de_passe]
+            "CONNECT" if parts.len() > 1 => GameCommand::Connect {
+                username: parts[1].to_string(),
+                password: parts.get(2).map(|s| s.to_string()).unwrap_or_default(),
+            },
             "LOOK" => GameCommand::Look,
             
             "MOVE" if parts.len() > 1 => GameCommand::Move(parts[1].to_lowercase()),
