@@ -301,9 +301,20 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 
 ## Timeline:
 
+09/06/2026:
+        avauclai:
+                - Core Architecture: Set up an async TCP server using tokio and a custom text-command parser.
+                - World Generation: Implemented dynamic loading for rooms, items, and NPCs from a world.yaml file.
+
+10/06/2026
+        avauclai
+                - Navigation & Chat: Added room-to-room movement, area scanning (look), and proximity-filtered chat.
+
 11/06/2026:
 	mlorenzo:
 		- Created the classes for all instances
+                - Inventory & Quests: Created item management (take, drop) and an NPC quest delivery system (talk) with EXP/item rewards.
+
 12/06/2026:
 	mlorenzo:
 		- Added a database in sql persistant throughought the restart and logs of the game/players

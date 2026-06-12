@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             result = server_reader.read_line(&mut server_line) => {
                 match result {
                     Ok(0) => {
-                        println!("\n[CLIENT] Le serveur a coupé la connexion.");
+                        println!("\n[CLIENT] Le serveur a coupe la connexion.");
                         break;
                     }
                     Ok(_) => {

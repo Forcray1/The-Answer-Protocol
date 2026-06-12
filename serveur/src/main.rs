@@ -57,10 +57,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // 1. Initialise la BDD — crée game.db + tables si nécessaire
-    println!("[SERVEUR] Initialisation de la base de données...");
+    println!("[SERVEUR] Initialisation de la base de donnees...");
     let pool = database::init_db("sqlite://game.db").await?;
     let shared_pool: DbPool = Arc::new(pool);
-    println!("[SERVEUR] Base de données prête.");
+    println!("[SERVEUR] Base de données prete.");
 
     // 2. Charge le monde depuis le YAML (inchangé)
     println!("[SERVEUR] Chargement de la carte...");
