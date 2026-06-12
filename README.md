@@ -298,3 +298,13 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 - annonce le décès sur le chat global ;
 - réinitialise vos PV à `100` ;
 - vous téléporte sur la Place d’Ombreval.
+
+## Timeline:
+
+11/06/2026:
+	mlorenzo:
+		- Created the classes for all instances
+12/06/2026:
+	mlorenzo:
+		- Added a database in sql persistant throughought the restart and logs of the game/players
+		- Adapted the serveur/main.rs and serveur/handlers.rs to match the database

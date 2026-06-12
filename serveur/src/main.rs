@@ -1,5 +1,3 @@
-// serveur/src/main.rs
-
 use tokio::net::TcpListener;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use std::sync::Arc;
@@ -9,18 +7,19 @@ use chrono::Local;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::fs::OpenOptions;
 use std::io::Write;
-use std::time::{Duration, Instant};
-use reqwest::Client;
 
-mod commands; 
-mod world; 
+mod commands;
+mod world;
 mod state;
 pub mod handlers;
 
 use commands::GameCommand;
 use world::WorldData;
 use state::ServerState;
-use rand::Rng;
+
+// Le pool SQLite est partagé entre tous les handlers via Arc
+// SqlitePool est déjà thread-safe, pas besoin de Mutex autour
+pub type DbPool = Arc<sqlx::SqlitePool>;
 
 #[derive(Clone, Debug)]
 pub struct GlobalEvent {
@@ -38,48 +37,54 @@ pub fn log_event(event_type: &str, player: &str, details: serde_json::Value) {
             "player": player,
             "details": details
         });
-        
         let log_string = log_entry.to_string();
         println!("{}", log_string);
         if let Ok(mut file) = OpenOptions::new()
             .create(true)
             .append(true)
-            .open("logs.json") 
+            .open("logs.json")
         {
             let _ = writeln!(file, "{}", log_string);
         }
     }
 }
 
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if std::env::args().any(|arg| arg == "--logs") {
         LOG_MODE.store(true, Ordering::SeqCst);
-        println!("[SERVEUR] 🛠️  Mode LOG JSON activé.");
+        println!("[SERVEUR] Mode LOG JSON activé.");
     }
 
+    // 1. Initialise la BDD — crée game.db + tables si nécessaire
+    println!("[SERVEUR] Initialisation de la base de données...");
+    let pool = database::init_db("sqlite://game.db").await?;
+    let shared_pool: DbPool = Arc::new(pool);
+    println!("[SERVEUR] Base de données prête.");
+
+    // 2. Charge le monde depuis le YAML (inchangé)
     println!("[SERVEUR] Chargement de la carte...");
     let world_data = WorldData::load_from_file("world.yaml").expect("Erreur world.yaml");
     let shared_world = Arc::new(world_data);
 
+    // 3. Initialise l'état en mémoire (inchangé)
     let mut initial_state = ServerState::new();
     initial_state.initialize_from_world(&shared_world);
-
     let shared_state = Arc::new(Mutex::new(initial_state));
 
     let (tx, _rx) = broadcast::channel::<GlobalEvent>(32);
     let shared_tx = Arc::new(tx);
 
     let listener = TcpListener::bind("127.0.0.1:4243").await?;
-    println!("[SERVEUR] En écoute sur le port 4243... Système de Quêtes activé.");
+    println!("[SERVEUR] En écoute sur le port 4243...");
 
     loop {
         let (mut socket, addr) = listener.accept().await?;
-        
+
         let world = Arc::clone(&shared_world);
         let state = Arc::clone(&shared_state);
         let tx = Arc::clone(&shared_tx);
+        let pool = Arc::clone(&shared_pool); // clone du Arc, pas du pool
         let mut rx = tx.subscribe();
 
         tokio::spawn(async move {
@@ -91,41 +96,55 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             loop {
                 line.clear();
-                
+
                 tokio::select! {
                     result = reader.read_line(&mut line) => {
                         match result {
+                            Ok(0) | Err(_) => {
+                                // Connexion fermée brutalement — sauvegarde quand même
+                                let mut guard = state.lock().await;
+                                if let Some(player) = guard.remove_player(addr) {
+                                    handlers::save_player_to_db(&pool, &player).await;
+                                    log_event("DISCONNECT", &player.username, json!({"reason": "connection_lost"}));
+                                    let _ = tx.send(GlobalEvent {
+                                        sender_addr: addr,
+                                        message: format!("S: EVT GLOBAL CHAT Serveur {} a perdu la connexion.\n", player.username)
+                                    });
+                                }
+                                break;
+                            }
                             Ok(_) => {
-                                let commande_analysee = GameCommand::parse(&line);
+                                let commande = GameCommand::parse(&line);
 
-                                let (reponse, client_veut_quitter) = {
+                                let (reponse, quitter) = {
                                     let mut guard = state.lock().await;
                                     let server_state = &mut *guard;
-
                                     server_state.update_respawns(&world);
-                                    
-                                    crate::handlers::process_command(
-                                        addr, 
-                                        commande_analysee, 
-                                        server_state, 
-                                        &world, 
-                                        &tx
-                                    )
+                                    handlers::process_command(
+                                        addr,
+                                        commande,
+                                        server_state,
+                                        &world,
+                                        &tx,
+                                        &pool,
+                                    ).await
                                 };
 
                                 if writer.write_all(reponse.as_bytes()).await.is_err() { break; }
 
-                                if client_veut_quitter {
+                                if quitter {
                                     let mut guard = state.lock().await;
-                                    let server_state = &mut *guard;
-                                    if let Some(player) = server_state.remove_player(addr) {
-                                        log_event("DISCONNECT", &player.username, json!({"reason": "QUIT command"}));
-                                        let _ = tx.send(GlobalEvent { sender_addr: addr, message: format!("S: EVT GLOBAL CHAT Serveur {} a quitté le monde.\n", player.username) });
+                                    if let Some(player) = guard.remove_player(addr) {
+                                        handlers::save_player_to_db(&pool, &player).await;
+                                        log_event("DISCONNECT", &player.username, json!({"reason": "QUIT"}));
+                                        let _ = tx.send(GlobalEvent {
+                                            sender_addr: addr,
+                                            message: format!("S: EVT GLOBAL CHAT Serveur {} a quitté le monde.\n", player.username)
+                                        });
                                     }
                                     break;
                                 }
                             }
-                            Err(_) => break,
                         }
                     }
                     Ok(event) = rx.recv() => {
