@@ -74,3 +74,25 @@
 {"details":{"ip":"127.0.0.1:60614"},"event":"CONNECT","player":"axel","timestamp":"2026-06-12T13:07:13"}
 {"details":{"ip":"127.0.0.1:47328"},"event":"CONNECT","player":"etst","timestamp":"2026-06-12T13:07:17"}
 {"details":{"channel":"GLOBAL","message":"test"},"event":"CHAT","player":"axel","timestamp":"2026-06-12T13:07:28"}
+{"details":{"ip":"127.0.0.1:47592"},"event":"CONNECT","player":"axel","timestamp":"2026-06-12T14:23:04"}
+{"details":{"item_id":"item_oeil_corbeau","item_name":"L'Œil de Corbeau"},"event":"TAKE","player":"axel","timestamp":"2026-06-12T14:24:03"}
+{"details":{"item_id":"item_cle_donjon","item_name":"Clé en Os","quest_id":"quest_oeil_sage"},"event":"DELIVER_ITEM","player":"axel","timestamp":"2026-06-12T14:24:20"}
+{"details":{"item_id":"epee_rouillee","item_name":"Épée Rouillée"},"event":"TAKE","player":"axel","timestamp":"2026-06-12T14:24:38"}
+{"details":{"damage_dealt":5,"target":"Loup des Ombres","target_hp_left":35},"event":"COMBAT","player":"axel","timestamp":"2026-06-12T14:24:43"}
+{"details":{"item_id":"casque_fendu","item_name":"Casque Fendu"},"event":"TAKE","player":"axel","timestamp":"2026-06-12T14:25:31"}
+{"details":{"damage_dealt":15,"target":"Loup des Ombres","target_hp_left":20},"event":"COMBAT","player":"axel","timestamp":"2026-06-12T14:26:15"}
+{"details":{"item_id":"cuirasse_defectueuse","item_name":"Cuirasse défectueuse"},"event":"TAKE","player":"axel","timestamp":"2026-06-12T14:27:14"}
+{"details":{"damage_dealt":15,"target":"Loup des Ombres","target_hp_left":5},"event":"COMBAT","player":"axel","timestamp":"2026-06-12T14:27:29"}
+{"details":{"ip":"127.0.0.1:38962"},"event":"CONNECT","player":"axel","timestamp":"2026-06-12T14:31:33"}
+{"details":{"item_id":"cuirasse_defectueuse","item_name":"Cuirasse défectueuse"},"event":"TAKE","player":"axel","timestamp":"2026-06-12T14:31:39"}
+{"details":{"item_id":"casque_fendu","item_name":"Casque Fendu"},"event":"TAKE","player":"axel","timestamp":"2026-06-12T14:32:01"}
+{"details":{"item_id":"bottes_usees","item_name":"Bottes Usées"},"event":"TAKE","player":"axel","timestamp":"2026-06-12T14:32:05"}
+{"details":{"damage_dealt":5,"target":"Loup des Ombres","target_hp_left":35},"event":"COMBAT","player":"axel","timestamp":"2026-06-12T14:32:33"}
+{"details":{"ip":"10.13.3.8:32782"},"event":"CONNECT","player":"inaciri","timestamp":"2026-06-12T15:32:17"}
+{"details":{"ip":"127.0.0.1:34774"},"event":"CONNECT","player":"axel","timestamp":"2026-06-12T15:32:21"}
+{"details":{"channel":"GLOBAL","message":"hi"},"event":"CHAT","player":"axel","timestamp":"2026-06-12T15:32:25"}
+{"details":{"reason":"QUIT command"},"event":"DISCONNECT","player":"inaciri","timestamp":"2026-06-12T15:32:45"}
+{"details":{"item_id":"god_sword"},"event":"TAKE","player":"axel","timestamp":"2026-06-12T16:00:22"}
+{"details":{"reason":"QUIT"},"event":"DISCONNECT","player":"axel","timestamp":"2026-06-12T16:00:24"}
+{"details":{"reason":"QUIT"},"event":"DISCONNECT","player":"axl","timestamp":"2026-06-12T16:00:41"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-06-12T16:00:51"}

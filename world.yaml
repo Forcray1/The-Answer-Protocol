@@ -49,7 +49,7 @@ world:
       obtainable: true
       type: "quest"
       defense: 2
-      slot: "armor"
+      slot: "chest"
     - id: "casque_fendu"
       name: "Casque Fendu"
       description: "Un casque fissuré, offrant une défense limitée. (+2 DEF)"
