@@ -59,3 +59,18 @@
 {"details":{"item_id":"bottes_usees","item_name":"Bottes Usées"},"event":"TAKE","player":"admin","timestamp":"2026-06-11T14:41:06"}
 {"details":{"item_id":"casque_fendu","item_name":"Casque Fendu"},"event":"TAKE","player":"admin","timestamp":"2026-06-11T14:41:14"}
 {"details":{"damage_dealt":5,"target":"Loup des Ombres","target_hp_left":35},"event":"COMBAT","player":"admin","timestamp":"2026-06-11T14:42:46"}
+{"details":{"ip":"127.0.0.1:37504"},"event":"CONNECT","player":"axel","timestamp":"2026-06-12T11:51:37"}
+{"details":{"channel":"GLOBAL","message":"test"},"event":"CHAT","player":"axel","timestamp":"2026-06-12T11:51:43"}
+{"details":{"ip":"127.0.0.1:37302"},"event":"CONNECT","player":"axel","timestamp":"2026-06-12T11:54:36"}
+{"details":{"ip":"127.0.0.1:60592"},"event":"CONNECT","player":"test","timestamp":"2026-06-12T11:54:43"}
+{"details":{"channel":"GLOBAL","message":"salut"},"event":"CHAT","player":"test","timestamp":"2026-06-12T11:54:55"}
+{"details":{"item_id":"god_sword","item_name":"Lame du Destin"},"event":"TAKE","player":"axel","timestamp":"2026-06-12T11:55:15"}
+{"details":{"damage_dealt":305,"target":"Loup des Ombres","target_hp_left":-265},"event":"COMBAT","player":"axel","timestamp":"2026-06-12T11:55:36"}
+{"details":{"item_id":"item_croc_loup","item_name":"Croc de Loup Maudit"},"event":"DROP","player":"axel","timestamp":"2026-06-12T11:55:49"}
+{"details":{"item_id":"item_croc_loup","item_name":"Croc de Loup Maudit"},"event":"TAKE","player":"test","timestamp":"2026-06-12T11:55:57"}
+{"details":{"ip":"127.0.0.1:43172"},"event":"CONNECT","player":"axel","timestamp":"2026-06-12T11:57:43"}
+{"details":{"ip":"127.0.0.1:41238"},"event":"CONNECT","player":"test","timestamp":"2026-06-12T11:57:54"}
+{"details":{"channel":"GLOBAL","message":"tets"},"event":"CHAT","player":"axel","timestamp":"2026-06-12T11:58:09"}
+{"details":{"ip":"127.0.0.1:60614"},"event":"CONNECT","player":"axel","timestamp":"2026-06-12T13:07:13"}
+{"details":{"ip":"127.0.0.1:47328"},"event":"CONNECT","player":"etst","timestamp":"2026-06-12T13:07:17"}
+{"details":{"channel":"GLOBAL","message":"test"},"event":"CHAT","player":"axel","timestamp":"2026-06-12T13:07:28"}
