@@ -319,3 +319,7 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 	mlorenzo:
 		- Added a database in sql persistant throughought the restart and logs of the game/players
 		- Adapted the serveur/main.rs and serveur/handlers.rs to match the database
+16/06/2026:
+	mlorenzo:
+		- Organized all the sprites, items, pnj and zones requiered for the game
+		- Adapted the classes for the missing variables
