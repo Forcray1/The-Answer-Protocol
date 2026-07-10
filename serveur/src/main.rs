@@ -16,6 +16,7 @@ pub mod handlers;
 use commands::GameCommand;
 use world::WorldData;
 use state::ServerState;
+use domain::RoomId;
 
 // Le pool SQLite est partagé entre tous les handlers via Arc
 // SqlitePool est déjà thread-safe, pas besoin de Mutex autour
@@ -25,6 +26,7 @@ pub type DbPool = Arc<sqlx::SqlitePool>;
 pub struct GlobalEvent {
     sender_addr: std::net::SocketAddr,
     message: String,
+    target_room: Option<RoomId>,
 }
 
 static LOG_MODE: AtomicBool = AtomicBool::new(false);
@@ -108,7 +110,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     log_event("DISCONNECT", &player.username, json!({"reason": "connection_lost"}));
                                     let _ = tx.send(GlobalEvent {
                                         sender_addr: addr,
-                                        message: format!("S: EVT GLOBAL CHAT Server {} lost connection.\n", player.username)
+                                        message: format!("S: EVT ROOM {} PRESENCE LEAVE {}\n", player.current_room, player.username),
+                                        target_room: Some(player.current_room.clone()),
+                                    });
+                                    let _ = tx.send(GlobalEvent {
+                                        sender_addr: addr,
+                                        message: format!("S: EVT GLOBAL CHAT Server {} lost connection.\n", player.username),
+                                        target_room: None,
                                     });
                                 }
                                 break;
@@ -139,7 +147,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         log_event("DISCONNECT", &player.username, json!({"reason": "QUIT"}));
                                         let _ = tx.send(GlobalEvent {
                                             sender_addr: addr,
-                                            message: format!("S: EVT GLOBAL CHAT Server {} left the world.\n", player.username)
+                                            message: format!("S: EVT ROOM {} PRESENCE LEAVE {}\n", player.current_room, player.username),
+                                            target_room: Some(player.current_room.clone()),
+                                        });
+                                        let _ = tx.send(GlobalEvent {
+                                            sender_addr: addr,
+                                            message: format!("S: EVT GLOBAL CHAT Server {} left the world.\n", player.username),
+                                            target_room: None,
                                         });
                                     }
                                     break;
@@ -149,7 +163,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     Ok(event) = rx.recv() => {
                         if event.sender_addr != addr {
-                            let _ = writer.write_all(event.message.as_bytes()).await;
+                            if let Some(ref target) = event.target_room {
+                                let guard = state.lock().await;
+                                if let Some(player) = guard.players.get(&addr) {
+                                    if &player.current_room == target {
+                                        let _ = writer.write_all(event.message.as_bytes()).await;
+                                    }
+                                }
+                            } else {
+                                let _ = writer.write_all(event.message.as_bytes()).await;
+                            }
                         }
                     }
                 }

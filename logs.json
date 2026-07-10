@@ -100,3 +100,15 @@
 {"details":{"reason":"QUIT"},"event":"DISCONNECT","player":"axel","timestamp":"2026-07-10T10:11:55"}
 {"details":{"ip":"127.0.0.1:33324","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-07-10T10:12:13"}
 {"details":{"reason":"QUIT"},"event":"DISCONNECT","player":"axel","timestamp":"2026-07-10T10:12:20"}
+{"details":{"ip":"127.0.0.1:59022","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-07-10T10:42:24"}
+{"details":{"ip":"127.0.0.1:59026","type":"new"},"event":"CONNECT","player":"test","timestamp":"2026-07-10T10:42:42"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-07-10T10:43:09"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"test","timestamp":"2026-07-10T10:43:09"}
+{"details":{"ip":"127.0.0.1:59052","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-07-10T10:46:39"}
+{"details":{"ip":"127.0.0.1:59053","type":"returning"},"event":"CONNECT","player":"test","timestamp":"2026-07-10T10:46:52"}
+{"details":{"reason":"QUIT"},"event":"DISCONNECT","player":"axel","timestamp":"2026-07-10T10:47:36"}
+{"details":{"reason":"QUIT"},"event":"DISCONNECT","player":"test","timestamp":"2026-07-10T10:47:37"}
+{"details":{"ip":"127.0.0.1:59128","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-07-10T10:58:16"}
+{"details":{"ip":"127.0.0.1:59129","type":"new"},"event":"CONNECT","player":"test","timestamp":"2026-07-10T10:58:20"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-07-10T10:58:47"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"test","timestamp":"2026-07-10T10:58:48"}
