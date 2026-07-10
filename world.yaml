@@ -1,7 +1,23 @@
 world:
   name: "The Answer Protocol"
-  npcs: []
-  items: []
+  npcs: 
+    - id: "Goblin_1"
+      name: "Goblin"
+      role: "enemy"
+      hp: 50
+      damage: 1
+      defense: 2
+      exp_reward: 65
+      respawn_time: 60
+      dialogue: ["Grahhhh !"]
+
+  items: 
+    - id: "Excalibur"
+      name: "Excalibur"
+      damage: 999
+      slot: "weapon"
+      obtainable: true
+      description: "A legendary sword."
   quests: []
   locations:
     Wild1:
@@ -24,9 +40,11 @@ world:
       name: "Wilderness III"
       description: ""
       exits: {}
-    Start_oasis:
+    Start:
       name: "Starting Oasis"
-      description: ""
+      description: "The start"
+      items: ["Excalibur"]
+      npcs: ["Goblin_1"]
       exits: {}
     Wild4:
       name: "Wilderness IV"

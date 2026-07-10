@@ -80,10 +80,8 @@ impl Default for Stats {
 }
 
 pub fn xp_required_for_level(level: i32) -> i32 {
-    let base: f64 = 60.0;
-    let growth: f64 = 1.8;
     let n = level.max(1) as f64;
-    (base * n.powf(growth)).round() as i32
+    (4.0 * n.powi(2) + 56.0).round() as i32
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

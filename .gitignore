@@ -6,3 +6,6 @@ game.db-shm
 game.db-wal
 
 logs.json
+world.yaml
+yaml_format.md
+
