@@ -323,3 +323,15 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 	mlorenzo:
 		- Organized all the sprites, items, pnj and zones requiered for the game
 		- Adapted the classes for the missing variables
+27/06/2026:
+	mlorenzo:
+		- Added a domain crate to hold all of the common classes and identification to specify them throughout the all project
+		- Adapted the classes from classes.rs in the real program
+		- Changed all of the returns from the program from french to english
+06/07/2026:
+	mlorenzo:
+		- Added a first map of the oasis in the map.rs for the bevy client
+07/07/2026:
+	mlorenzo:
+		- Added the sprite of the skin to the DB
+		- Implemented a first version of the player for bevy client

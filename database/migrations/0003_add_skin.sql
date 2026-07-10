@@ -1,0 +1,1 @@
+ALTER TABLE players ADD COLUMN skin TEXT NOT NULL DEFAULT 'default';

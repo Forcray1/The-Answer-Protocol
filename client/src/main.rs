@@ -5,7 +5,7 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("[CLIENT] Connexion au serveur 127.0.0.1:4243...");
+    println!("[CLIENT] Connecting to the server 127.0.0.1:4243...");
     
     // Connexion au serveur
     let mut stream = TcpStream::connect("127.0.0.1:4243").await?;
@@ -22,20 +22,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             result = server_reader.read_line(&mut server_line) => {
                 match result {
                     Ok(0) => {
-                        println!("\n[CLIENT] Le serveur a coupe la connexion.");
+                        println!("\n[CLIENT] The server closed the connection.");
                         break;
                     }
                     Ok(_) => {
                         print!("{}", server_line); // Affiche le message du serveur
-                        if server_line.trim() == "S: OK au revoir" {
-                            println!("[CLIENT] Fermeture propre du programme. À bientôt !");
+                        if server_line.trim() == "S: OK goodbye" {
+                            println!("[CLIENT] Clean program shutdown. See you soon!");
                             std::process::exit(0); // Quitte le terminal sans erreur
                         }
                         
                         server_line.clear();
                     }
                     Err(e) => {
-                        eprintln!("[CLIENT] Erreur de lecture : {}", e);
+                        eprintln!("[CLIENT] Read error: {}", e);
                         break;
                     }
                 }

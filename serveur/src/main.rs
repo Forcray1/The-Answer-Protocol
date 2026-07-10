@@ -53,18 +53,18 @@ pub fn log_event(event_type: &str, player: &str, details: serde_json::Value) {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if std::env::args().any(|arg| arg == "--logs") {
         LOG_MODE.store(true, Ordering::SeqCst);
-        println!("[SERVEUR] Mode LOG JSON activé.");
+        println!("[SERVER] JSON log mode enabled.");
     }
 
     // 1. Initialise la BDD — crée game.db + tables si nécessaire
-    println!("[SERVEUR] Initialisation de la base de donnees...");
+    println!("[SERVER] Initializing database...");
     let pool = database::init_db("sqlite://game.db").await?;
     let shared_pool: DbPool = Arc::new(pool);
-    println!("[SERVEUR] Base de données prete.");
+    println!("[SERVER] Database ready.");
 
     // 2. Charge le monde depuis le YAML (inchangé)
-    println!("[SERVEUR] Chargement de la carte...");
-    let world_data = WorldData::load_from_file("world.yaml").expect("Erreur world.yaml");
+    println!("[SERVER] Loading map...");
+    let world_data = WorldData::load_from_file("world.yaml").expect("world.yaml error");
     let shared_world = Arc::new(world_data);
 
     // 3. Initialise l'état en mémoire (inchangé)
@@ -76,7 +76,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let shared_tx = Arc::new(tx);
 
     let listener = TcpListener::bind("127.0.0.1:4243").await?;
-    println!("[SERVEUR] En écoute sur le port 4243...");
+    println!("[SERVER] Listening on port 4243...");
 
     loop {
         let (mut socket, addr) = listener.accept().await?;
@@ -108,7 +108,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     log_event("DISCONNECT", &player.username, json!({"reason": "connection_lost"}));
                                     let _ = tx.send(GlobalEvent {
                                         sender_addr: addr,
-                                        message: format!("S: EVT GLOBAL CHAT Serveur {} a perdu la connexion.\n", player.username)
+                                        message: format!("S: EVT GLOBAL CHAT Server {} lost connection.\n", player.username)
                                     });
                                 }
                                 break;
@@ -139,7 +139,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         log_event("DISCONNECT", &player.username, json!({"reason": "QUIT"}));
                                         let _ = tx.send(GlobalEvent {
                                             sender_addr: addr,
-                                            message: format!("S: EVT GLOBAL CHAT Serveur {} a quitté le monde.\n", player.username)
+                                            message: format!("S: EVT GLOBAL CHAT Server {} left the world.\n", player.username)
                                         });
                                     }
                                     break;

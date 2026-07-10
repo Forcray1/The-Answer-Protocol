@@ -4,9 +4,12 @@ use std::thread;
 use tokio::net::TcpStream;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
+mod map;
+mod player;
+
 
 #[derive(Event)]
-struct ServerMessageEvent(String);
+pub struct ServerMessageEvent(pub String);
 
 #[derive(Resource)]
 struct NetworkReceiver(Receiver<String>);
@@ -58,7 +61,7 @@ fn parse_server_messages(
             let room_id = &msg[debut_mot..fin_mot]; 
             if game_state.current_room != room_id {
                 game_state.current_room = room_id.to_string();
-                println!("[PARSEUR] 🗺️ Déplacement détecté ! Nouvelle zone mémorisée : {}", game_state.current_room);
+                println!("[PARSER] 🗺️ Movement detected! New zone stored: {}", game_state.current_room);
             }
         }
     }
@@ -66,22 +69,27 @@ fn parse_server_messages(
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins(
+            DefaultPlugins
+                .set(AssetPlugin {
+                    file_path: concat!(env!("CARGO_MANIFEST_DIR"), "/../sprites").to_string(),
+                    ..default()
+                })
+                .set(ImagePlugin::default_nearest()),
+        )
+        .add_plugins(map::MapPlugin)
+        // Spawn de l'avatar du joueur local à la connexion (skin envoyé par le serveur).
+        .add_plugins(player::PlayerPlugin)
         .add_event::<ServerMessageEvent>()
         .init_resource::<GameState>()
-        .add_systems(Startup, (setup_camera, setup_network, setup_ui))
+        .add_systems(Startup, (setup_network, setup_ui))
         .add_systems(Update, (
-            read_network_messages, 
-            handle_inputs, 
-            update_chat_ui, 
-            parse_server_messages 
+            read_network_messages,
+            handle_inputs,
+            update_chat_ui,
+            parse_server_messages
         ))
         .run();
-}
-
-fn setup_camera(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
-    println!("[CLIENT] Caméra 2D initialisée, prête pour les assets pré-calculés.");
 }
 
 fn setup_ui(mut commands: Commands) {
@@ -113,7 +121,7 @@ fn setup_ui(mut commands: Commands) {
         .with_children(|parent| {
             parent.spawn((
                 TextBundle::from_section(
-                    "Connexion en cours...\n",
+                    "Connecting...\n",
                     TextStyle { font_size: 20.0, color: Color::WHITE, ..default() },
                 ),
                 ChatText,
@@ -153,8 +161,8 @@ fn setup_network(mut commands: Commands) {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             if let Ok(mut stream) = TcpStream::connect("127.0.0.1:4243").await {
-                println!("[RÉSEAU] Connecte au serveur d'Ombreval !");
-                let _ = tx_to_bevy.send("Systeme Reseau Initialise.".to_string());
+                println!("[NETWORK] Connected to the Ombreval server!");
+                let _ = tx_to_bevy.send("Network system initialized.".to_string());
 
                 let (reader, mut writer) = stream.into_split();
                 let mut buf_reader = BufReader::new(reader);
@@ -166,7 +174,7 @@ fn setup_network(mut commands: Commands) {
                         line.clear();
                         match buf_reader.read_line(&mut line).await {
                             Ok(0) => {
-                                let _ = tx_clone.send("S: ERR Connexion perdue avec le serveur.".to_string());
+                                let _ = tx_clone.send("S: ERR Connection lost with the server.".to_string());
                                 break;
                             }
                             Ok(_) => {
@@ -187,7 +195,7 @@ fn setup_network(mut commands: Commands) {
                     tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                 }
             } else {
-                println!("[RÉSEAU] Impossible de joindre le serveur.");
+                println!("[NETWORK] Unable to reach the server.");
             }
         });
     });
@@ -198,7 +206,7 @@ fn read_network_messages(
     mut events: EventWriter<ServerMessageEvent>,
 ) {
     while let Ok(message) = receiver.0.try_recv() {
-        println!("[BEVY A REÇU] : {}", message);
+        println!("[BEVY RECEIVED]: {}", message);
         events.send(ServerMessageEvent(message));
     }
 }
@@ -236,6 +244,10 @@ fn handle_inputs(
                 text.sections[0].value = "> ".to_string(); 
             }
         }
+
+		if keys.just_pressed(KeyCode::KeyZ) {
+			// move player forward to implement
+		}
     }
 }
 

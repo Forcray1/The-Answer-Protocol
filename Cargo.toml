@@ -1,7 +1,9 @@
 [workspace]
+resolver = "3"
 members = [
     "serveur",
     "client_bevy",
     "client" ,
-	"database"
+	"database",
+	"domain"
 ]
