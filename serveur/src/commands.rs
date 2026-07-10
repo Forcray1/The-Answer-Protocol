@@ -20,6 +20,11 @@ pub enum GameCommand {
     Chat { channel: String, message: String },
     Who,
     Pos { x: f32, y: f32 },
+    GroupCreate,
+    GroupInvite(String),
+    GroupAccept,
+    GroupLeave,
+    GroupInfo,
     Quit,
     Unknown,
 }
@@ -71,6 +76,20 @@ impl GameCommand {
                 let channel = parts[1].to_uppercase();
                 let message = parts[2..].join(" ");
                 GameCommand::Chat { channel, message }
+            }
+
+            "GROUP" => {
+                if parts.len() > 1 {
+                    match parts[1].to_uppercase().as_str() {
+                        "CREATE" => GameCommand::GroupCreate,
+                        "INVITE" if parts.len() > 2 => GameCommand::GroupInvite(parts[2].to_string()),
+                        "ACCEPT" => GameCommand::GroupAccept,
+                        "LEAVE" => GameCommand::GroupLeave,
+                        _ => GameCommand::Unknown,
+                    }
+                } else {
+                    GameCommand::GroupInfo
+                }
             }
             
             _ => GameCommand::Unknown,

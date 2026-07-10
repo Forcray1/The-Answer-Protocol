@@ -16,7 +16,7 @@ pub mod handlers;
 use commands::GameCommand;
 use world::WorldData;
 use state::ServerState;
-use domain::RoomId;
+use domain::{RoomId, GroupId};
 
 // Le pool SQLite est partagé entre tous les handlers via Arc
 // SqlitePool est déjà thread-safe, pas besoin de Mutex autour
@@ -27,6 +27,8 @@ pub struct GlobalEvent {
     sender_addr: std::net::SocketAddr,
     message: String,
     target_room: Option<RoomId>,
+    target_group: Option<GroupId>,
+    target_player: Option<std::net::SocketAddr>,
 }
 
 static LOG_MODE: AtomicBool = AtomicBool::new(false);
@@ -112,11 +114,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         sender_addr: addr,
                                         message: format!("S: EVT ROOM {} PRESENCE LEAVE {}\n", player.current_room, player.username),
                                         target_room: Some(player.current_room.clone()),
+                                        target_group: None,
+                                        target_player: None,
                                     });
                                     let _ = tx.send(GlobalEvent {
                                         sender_addr: addr,
                                         message: format!("S: EVT GLOBAL CHAT Server {} lost connection.\n", player.username),
                                         target_room: None,
+                                        target_group: None,
+                                        target_player: None,
                                     });
                                 }
                                 break;
@@ -149,11 +155,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             sender_addr: addr,
                                             message: format!("S: EVT ROOM {} PRESENCE LEAVE {}\n", player.current_room, player.username),
                                             target_room: Some(player.current_room.clone()),
+                                            target_group: None,
+                                            target_player: None,
                                         });
                                         let _ = tx.send(GlobalEvent {
                                             sender_addr: addr,
                                             message: format!("S: EVT GLOBAL CHAT Server {} left the world.\n", player.username),
                                             target_room: None,
+                                            target_group: None,
+                                            target_player: None,
                                         });
                                     }
                                     break;
@@ -163,10 +173,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     Ok(event) = rx.recv() => {
                         if event.sender_addr != addr {
-                            if let Some(ref target) = event.target_room {
+                            if let Some(ref target) = event.target_player {
+                                // If it's a direct message, ONLY send to that player.
+                                // We don't skip the sender check here since the target might be the sender in weird cases, but normally they differ.
+                                // Actually we skip the `sender_addr != addr` check for direct messages if we want, but it's already inside `if event.sender_addr != addr`.
+                                if addr == *target {
+                                    let _ = writer.write_all(event.message.as_bytes()).await;
+                                }
+                            } else if let Some(ref target) = event.target_room {
                                 let guard = state.lock().await;
                                 if let Some(player) = guard.players.get(&addr) {
                                     if &player.current_room == target {
+                                        let _ = writer.write_all(event.message.as_bytes()).await;
+                                    }
+                                }
+                            } else if let Some(ref target_g) = event.target_group {
+                                let guard = state.lock().await;
+                                if let Some(player) = guard.players.get(&addr) {
+                                    if player.group.as_ref() == Some(target_g) {
                                         let _ = writer.write_all(event.message.as_bytes()).await;
                                     }
                                 }

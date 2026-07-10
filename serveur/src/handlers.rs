@@ -6,7 +6,7 @@ use rand::Rng;
 use serde_json::json;
 use tokio::sync::broadcast::Sender;
 
-use domain::{xp_required_for_level, Armor, Direction, Equipement, ItemBucket, ItemId, RoomId, Weapon, WeaponType};
+use domain::{xp_required_for_level, Armor, Direction, Equipement, Group, GroupId, ItemBucket, ItemId, PlayerId, RoomId, Weapon, WeaponType};
 
 use crate::commands::GameCommand;
 use crate::state::{Player, ServerState, START_ROOM};
@@ -80,6 +80,11 @@ pub async fn process_command(
         GameCommand::Who            => (handle_who(addr, state), false),
         GameCommand::Pos { x, y }   => (handle_pos(addr, x, y, state, tx), false),
         GameCommand::Status         => (handle_status(addr, state), false),
+        GameCommand::GroupCreate    => (handle_group_create(addr, state, tx), false),
+        GameCommand::GroupInvite(c) => (handle_group_invite(addr, c, state, tx), false),
+        GameCommand::GroupAccept    => (handle_group_accept(addr, state, tx), false),
+        GameCommand::GroupLeave     => (handle_group_leave(addr, state, tx), false),
+        GameCommand::GroupInfo      => (handle_group_info(addr, state), false),
         GameCommand::Quit           => ("S: OK goodbye\n".to_string(), true),
         GameCommand::Unknown        => ("S: ERR malformed_command\n".to_string(), false),
         _                           => ("S: OK command received but not implemented yet\n".to_string(), false),
@@ -179,11 +184,15 @@ async fn handle_connect(
                 sender_addr: addr,
                 message: format!("S: EVT GLOBAL CHAT Server {} is back!\n", pseudo),
                 target_room: None,
+                target_group: None,
+            target_player: None,
             });
             let _ = tx.send(GlobalEvent {
                 sender_addr: addr,
                 message: format!("S: EVT ROOM {} PRESENCE ENTER {} {} 0 0\n", enter_room, pseudo, skin),
                 target_room: Some(enter_room.clone()),
+                target_group: None,
+            target_player: None,
             });
             format!(
                 "S: OK connected skin={} name={} room={}\n{}",
@@ -213,11 +222,15 @@ async fn handle_connect(
                 sender_addr: addr,
                 message: format!("S: EVT GLOBAL CHAT Server {} just connected!\n", pseudo),
                 target_room: None,
+                target_group: None,
+            target_player: None,
             });
             let _ = tx.send(GlobalEvent {
                 sender_addr: addr,
                 message: format!("S: EVT ROOM {} PRESENCE ENTER {} {} 0 0\n", enter_room, pseudo, skin),
                 target_room: Some(enter_room.clone()),
+                target_group: None,
+            target_player: None,
             });
             format!(
                 "S: OK connected skin={} name={} room={}\n{}",
@@ -282,6 +295,8 @@ fn handle_pos(addr: SocketAddr, x: f32, y: f32, state: &mut ServerState, tx: &Se
             sender_addr: addr,
             message: format!("S: EVT ROOM {} POS {} {} {}\n", room, name, x as i64, y as i64),
             target_room: Some(room),
+            target_group: None,
+            target_player: None,
         });
     }
     String::new()
@@ -332,12 +347,16 @@ fn handle_move(addr: SocketAddr, dir: String, state: &mut ServerState, world: &W
     let _ = tx.send(GlobalEvent {
         sender_addr: addr,
         message: format!("S: EVT ROOM {} PRESENCE LEAVE {}\n", old_room, username),
-        target_room: Some(old_room),
+        target_room: Some(old_room.clone()),
+        target_group: None,
+            target_player: None,
     });
     let _ = tx.send(GlobalEvent {
         sender_addr: addr,
         message: format!("S: EVT ROOM {} PRESENCE ENTER {} {} {} {}\n", next_room, username, skin, px as i64, py as i64),
         target_room: Some(next_room.clone()),
+        target_group: None,
+            target_player: None,
     });
     format!("S: OK room-loc.{}\n{}", next_room, room_presence_roster(addr, state, &next_room))
 }
@@ -624,7 +643,7 @@ fn handle_attack(addr: SocketAddr, cible: String, state: &mut ServerState, world
                 }
             }
             if joueur_mort {
-                let _ = tx.send(GlobalEvent { sender_addr: addr, message: format!("S: EVT GLOBAL CHAT Server A player was killed by {}!\n", monstre_nom), target_room: None });
+                let _ = tx.send(GlobalEvent { sender_addr: addr, message: format!("S: EVT GLOBAL CHAT Server A player was killed by {}!\n", monstre_nom), target_room: None, target_group: None, target_player: None });
                 log_event("DEATH", &joueur_nom, json!({"killer": monstre_nom}));
                 format!("S: OK You deal {} damage, but {} finishes you off. You are DEAD! You wake up at the oasis.\n", degats_finaux, monstre_nom)
             } else {
@@ -645,17 +664,25 @@ fn handle_chat(addr: SocketAddr, channel: String, message: String, state: &mut S
     if let Some(player) = state.players.get_mut(&addr) {
         player.last_chat = Some(Instant::now());
         let username = player.username.clone();
+        let mut group_id_opt = None;
+        if channel.as_str() == "GROUP" {
+            group_id_opt = player.group.clone();
+            if group_id_opt.is_none() {
+                return "S: ERR you_have_no_group\n".to_string();
+            }
+        }
+
         match channel.as_str() {
             "GLOBAL" => {
-                let _ = tx.send(GlobalEvent { sender_addr: addr, message: format!("S: EVT GLOBAL CHAT {} {}\n", username, message), target_room: None });
+                let _ = tx.send(GlobalEvent { sender_addr: addr, message: format!("S: EVT GLOBAL CHAT {} {}\n", username, message), target_room: None, target_group: None, target_player: None });
                 "S: OK\n".to_string()
             }
             "ROOM" => {
-                let _ = tx.send(GlobalEvent { sender_addr: addr, message: format!("S: EVT ROOM {} CHAT {} {}\n", current_room, username, message), target_room: Some(RoomId::from(current_room.as_str())) });
+                let _ = tx.send(GlobalEvent { sender_addr: addr, message: format!("S: EVT ROOM {} CHAT {} {}\n", current_room, username, message), target_room: Some(RoomId::from(current_room.as_str())), target_group: None, target_player: None });
                 "S: OK\n".to_string()
             }
             "GROUP" => {
-                let _ = tx.send(GlobalEvent { sender_addr: addr, message: format!("S: EVT GROUP CHAT {} {}\n", username, message), target_room: None });
+                let _ = tx.send(GlobalEvent { sender_addr: addr, message: format!("S: EVT GROUP CHAT {} {}\n", username, message), target_room: None, target_group: group_id_opt, target_player: None });
                 "S: OK\n".to_string()
             }
             _ => "S: ERR unknown_channel\n".to_string(),
@@ -682,5 +709,189 @@ fn handle_status(addr: SocketAddr, state: &ServerState) -> String {
             player.xp_bar.current, player.xp_bar.requiered,
             player.money, player.current_room
         )
+    } else { "S: ERR utilize_connect_first\n".to_string() }
+}
+
+// ── GROUP ──────────────────────────────────────────────────────────────────
+
+fn handle_group_create(addr: SocketAddr, state: &mut ServerState, tx: &Sender<GlobalEvent>) -> String {
+    if let Some(player) = state.players.get(&addr) {
+        if player.group.is_some() {
+            return "S: ERR you_already_have_a_group\n".to_string();
+        }
+        let username = player.username.clone();
+        let player_id = player.id.clone();
+
+        state.group_counter += 1;
+        let gid = GroupId(format!("group_{}", state.group_counter));
+        let group = Group {
+            id: gid.clone(),
+            members: vec![player_id],
+        };
+        state.groups.insert(gid.clone(), group);
+        state.players.get_mut(&addr).unwrap().group = Some(gid.clone());
+
+        let _ = tx.send(GlobalEvent {
+            sender_addr: addr,
+            message: format!("S: EVT GROUP CREATED {}\n", username),
+            target_room: None,
+            target_group: Some(gid.clone()),
+            target_player: None,
+        });
+        "S: OK group_created\n".to_string()
+    } else { "S: ERR utilize_connect_first\n".to_string() }
+}
+
+fn handle_group_invite(addr: SocketAddr, target: String, state: &mut ServerState, tx: &Sender<GlobalEvent>) -> String {
+    // Vérifier que l'inviteur a un groupe
+    let (gid, inviter_name) = if let Some(player) = state.players.get(&addr) {
+        match &player.group {
+            Some(g) => (g.clone(), player.username.clone()),
+            None => return "S: ERR you_have_no_group\n".to_string(),
+        }
+    } else {
+        return "S: ERR utilize_connect_first\n".to_string();
+    };
+
+    // Trouver le joueur cible par son username
+    let target_addr = state.players.iter()
+        .find(|(_, p)| ci_eq(&p.username, &target))
+        .map(|(a, _)| *a);
+
+    let target_addr = match target_addr {
+        Some(a) => a,
+        None => return "S: ERR player_not_found\n".to_string(),
+    };
+
+    if target_addr == addr {
+        return "S: ERR cannot_invite_yourself\n".to_string();
+    }
+
+    // Vérifier que la cible n'a pas déjà un groupe
+    if let Some(target_player) = state.players.get(&target_addr) {
+        if target_player.group.is_some() {
+            return "S: ERR player_already_in_group\n".to_string();
+        }
+    }
+
+    // Ajouter au groupe (invitation en attente)
+    let target_username = state.players.get(&target_addr).unwrap().username.clone();
+
+    state.players.get_mut(&target_addr).unwrap().pending_group_invite = Some(gid.clone());
+
+    let _ = tx.send(GlobalEvent {
+        sender_addr: addr,
+        message: format!("S: EVT GROUP INVITED {} invited you to join their group (type 'group accept' to join)\n", inviter_name),
+        target_room: None,
+        target_group: None,
+        target_player: Some(target_addr),
+    });
+    format!("S: OK you invited {}\n", target_username)
+}
+
+fn handle_group_accept(addr: SocketAddr, state: &mut ServerState, tx: &Sender<GlobalEvent>) -> String {
+    let (pending_gid, username, pid) = if let Some(player) = state.players.get(&addr) {
+        if player.group.is_some() {
+            return "S: ERR you_already_have_a_group\n".to_string();
+        }
+        match &player.pending_group_invite {
+            Some(g) => (g.clone(), player.username.clone(), player.id.clone()),
+            None => return "S: ERR no_pending_invite\n".to_string(),
+        }
+    } else {
+        return "S: ERR utilize_connect_first\n".to_string();
+    };
+
+    // Vérifier si le groupe existe toujours
+    if let Some(group) = state.groups.get_mut(&pending_gid) {
+        group.members.push(pid);
+        let p = state.players.get_mut(&addr).unwrap();
+        p.group = Some(pending_gid.clone());
+        p.pending_group_invite = None;
+        
+        let _ = tx.send(GlobalEvent {
+            sender_addr: addr,
+            message: format!("S: EVT GROUP JOIN {}\n", username),
+            target_room: None,
+            target_group: Some(pending_gid),
+            target_player: None,
+        });
+        "S: OK you_joined_the_group\n".to_string()
+    } else {
+        state.players.get_mut(&addr).unwrap().pending_group_invite = None;
+        "S: ERR group_no_longer_exists\n".to_string()
+    }
+}
+
+fn handle_group_leave(addr: SocketAddr, state: &mut ServerState, tx: &Sender<GlobalEvent>) -> String {
+    let (gid, username) = if let Some(player) = state.players.get(&addr) {
+        match &player.group {
+            Some(g) => (g.clone(), player.username.clone()),
+            None => return "S: ERR you_have_no_group\n".to_string(),
+        }
+    } else {
+        return "S: ERR utilize_connect_first\n".to_string();
+    };
+
+    let player_id = PlayerId(username.clone());
+
+    // Retirer du groupe
+    state.players.get_mut(&addr).unwrap().group = None;
+
+    let disband = if let Some(group) = state.groups.get_mut(&gid) {
+        group.members.retain(|m| m != &player_id);
+        group.members.len() <= 1
+    } else {
+        true
+    };
+
+    if disband {
+        // S'il reste 1 ou 0 membre, on dissout le groupe
+        if let Some(group) = state.groups.remove(&gid) {
+            for member_id in &group.members {
+                // Retirer le group_id du dernier membre restant
+                if let Some((_, p)) = state.players.iter_mut().find(|(_, p)| &p.id == member_id) {
+                    p.group = None;
+                }
+            }
+        }
+        let _ = tx.send(GlobalEvent {
+            sender_addr: addr,
+            message: format!("S: EVT GROUP DISBAND {} left, group disbanded\n", username),
+            target_room: None,
+            target_group: Some(gid.clone()), // The members might still get it if they haven't been removed yet
+            target_player: None,
+        });
+        "S: OK group_disbanded\n".to_string()
+    } else {
+        let _ = tx.send(GlobalEvent {
+            sender_addr: addr,
+            message: format!("S: EVT GROUP LEAVE {}\n", username),
+            target_room: None,
+            target_group: Some(gid),
+            target_player: None,
+        });
+        "S: OK you_left_the_group\n".to_string()
+    }
+}
+
+fn handle_group_info(addr: SocketAddr, state: &ServerState) -> String {
+    if let Some(player) = state.players.get(&addr) {
+        match &player.group {
+            None => "S: OK No group\n".to_string(),
+            Some(gid) => {
+                if let Some(group) = state.groups.get(gid) {
+                    let members: Vec<String> = group.members.iter().map(|pid| {
+                        state.players.values()
+                            .find(|p| &p.id == pid)
+                            .map(|p| p.username.clone())
+                            .unwrap_or_else(|| pid.0.clone())
+                    }).collect();
+                    format!("S: OK Group members: [{}]\n", members.join(", "))
+                } else {
+                    "S: OK No group\n".to_string()
+                }
+            }
+        }
     } else { "S: ERR utilize_connect_first\n".to_string() }
 }

@@ -13,7 +13,7 @@ use std::time::Instant;
 
 use crate::world::WorldData;
 use domain::{
-    xp_required_for_level, CombatState, Equipement, GroupId, Inventory, ItemId, Medaillon, NpcId,
+    xp_required_for_level, CombatState, Equipement, Group, GroupId, Inventory, ItemId, Medaillon, NpcId,
     PlayerId, RoomId, Stats, XpBar,
 };
 
@@ -79,6 +79,7 @@ pub struct Player {
     pub equipement: Equipement,
     pub completed_quests: Vec<domain::QuestId>,
     pub group: Option<GroupId>,
+    pub pending_group_invite: Option<GroupId>,
     pub combat: CombatState,
     pub last_move: Option<Instant>,
     pub last_attack: Option<Instant>,
@@ -106,6 +107,7 @@ impl Player {
             equipement: Equipement::default(),
             completed_quests: Vec::new(),
             group: None,
+            pending_group_invite: None,
             combat: CombatState::Idle,
             last_move: None,
             last_attack: None,
@@ -155,6 +157,8 @@ pub struct ServerState {
     pub npc_hps: HashMap<NpcId, i32>,
     pub active_combats: HashMap<SocketAddr, CombatInstance>,
     pub dead_npcs: Vec<DeadNpc>,
+    pub groups: HashMap<GroupId, Group>,
+    pub group_counter: u64,
 }
 
 impl ServerState {
@@ -166,6 +170,8 @@ impl ServerState {
             npc_hps: HashMap::new(),
             active_combats: HashMap::new(),
             dead_npcs: Vec::new(),
+            groups: HashMap::new(),
+            group_counter: 0,
         }
     }
 
