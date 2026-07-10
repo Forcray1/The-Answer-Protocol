@@ -302,19 +302,16 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 ## Timeline:
 
 09/06/2026:
-        avauclai:
-                - Core Architecture: Set up an async TCP server using tokio and a custom text-command parser.
-                - World Generation: Implemented dynamic loading for rooms, items, and NPCs from a world.yaml file.
-
+    avauclai:
+        - Core Architecture: Set up an async TCP server using tokio and a custom text-command parser.
+        - World Generation: Implemented dynamic loading for rooms, items, and NPCs from a world.yaml file.
 10/06/2026
-        avauclai
-                - Navigation & Chat: Added room-to-room movement, area scanning (look), and proximity-filtered chat.
-
+	avauclai
+    	- Navigation & Chat: Added room-to-room movement, area scanning (look), and proximity-filtered chat.
 11/06/2026:
 	mlorenzo:
 		- Created the classes for all instances
-                - Inventory & Quests: Created item management (take, drop) and an NPC quest delivery system (talk) with EXP/item rewards.
-
+        - Inventory & Quests: Created item management (take, drop) and an NPC quest delivery system (talk) with EXP/item rewards.
 12/06/2026:
 	mlorenzo:
 		- Added a database in sql persistant throughought the restart and logs of the game/players
@@ -340,3 +337,16 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 		- Added a toggle chat for textual commands on the bevy client
 		- Added the ZQSD movement
 		- Added animation based on the direction with basic sprites (to be modified)
+		- Added dynamic map building from the actual room of the player
+11/07/2026:
+	mlorenzo:
+		- Added the possibility to see other player connected in your room
+		- Reorganisation of the files in bevy client
+
+TODO:
+	- Add a main menu with the login
+	- Reorganize the Start_oasis with the new version for the perspective
+	- link all the rooms
+	- Add the collisions and interactions
+	- finish the world.yaml with all the informations
+	- Make all of the combat system

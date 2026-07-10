@@ -1,9 +1,3 @@
-// Un handler par commande : les règles du jeu. Adapté au modèle de `domain` :
-//   * identifiants forts (ItemId, NpcId, RoomId…) au lieu de String ;
-//   * inventaire à 3 sacs via `Inventory` (méthodes add/remove_one/contains) ;
-//   * équipement structuré via `Equipement` (armes/armures typées) ;
-//   * progression via `XpBar`/level (Player::add_xp) au lieu d'un simple `exp`.
-
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
@@ -84,6 +78,7 @@ pub async fn process_command(
         GameCommand::Attack(c)      => (handle_attack(addr, c, state, world, tx), false),
         GameCommand::Chat { channel, message } => (handle_chat(addr, channel, message, state, tx), false),
         GameCommand::Who            => (handle_who(addr, state), false),
+        GameCommand::Pos { x, y }   => (handle_pos(addr, x, y, state, tx), false),
         GameCommand::Status         => (handle_status(addr, state), false),
         GameCommand::Quit           => ("S: OK goodbye\n".to_string(), true),
         GameCommand::Unknown        => ("S: ERR malformed_command\n".to_string(), false),
@@ -187,10 +182,14 @@ async fn handle_connect(
             });
             let _ = tx.send(GlobalEvent {
                 sender_addr: addr,
-                message: format!("S: EVT ROOM {} PRESENCE ENTER {}\n", enter_room, pseudo),
+                message: format!("S: EVT ROOM {} PRESENCE ENTER {} {} 0 0\n", enter_room, pseudo, skin),
                 target_room: Some(enter_room.clone()),
             });
-            format!("S: OK connected skin={} name={}\n", skin, pseudo)
+            format!(
+                "S: OK connected skin={} name={} room={}\n{}",
+                skin, pseudo, enter_room,
+                room_presence_roster(addr, state, &enter_room)
+            )
         }
         Ok(None) => {
             // Nouveau joueur -> on crée le compte avec le mot de passe fourni
@@ -217,10 +216,14 @@ async fn handle_connect(
             });
             let _ = tx.send(GlobalEvent {
                 sender_addr: addr,
-                message: format!("S: EVT ROOM {} PRESENCE ENTER {}\n", enter_room, pseudo),
+                message: format!("S: EVT ROOM {} PRESENCE ENTER {} {} 0 0\n", enter_room, pseudo, skin),
                 target_room: Some(enter_room.clone()),
             });
-            format!("S: OK connected skin={} name={}\n", skin, pseudo)
+            format!(
+                "S: OK connected skin={} name={} room={}\n{}",
+                skin, pseudo, enter_room,
+                room_presence_roster(addr, state, &enter_room)
+            )
         }
         Err(e) => {
             eprintln!("[DB] Player load error: {}", e);
@@ -269,32 +272,74 @@ fn handle_look(addr: SocketAddr, state: &ServerState, world: &WorldData) -> Stri
     } else { "S: ERR utilize_connect_first\n".to_string() }
 }
 
-fn handle_move(addr: SocketAddr, dir: String, state: &mut ServerState, world: &WorldData, tx: &Sender<GlobalEvent>) -> String {
+fn handle_pos(addr: SocketAddr, x: f32, y: f32, state: &mut ServerState, tx: &Sender<GlobalEvent>) -> String {
     if let Some(player) = state.players.get_mut(&addr) {
+        player.pos_x = x;
+        player.pos_y = y;
+        let room = player.current_room.clone();
+        let name = player.username.clone();
+        let _ = tx.send(GlobalEvent {
+            sender_addr: addr,
+            message: format!("S: EVT ROOM {} POS {} {} {}\n", room, name, x as i64, y as i64),
+            target_room: Some(room),
+        });
+    }
+    String::new()
+}
+
+fn room_presence_roster(addr: SocketAddr, state: &ServerState, room: &RoomId) -> String {
+    let mut out = String::new();
+    for (other_addr, p) in &state.players {
+        if *other_addr != addr && &p.current_room == room {
+            out.push_str(&format!(
+                "S: EVT ROOM {} PRESENCE ENTER {} {} {} {}\n",
+                room, p.username, p.skin, p.pos_x as i64, p.pos_y as i64
+            ));
+        }
+    }
+    out
+}
+
+fn handle_move(addr: SocketAddr, dir: String, state: &mut ServerState, world: &WorldData, tx: &Sender<GlobalEvent>) -> String {
+    let (old_room, next_room, username, skin, px, py) = {
+        let player = match state.players.get_mut(&addr) {
+            Some(p) => p,
+            None => return "S: ERR utilize_connect_first\n".to_string(),
+        };
         if player.last_move.map_or(false, |last| last.elapsed() < Duration::from_millis(500)) {
-            "S: ERR movement_cooldown_too_fast\n".to_string()
-        } else if let Some(direction) = Direction::parse(&dir) {
-            if let Some(loc) = world.world.locations.get(&player.current_room) {
-                if let Some(next_room) = loc.exits.get(&direction) {
-                    let old_room = player.current_room.clone();
-                    let username = player.username.clone();
-                    player.current_room = next_room.clone();
-                    player.last_move = Some(Instant::now());
-                    let _ = tx.send(GlobalEvent {
-                        sender_addr: addr,
-                        message: format!("S: EVT ROOM {} PRESENCE LEAVE {}\n", old_room, username),
-                        target_room: Some(old_room.clone()),
-                    });
-                    let _ = tx.send(GlobalEvent {
-                        sender_addr: addr,
-                        message: format!("S: EVT ROOM {} PRESENCE ENTER {}\n", next_room, username),
-                        target_room: Some(next_room.clone()),
-                    });
-                    format!("S: OK room-loc.{}\n", next_room)
-                } else { format!("S: ERR no exit to the {}\n", dir) }
-            } else { "S: ERR room_error\n".to_string() }
-        } else { format!("S: ERR unknown_direction {}\n", dir) }
-    } else { "S: ERR utilize_connect_first\n".to_string() }
+            return "S: ERR movement_cooldown_too_fast\n".to_string();
+        }
+        let direction = match Direction::parse(&dir) {
+            Some(d) => d,
+            None => return format!("S: ERR unknown_direction {}\n", dir),
+        };
+        let next_room = match world.world.locations.get(&player.current_room) {
+            Some(loc) => match loc.exits.get(&direction) {
+                Some(n) => n.clone(),
+                None => return format!("S: ERR no exit to the {}\n", dir),
+            },
+            None => return "S: ERR room_error\n".to_string(),
+        };
+        let old_room = player.current_room.clone();
+        let username = player.username.clone();
+        let skin = player.skin.clone();
+        let (px, py) = (player.pos_x, player.pos_y);
+        player.current_room = next_room.clone();
+        player.last_move = Some(Instant::now());
+        (old_room, next_room, username, skin, px, py)
+    };
+
+    let _ = tx.send(GlobalEvent {
+        sender_addr: addr,
+        message: format!("S: EVT ROOM {} PRESENCE LEAVE {}\n", old_room, username),
+        target_room: Some(old_room),
+    });
+    let _ = tx.send(GlobalEvent {
+        sender_addr: addr,
+        message: format!("S: EVT ROOM {} PRESENCE ENTER {} {} {} {}\n", next_room, username, skin, px as i64, py as i64),
+        target_room: Some(next_room.clone()),
+    });
+    format!("S: OK room-loc.{}\n{}", next_room, room_presence_roster(addr, state, &next_room))
 }
 
 fn handle_inventory(addr: SocketAddr, state: &ServerState, world: &WorldData) -> String {
@@ -581,7 +626,7 @@ fn handle_attack(addr: SocketAddr, cible: String, state: &mut ServerState, world
             if joueur_mort {
                 let _ = tx.send(GlobalEvent { sender_addr: addr, message: format!("S: EVT GLOBAL CHAT Server A player was killed by {}!\n", monstre_nom), target_room: None });
                 log_event("DEATH", &joueur_nom, json!({"killer": monstre_nom}));
-                format!("S: OK You deal {} damage, but {} finishes you off. You are DEAD! You wake up in the village.\n", degats_finaux, monstre_nom)
+                format!("S: OK You deal {} damage, but {} finishes you off. You are DEAD! You wake up at the oasis.\n", degats_finaux, monstre_nom)
             } else {
                 format!("S: OK You attack {} ({} HP left). It retaliates (-{} HP). (Your HP: {})\n", monstre_nom, pv_monstre_restants, degats_monstre_finaux, pv_joueur)
             }

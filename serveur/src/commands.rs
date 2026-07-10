@@ -19,25 +19,22 @@ pub enum GameCommand {
     Quest(String),
     Chat { channel: String, message: String },
     Who,
+    Pos { x: f32, y: f32 },
     Quit,
     Unknown,
 }
 
 impl GameCommand {
-    // Analyse une ligne de texte brute reçue du client et la transforme en GameCommand
     pub fn parse(input: &str) -> Self {
         let trimmed = input.trim();
         if trimmed.is_empty() {
             return GameCommand::Unknown;
         }
 
-        // On sépare la ligne par espaces. 
-        // Exemple : "CHAT GLOBAL Hello" -> ["CHAT", "GLOBAL", "Hello"]
         let parts: Vec<&str> = trimmed.split_whitespace().collect();
-        let cmd_type = parts[0].to_uppercase(); // On passe en majuscules pour éviter les bugs
+        let cmd_type = parts[0].to_uppercase();
 
         match cmd_type.as_str() {
-            // CONNECT <pseudo> [mot_de_passe]
             "CONNECT" if parts.len() > 1 => GameCommand::Connect {
                 username: parts[1].to_string(),
                 password: parts.get(2).map(|s| s.to_string()).unwrap_or_default(),
@@ -45,8 +42,7 @@ impl GameCommand {
             "LOOK" => GameCommand::Look,
             
             "MOVE" if parts.len() > 1 => GameCommand::Move(parts[1].to_lowercase()),
-            
-            // Pour TAKE et DROP, on rassemble tout le reste des mots si l'item a un nom composé
+
             "TAKE" if parts.len() > 1 => GameCommand::Take(parts[1..].join(" ")),
             "DROP" if parts.len() > 1 => GameCommand::Drop(parts[1..].join(" ")),
             
@@ -63,6 +59,12 @@ impl GameCommand {
             "QUEST" if parts.len() > 1 => GameCommand::Quest(parts[1].to_string()),
             
             "WHO" => GameCommand::Who,
+
+            "POS" if parts.len() > 2 => match (parts[1].parse::<f32>(), parts[2].parse::<f32>()) {
+                (Ok(x), Ok(y)) => GameCommand::Pos { x, y },
+                _ => GameCommand::Unknown,
+            },
+
             "QUIT" => GameCommand::Quit,
             
             "CHAT" if parts.len() > 2 => {

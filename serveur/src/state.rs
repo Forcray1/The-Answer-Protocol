@@ -18,7 +18,7 @@ use domain::{
 };
 
 /// Salle de départ d'un nouveau joueur (et point de réapparition à la mort).
-pub const START_ROOM: &str = "village_square";
+pub const START_ROOM: &str = "Start_oasis";
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ItemSource {
@@ -64,9 +64,9 @@ pub struct CombatInstance {
 pub struct Player {
     pub id: PlayerId,
     pub username: String,
-    /// Nom du skin/sprite (fichier sous sprites/skin/, sans extension) envoyé
-    /// au client à la connexion pour afficher le bon avatar. "default" par défaut.
     pub skin: String,
+    pub pos_x: f32,
+    pub pos_y: f32,
     pub hp: i32,
     pub max_hp: i32,
     pub level: i32,
@@ -92,6 +92,8 @@ impl Player {
             id: PlayerId(username.clone()),
             username,
             skin: "default".to_string(),
+            pos_x: 0.0,
+            pos_y: 0.0,
             hp: 100,
             max_hp: 100,
             level: 1,
