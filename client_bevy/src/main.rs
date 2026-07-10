@@ -38,6 +38,15 @@ struct ChatText;
 #[derive(Component)]
 struct InputText;
 
+#[derive(Component)]
+struct ChatUiRoot;
+
+#[derive(Resource, Default)]
+pub struct ChatConsole {
+    pub open: bool,
+    just_opened: bool,
+}
+
 fn parse_server_messages(
     mut events: EventReader<ServerMessageEvent>,
     mut game_state: ResMut<GameState>,
@@ -47,7 +56,6 @@ fn parse_server_messages(
 
         let motif_salle = "room-loc.";
         if let Some(index_depart) = msg.find(motif_salle) {
-            // On calcule où commence exactement le nom de la salle
             let debut_mot = index_depart + motif_salle.len();
             let mut fin_mot = debut_mot;
 
@@ -78,14 +86,15 @@ fn main() {
                 .set(ImagePlugin::default_nearest()),
         )
         .add_plugins(map::MapPlugin)
-        // Spawn de l'avatar du joueur local à la connexion (skin envoyé par le serveur).
         .add_plugins(player::PlayerPlugin)
         .add_event::<ServerMessageEvent>()
         .init_resource::<GameState>()
+        .init_resource::<ChatConsole>()
         .add_systems(Startup, (setup_network, setup_ui))
         .add_systems(Update, (
             read_network_messages,
-            handle_inputs,
+            toggle_chat,
+            handle_inputs.after(toggle_chat),
             update_chat_ui,
             parse_server_messages
         ))
@@ -93,17 +102,21 @@ fn main() {
 }
 
 fn setup_ui(mut commands: Commands) {
-    commands.spawn(NodeBundle {
-        style: Style {
-            width: Val::Percent(100.0),
-            height: Val::Percent(100.0),
-            flex_direction: FlexDirection::Column,
-            justify_content: JustifyContent::FlexEnd,
-            align_items: AlignItems::FlexStart,
+    commands.spawn((
+        NodeBundle {
+            style: Style {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::FlexEnd,
+                align_items: AlignItems::FlexStart,
+                ..default()
+            },
+            visibility: Visibility::Hidden,
             ..default()
         },
-        ..default()
-    })
+        ChatUiRoot,
+    ))
     .with_children(|parent| {
         parent.spawn(NodeBundle {
             style: Style {
@@ -211,14 +224,45 @@ fn read_network_messages(
     }
 }
 
+fn toggle_chat(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut console: ResMut<ChatConsole>,
+    mut query: Query<&mut Visibility, With<ChatUiRoot>>,
+) {
+    let new_state = if !console.open && keys.just_pressed(KeyCode::KeyT) {
+        Some(true)
+    } else if console.open && keys.just_pressed(KeyCode::Escape) {
+        Some(false)
+    } else {
+        None
+    };
+
+    if let Some(open) = new_state {
+        console.open = open;
+        console.just_opened = open;
+        if let Ok(mut visibility) = query.get_single_mut() {
+            *visibility = if open { Visibility::Inherited } else { Visibility::Hidden };
+        }
+    }
+}
+
 fn handle_inputs(
     mut char_evr: EventReader<ReceivedCharacter>,
     keys: Res<ButtonInput<KeyCode>>,
     sender: Res<NetworkSender>,
+    mut console: ResMut<ChatConsole>,
     mut query: Query<&mut Text, With<InputText>>,
 ) {
+    if !console.open {
+        return;
+    }
+    let swallow_chars = std::mem::take(&mut console.just_opened);
+
     if let Ok(mut text) = query.get_single_mut() {
         for ev in char_evr.read() {
+            if swallow_chars {
+                continue;
+            }
             let s = ev.char.to_string();
             if !s.contains('\u{8}') && !s.contains('\r') && !s.contains('\n') {
                 text.sections[0].value.push_str(&s);
@@ -244,10 +288,6 @@ fn handle_inputs(
                 text.sections[0].value = "> ".to_string(); 
             }
         }
-
-		if keys.just_pressed(KeyCode::KeyZ) {
-			// move player forward to implement
-		}
     }
 }
 

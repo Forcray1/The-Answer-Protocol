@@ -183,7 +183,7 @@ async fn handle_connect(
                 sender_addr: addr,
                 message: format!("S: EVT GLOBAL CHAT Server {} is back!\n", pseudo),
             });
-            format!("S: OK connected skin={}\n", skin)
+            format!("S: OK connected skin={} name={}\n", skin, pseudo)
         }
         Ok(None) => {
             // Nouveau joueur -> on crée le compte avec le mot de passe fourni
@@ -202,7 +202,7 @@ async fn handle_connect(
                 sender_addr: addr,
                 message: format!("S: EVT GLOBAL CHAT Server {} just connected!\n", pseudo),
             });
-            format!("S: OK connected skin={}\n", skin)
+            format!("S: OK connected skin={} name={}\n", skin, pseudo)
         }
         Err(e) => {
             eprintln!("[DB] Player load error: {}", e);

@@ -335,3 +335,8 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 	mlorenzo:
 		- Added the sprite of the skin to the DB
 		- Implemented a first version of the player for bevy client
+10/07/2026:
+	mlorenzo:
+		- Added a toggle chat for textual commands on the bevy client
+		- Added the ZQSD movement
+		- Added animation based on the direction with basic sprites (to be modified)
