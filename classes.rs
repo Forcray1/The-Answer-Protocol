@@ -255,10 +255,11 @@ impl Player {
 }
 
 pub fn xp_requiered_for_level(level: i32) -> i32 {
-	let base: i32 = 100;
-	let growth: i32 = 2;
+	let base: f64 = 60.0;
+	let growth: f64 = 1.8;
+	let n = level.max(1) as f64;
 
-	(base * growth.powi(level - 1)).round() as i32
+	(base * n.powf(growth)).round() as i32
 }
 
 #[derive(Debug, Clone)]
