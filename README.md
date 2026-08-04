@@ -342,6 +342,13 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 	mlorenzo:
 		- Added the possibility to see other player connected in your room
 		- Reorganisation of the files in bevy client
+19/07/2026:
+	mlorenzo:
+		- Improved the world.yaml to make the move between zone possible
+04/08/2026:
+	mlorenzo:
+		- Improved world.yaml
+		- Checked up on the sprites and there composition to adapt to the code
 
 TODO:
 	- Add a main menu with the login
@@ -350,3 +357,5 @@ TODO:
 	- Add the collisions and interactions
 	- finish the world.yaml with all the informations
 	- Make all of the combat system
+	- Edit the map sprites marked with the flag (_not-png) as they are not in png, so only the upper layer is shown
+	- Logs not working for bevy client

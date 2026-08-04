@@ -39,7 +39,7 @@ fn setup_network(mut commands: Commands) {
                 println!("[NETWORK] Unable to reach the server.");
                 return;
             };
-            println!("[NETWORK] Connected to the Ombreval server!");
+            println!("[NETWORK] Connected to the server");
             let _ = tx_to_bevy.send("Network system initialized.".to_string());
 
             let (reader, mut writer) = stream.into_split();

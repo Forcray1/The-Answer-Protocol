@@ -1,0 +1,157 @@
+# docs/world.example.yaml — REFERENCE / TEMPLATE ONLY (the server never loads this).
+#
+# The server only reads the real `world.yaml` at the project root. Copy blocks
+# from here into it and fill them in. The authoritative definition of every field
+# is `serveur/src/world.rs` (the structs the YAML deserializes into).
+#
+# GOLDEN RULES
+#   * A room's KEY (e.g. `Oasis1:`) is its id. The client displays the map found
+#     in `sprites/maps/<id>/`, so a room id MUST match a map folder name.
+#   * Ids (rooms / npcs / items / quests) are plain strings you invent — just
+#     reference them consistently everywhere.
+#   * Fields marked "optional" can be omitted entirely. Anything else is REQUIRED,
+#     or the server refuses to load the file (YAML parse / missing-field error).
+#   * `exits` use compass directions only: north | south | east | west.
+
+world:
+  name: "The Answer Protocol"        # free text
+
+  # =====================================================================
+  # NPCs — the CATALOG (what an NPC *is*). You place them into rooms via
+  # `locations.<room>.npcs`. Struct: world.rs -> `Npc`.
+  # =====================================================================
+  npcs:
+    - id: "example_npc"              # required — unique id, referenced elsewhere
+      name: "Example NPC"            # required — display name
+      role: "quest_giver"           # required — free text ("merchant", "guard"…)
+      hp: 50                         # required — hit points
+      dialogue:                      # required — lines said on TALK (1 or more)
+        - "Hello, traveller."
+        - "Mind the desert winds."
+      # ---- everything below is OPTIONAL (omit to leave unset) ----
+      damage: 5                      # optional — attack power in combat
+      defense: 2                     # optional — damage reduction
+      exp_reward: 20                 # optional — XP granted when defeated
+      respawn_time: 30               # optional — seconds before it respawns
+      drops:                         # optional — loot table dropped on death
+        - item_id: "example_item"    #   item id to drop
+          chance: 50                 #   drop chance in percent (0..100)
+      # NOTE: a `sprite:` line is currently IGNORED by the server (unknown field).
+      #       To actually render NPC sprites we'd add `sprite` to the `Npc` struct
+      #       and draw it client-side (same idea as player skins).
+
+  # =====================================================================
+  # ITEMS — the CATALOG. Put instances on the ground via
+  # `locations.<room>.items`. Struct: `Item`.
+  # =====================================================================
+  items:
+    # Plain item.
+    - id: "example_item"
+      name: "Example Item"
+      description: "A nondescript trinket."
+      obtainable: true               # required — can players pick it up?
+
+    # Weapon (equippable). `slot: weapon` routes it to the weapon bag.
+    - id: "rusty_sword"
+      name: "Rusty Sword"
+      description: "It has seen better days."
+      obtainable: true
+      damage: 10                     # optional — bonus damage when equipped
+      slot: "weapon"                 # optional — "weapon" | "head" | "chest" | "legs"
+
+    # Armor piece.
+    - id: "leather_cap"
+      name: "Leather Cap"
+      description: "Basic head protection."
+      obtainable: true
+      defense: 3                     # optional — bonus defense when equipped
+      slot: "head"
+
+    # Quest item (kept as a key item, not a normal/equippable item).
+    - id: "ancient_key"
+      name: "Ancient Key"
+      description: "Opens something, somewhere."
+      obtainable: true
+      type: "quest"                  # optional — "standard" (default) | "quest"
+
+  # =====================================================================
+  # QUESTS. Struct: `Quest`, with `objective` a tagged enum `QuestObjective`
+  # whose `type:` selects the shape.
+  # =====================================================================
+  quests:
+    # (1/3) Fetch an item.
+    - id: "example_fetch"
+      name: "Gather the Trinket"
+      description: "Bring back the example item."
+      objective:
+        type: "fetch_item"           # selects the objective kind
+        item: "example_item"         # item to fetch
+      target_id: "example_item"      # required — item this quest revolves around
+      giver_id: "example_npc"        # optional — NPC that gives the quest
+      reward_exp: 100                # required key — XP reward, or `null`
+      reward_item: "rusty_sword"     # required key — item reward, or `null`
+
+    # (2/3) Defeat an NPC.
+    - id: "example_defeat"
+      name: "Clear the Path"
+      description: "Defeat the example NPC."
+      objective:
+        type: "defeat_npc"
+        npc: "example_npc"           # NPC to defeat
+      target_id: "example_npc"
+      giver_id: null
+      reward_exp: 150
+      reward_item: null
+
+    # (3/3) Deliver an item to an NPC.
+    - id: "example_deliver"
+      name: "Special Delivery"
+      description: "Take the key to the NPC."
+      objective:
+        type: "deliver_item"
+        item: "ancient_key"          # item to deliver
+        to: "example_npc"            # recipient NPC
+      target_id: "ancient_key"
+      giver_id: "example_npc"
+      reward_exp: 200
+      reward_item: null
+
+  # =====================================================================
+  # LOCATIONS (rooms). KEY = room id = map folder name (sprites/maps/<id>/).
+  # Struct: `Location`. `exits` map a compass direction -> destination room id.
+  # =====================================================================
+  locations:
+
+    # A normal outdoor room.
+    Example_zone:
+      name: "Example Zone"                  # required — display name
+      description: "A placeholder zone."    # required
+      exits:                                # required (empty is `exits: {}`)
+        north: "Oasis1"                     #   direction -> destination room id
+      npcs: ["example_npc"]                 # optional — NPCs standing here
+      items: ["example_item"]               # optional — items lying on the ground
+
+    # -----------------------------------------------------------------
+    # A "HOUSE" / INTERIOR held inside another map.
+    #
+    # There is no true nested map. An interior is simply ANOTHER room with its
+    # OWN map folder (e.g. sprites/maps/House_oasis1/), linked by an exit. You
+    # "enter" it by moving between the two rooms; the client swaps the displayed
+    # map automatically because the room changed.
+    #
+    # CAVEAT — the door. `exits` are compass directions, and a hub like Oasis1
+    # may already use all four (north/east/south/west) for its neighbours,
+    # leaving none free for a "door". Two ways forward:
+    #   (a) For now: give the interior a spare compass exit from a room that has
+    #       one, and enter with `MOVE <dir>` typed in the text console (press T).
+    #   (b) Proper doors (step-on-a-tile or press-to-enter) need a small new
+    #       feature — e.g. an `ENTER <room>` command, or per-room door triggers
+    #       the client fires by position. (Ask and I can implement it.)
+    # -----------------------------------------------------------------
+    House_oasis1:
+      name: "Chief's House"
+      description: "Inside the chief's house."
+      exits:
+        south: "Oasis1"        # walking south leaves the house, back to the oasis
+      npcs: ["Chef_oasis1"]    # the chief lives inside
+      items: []

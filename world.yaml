@@ -10,7 +10,14 @@ world:
       exp_reward: 65
       respawn_time: 60
       dialogue: ["Grahhhh !"]
-
+    -  id: "Chef_oasis1"
+      name: ""
+      role: "quest_giver"
+      sprite: "" # to complete and implement
+      hp: 50
+      dialogue:
+        - ""
+        - ""
   items: 
     - id: "Excalibur"
       name: "Excalibur"
@@ -21,52 +28,98 @@ world:
   quests: []
   locations:
     Wild1:
-      name: "Wilderness I"
+      name: "Wild1"
       description: ""
-      exits: {}
+      exits:
+        south: "Wild3"
+        east: "Wild2"
+      npcs: []
+      items: []
     Wild2:
-      name: "Wilderness II"
+      name: "Wild2"
       description: ""
-      exits: {}
+      exits:
+        west: "Wild1"
+        south: "Oasis1"
+      npcs: []
+      items: []
     City:
       name: "City"
       description: ""
-      exits: {}
+      exits:
+        south: "Wild4"
+        east: "Castle"
+      npcs: []
+      items: []
     Castle:
       name: "Castle"
       description: ""
-      exits: {}
+      exits:
+        west: "City"
+      npcs: []
+      items: []
     Wild3:
-      name: "Wilderness III"
+      name: "Wild3"
       description: ""
-      exits: {}
-    Start:
-      name: "Starting Oasis"
-      description: "The start"
-      items: ["Excalibur"]
-      npcs: ["Goblin_1"]
-      exits: {}
+      exits:
+        north: "Wild1"
+        east: "Oasis1"
+      npcs: []
+      items: []
+    Oasis1:
+      name: "Oasis1"
+      description: ""
+      exits:
+        north: "Wild2"
+        east: "Wild4"
+        south: "Wild6"
+        west: "Wild3"
+      npcs: []
+      items: []
     Wild4:
-      name: "Wilderness IV"
+      name: "Wild4"
       description: ""
-      exits: {}
+      exits:
+        north: "City"
+        east: "Wild5"
+        south: "Oasis2"
+        west: "Oasis1"
+      npcs: []
+      items: []
     Wild5:
-      name: "Wilderness V"
+      name: "Wild5"
       description: ""
-      exits: {}
+      exits:
+        west: "Wild4"
+      npcs: []
+      items: []
     Cave:
       name: "Cave"
       description: ""
-      exits: {}
+      exits:
+        east: "Wild6"
+      npcs: []
+      items: []
     Wild6:
-      name: "Wilderness VI"
+      name: "Wild6"
       description: ""
-      exits: {}
+      exits:
+        west: "Cave"
+        north: "Oasis1"
+      npcs: []
+      items: []
     Oasis2:
-      name: "Second Oasis"
+      name: "Oasis2"
       description: ""
-      exits: {}
+      exits:
+        north: "Wild4"
+        east: "Wild7"
+      npcs: []
+      items: []
     Wild7:
-      name: "Wilderness VII"
+      name: "Wild7"
       description: ""
-      exits: {}
+      exits:
+        west: "Oasis2"
+      npcs: []
+      items: []

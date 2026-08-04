@@ -63,7 +63,7 @@ fn sync_map_to_room(
     }
     let (ground, overhead) = spawn_zone(&mut commands, &asset_server, room);
     println!(
-        "[MAP] Zone '{}' construite : {} calque(s) sol + {} au-dessus.",
+        "[MAP] Zone '{}' built : {} ground + {} above",
         room, ground, overhead
     );
     current.0 = Some(room.clone());
