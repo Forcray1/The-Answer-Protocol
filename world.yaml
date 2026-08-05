@@ -10,7 +10,7 @@ world:
       exp_reward: 65
       respawn_time: 60
       dialogue: ["Grahhhh !"]
-    -  id: "Chef_oasis1"
+    - id: "Chef_oasis1"
       name: ""
       role: "quest_giver"
       sprite: "" # to complete and implement

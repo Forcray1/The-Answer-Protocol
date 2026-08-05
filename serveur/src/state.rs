@@ -18,7 +18,7 @@ use domain::{
 };
 
 /// Salle de départ d'un nouveau joueur (et point de réapparition à la mort).
-pub const START_ROOM: &str = "Start";
+pub const START_ROOM: &str = "Oasis1";
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ItemSource {

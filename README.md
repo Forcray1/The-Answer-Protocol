@@ -359,3 +359,6 @@ TODO:
 	- Make all of the combat system
 	- Edit the map sprites marked with the flag (_not-png) as they are not in png, so only the upper layer is shown
 	- Logs not working for bevy client
+	- key for command
+
+PS: fait placage de MOB sur la map et implementation de l'inventory avec la key I. 
