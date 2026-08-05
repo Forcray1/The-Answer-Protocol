@@ -1,10 +1,77 @@
 use bevy::prelude::*;
 
 use crate::net::{NetworkSender, ServerMessageEvent};
+use crate::AppState;
 
 const MAX_CHAT_LINES: usize = 8;
 
 pub struct ConsolePlugin;
+pub struct InventoryPlugin;
+
+impl Plugin for InventoryPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<InventoryState>()
+            .add_systems(Startup, setup_inventory_ui)
+            .add_systems(Update, toggle_inventory.run_if(in_state(AppState::InGame)));
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct InventoryState {
+    pub open: bool,
+}
+
+#[derive(Component)]
+struct InventoryUiRoot;
+
+fn setup_inventory_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    position_type: PositionType::Absolute,
+                    ..default()
+                },
+                visibility: Visibility::Hidden,
+                z_index: ZIndex::Global(10),
+                ..default()
+            },
+            InventoryUiRoot,
+        ))
+        .with_children(|parent| {
+            parent.spawn(ImageBundle {
+                style: Style {
+                    width: Val::Percent(60.0), // Augmente la taille pour qu'elle prenne 60% de la largeur de l'écran
+                    height: Val::Auto,         // Garde les proportions de l'image
+                    ..default()
+                },
+                image: UiImage::new(asset_server.load("UI/inventory-ui.png")),
+                ..default()
+            });
+        });
+}
+
+fn toggle_inventory(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut state: ResMut<InventoryState>,
+    mut query: Query<&mut Visibility, With<InventoryUiRoot>>,
+    console: Res<ChatConsole>,
+) {
+    if console.open {
+        return;
+    }
+    
+    if keys.just_pressed(KeyCode::KeyI) {
+        state.open = !state.open;
+        if let Ok(mut visibility) = query.get_single_mut() {
+            *visibility = if state.open { Visibility::Inherited } else { Visibility::Hidden };
+        }
+    }
+}
 
 impl Plugin for ConsolePlugin {
     fn build(&self, app: &mut App) {
@@ -16,7 +83,7 @@ impl Plugin for ConsolePlugin {
                     toggle_chat,
                     handle_inputs.after(toggle_chat),
                     display_messages,
-                ),
+                ).run_if(in_state(AppState::InGame)),
             );
     }
 }

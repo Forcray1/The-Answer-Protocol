@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
 
 use crate::game::GameState;
+use crate::AppState;
 
 pub struct MapPlugin;
 
@@ -9,8 +10,8 @@ impl Plugin for MapPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CurrentZone>()
             .add_systems(Startup, setup_camera)
-            .add_systems(Update, sync_map_to_room)
-            .add_systems(PostUpdate, y_sort_entities);
+            .add_systems(Update, sync_map_to_room.run_if(in_state(AppState::InGame)))
+            .add_systems(PostUpdate, y_sort_entities.run_if(in_state(AppState::InGame)));
     }
 }
 

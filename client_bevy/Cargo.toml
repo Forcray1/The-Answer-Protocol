@@ -7,3 +7,4 @@ edition = "2024"
 bevy = "0.13"
 tokio = { version = "1", features = ["full"] }
 crossbeam-channel = "0.5"
+bevy_egui = "0.27"

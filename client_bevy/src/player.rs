@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use crate::map::YSort;
 use crate::net::{NetworkSender, ServerMessageEvent};
 use crate::ui::ChatConsole;
+use crate::AppState;
 
 pub struct PlayerPlugin;
 
@@ -13,15 +14,15 @@ impl Plugin for PlayerPlugin {
         app.init_resource::<HeldDirections>()
             .init_resource::<LocalPlayerName>()
             .insert_resource(PosSendTimer(Timer::from_seconds(POS_SEND_INTERVAL, TimerMode::Repeating)))
+            .add_systems(Update, spawn_local_player_on_connect)
             .add_systems(
                 Update,
                 (
-                    spawn_local_player_on_connect,
                     update_local_player,
                     send_local_position,
                     handle_presence_events,
                     update_remote_players,
-                ),
+                ).run_if(in_state(AppState::InGame)),
             );
     }
 }

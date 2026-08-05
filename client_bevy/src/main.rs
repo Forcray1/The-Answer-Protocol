@@ -1,10 +1,18 @@
 use bevy::prelude::*;
 
+mod menu;
 mod game;
 mod map;
 mod net;
 mod player;
 mod ui;
+
+#[derive(States, Default, Debug, Clone, Eq, PartialEq, Hash)]
+pub enum AppState {
+    #[default]
+    MainMenu,
+    InGame,
+}
 
 fn main() {
     App::new()
@@ -16,10 +24,14 @@ fn main() {
                 })
                 .set(ImagePlugin::default_nearest()),
         )
+        .init_state::<AppState>()
+        .add_plugins(bevy_egui::EguiPlugin)
         .add_plugins((
             net::NetworkPlugin,
+            menu::MenuPlugin,
             game::GamePlugin,
             ui::ConsolePlugin,
+            ui::InventoryPlugin,
             map::MapPlugin,
             player::PlayerPlugin,
         ))

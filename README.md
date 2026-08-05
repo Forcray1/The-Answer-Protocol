@@ -349,6 +349,11 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 	mlorenzo:
 		- Improved world.yaml
 		- Checked up on the sprites and there composition to adapt to the code
+05/08/2026:
+	avauclai:
+		- Added a first version of the inventory UI
+	
+
 
 TODO:
 	- Add a main menu with the login

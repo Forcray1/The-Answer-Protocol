@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::net::ServerMessageEvent;
+use crate::AppState;
 
 #[derive(Resource)]
 pub struct GameState {
