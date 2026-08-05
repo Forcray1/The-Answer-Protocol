@@ -21,7 +21,7 @@ impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<ServerMessageEvent>()
             .add_systems(Startup, setup_network)
-            .add_systems(Update, read_network_messages);
+            .add_systems(PreUpdate, read_network_messages);
     }
 }
 

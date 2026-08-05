@@ -58,6 +58,15 @@ impl Direction {
             _ => None,
         }
     }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Direction::North => "north",
+            Direction::South => "south",
+            Direction::East => "east",
+            Direction::West => "west",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

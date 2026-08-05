@@ -123,6 +123,17 @@ pub async fn save_player_to_db(pool: &DbPool, player: &Player) {
 
 // Connect adapté pour le BDD
 
+fn format_exits(world: &WorldData, room: &RoomId) -> String {
+    let mut exits_str = String::new();
+    if let Some(loc) = world.world.locations.get(room) {
+        let exits: Vec<&str> = loc.exits.keys().map(|d| d.as_str()).collect();
+        if !exits.is_empty() {
+            exits_str = format!(" exits={}", exits.join(","));
+        }
+    }
+    exits_str
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn handle_connect(
     addr: SocketAddr,
@@ -194,9 +205,10 @@ async fn handle_connect(
                 target_group: None,
             target_player: None,
             });
+            let exits = format_exits(world, &enter_room);
             format!(
-                "S: OK connected skin={} name={} room={}\n{}",
-                skin, pseudo, enter_room,
+                "S: OK connected skin={} name={} room={}{}\n{}",
+                skin, pseudo, enter_room, exits,
                 room_presence_roster(addr, state, &enter_room)
             )
         }
@@ -232,9 +244,10 @@ async fn handle_connect(
                 target_group: None,
             target_player: None,
             });
+            let exits = format_exits(world, &enter_room);
             format!(
-                "S: OK connected skin={} name={} room={}\n{}",
-                skin, pseudo, enter_room,
+                "S: OK connected skin={} name={} room={}{}\n{}",
+                skin, pseudo, enter_room, exits,
                 room_presence_roster(addr, state, &enter_room)
             )
         }
@@ -358,7 +371,8 @@ fn handle_move(addr: SocketAddr, dir: String, state: &mut ServerState, world: &W
         target_group: None,
             target_player: None,
     });
-    format!("S: OK room-loc.{}\n{}", next_room, room_presence_roster(addr, state, &next_room))
+    let exits = format_exits(world, &next_room);
+    format!("S: OK room-loc.{}{}\n{}", next_room, exits, room_presence_roster(addr, state, &next_room))
 }
 
 fn handle_inventory(addr: SocketAddr, state: &ServerState, world: &WorldData) -> String {

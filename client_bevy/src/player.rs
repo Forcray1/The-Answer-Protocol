@@ -187,9 +187,12 @@ fn load_skin_textures(asset_server: &AssetServer, skin: &str) -> [[Handle<Image>
 
 fn update_local_player(
     keys: Res<ButtonInput<KeyCode>>,
-    console: Res<ChatConsole>,
+    console: Res<crate::ui::ChatConsole>,
     time: Res<Time>,
+    game_state: Res<crate::game::GameState>,
+    sender: Res<crate::net::NetworkSender>,
     mut held: ResMut<HeldDirections>,
+    mut last_tp: Local<f32>,
     mut query: Query<(&mut Transform, &mut PlayerAnimation, &mut Handle<Image>), With<LocalPlayer>>,
 ) {
     let Ok((mut transform, mut anim, mut texture)) = query.get_single_mut() else {
@@ -209,8 +212,49 @@ fn update_local_player(
 
     if let Some(&d) = held.0.first() {
         let delta = d.vec() * PLAYER_SPEED * time.delta_seconds();
-        transform.translation.x = (transform.translation.x + delta.x).clamp(-MAP_HALF_W, MAP_HALF_W);
-        transform.translation.y = (transform.translation.y + delta.y).clamp(-MAP_HALF_H, MAP_HALF_H);
+        let mut new_x = transform.translation.x + delta.x;
+        let mut new_y = transform.translation.y + delta.y;
+        
+        let can_tp = time.elapsed_seconds() - *last_tp > 1.0;
+
+        if new_y > MAP_HALF_H {
+            if game_state.exits.contains(&"north".to_string()) && can_tp {
+                let _ = sender.0.send("MOVE north\n".to_string());
+                new_y = -MAP_HALF_H + 5.0;
+                *last_tp = time.elapsed_seconds();
+            } else {
+                new_y = MAP_HALF_H;
+            }
+        } else if new_y < -MAP_HALF_H {
+            if game_state.exits.contains(&"south".to_string()) && can_tp {
+                let _ = sender.0.send("MOVE south\n".to_string());
+                new_y = MAP_HALF_H - 5.0;
+                *last_tp = time.elapsed_seconds();
+            } else {
+                new_y = -MAP_HALF_H;
+            }
+        }
+        
+        if new_x > MAP_HALF_W {
+            if game_state.exits.contains(&"east".to_string()) && can_tp {
+                let _ = sender.0.send("MOVE east\n".to_string());
+                new_x = -MAP_HALF_W + 5.0;
+                *last_tp = time.elapsed_seconds();
+            } else {
+                new_x = MAP_HALF_W;
+            }
+        } else if new_x < -MAP_HALF_W {
+            if game_state.exits.contains(&"west".to_string()) && can_tp {
+                let _ = sender.0.send("MOVE west\n".to_string());
+                new_x = MAP_HALF_W - 5.0;
+                *last_tp = time.elapsed_seconds();
+            } else {
+                new_x = -MAP_HALF_W;
+            }
+        }
+
+        transform.translation.x = new_x;
+        transform.translation.y = new_y;
         animate(&mut anim, &mut texture, time.delta(), true, d.vec());
     } else {
         animate(&mut anim, &mut texture, time.delta(), false, Vec2::ZERO);
@@ -247,6 +291,13 @@ fn handle_presence_events(
     mut remotes: Query<(Entity, &mut RemotePlayer)>,
 ) {
     for ev in events.read() {
+        if ev.0.starts_with("S: OK room-loc.") {
+            for (entity, _) in &remotes {
+                commands.entity(entity).despawn_recursive();
+            }
+            continue;
+        }
+
         let p: Vec<&str> = ev.0.split_whitespace().collect();
         if p.len() < 5 || p[0] != "S:" || p[1] != "EVT" || p[2] != "ROOM" {
             continue;
