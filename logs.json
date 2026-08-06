@@ -150,3 +150,7 @@
 {"details":{"ip":"127.0.0.1:52883","type":"new"},"event":"CONNECT","player":"test","timestamp":"2026-08-05T16:18:27"}
 {"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"test","timestamp":"2026-08-05T16:20:21"}
 {"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-05T16:20:22"}
+{"details":{"ip":"127.0.0.1:46568","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-08-06T10:51:32"}
+{"details":{"ip":"127.0.0.1:47144","type":"returning"},"event":"CONNECT","player":"test","timestamp":"2026-08-06T10:51:58"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-06T10:55:42"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"test","timestamp":"2026-08-06T10:55:45"}

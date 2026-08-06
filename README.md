@@ -352,7 +352,11 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 05/08/2026:
 	avauclai:
 		- Added a first version of the inventory UI
-	
+		- Added first version of Login Menu
+		- Correction BUG affichage position joueur client bevy
+06/08/2026:
+	avauclai:
+		- fix du bug de teleportation
 
 
 TODO:
@@ -364,6 +368,6 @@ TODO:
 	- Make all of the combat system
 	- Edit the map sprites marked with the flag (_not-png) as they are not in png, so only the upper layer is shown
 	- Logs not working for bevy client
-	- key for command
+	- key for command, remain : E, F, Q (quests).
 
 PS: fait placage de MOB sur la map et implementation de l'inventory avec la key I. 
