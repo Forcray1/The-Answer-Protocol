@@ -359,7 +359,12 @@ fn update_remote_players(
         let to_target = remote.target - current;
         let distance = to_target.length();
 
-        if distance > 1.0 {
+        if distance > 200.0 {
+            // Teleport instantly if the distance is too large (e.g., map transition)
+            transform.translation.x = remote.target.x;
+            transform.translation.y = remote.target.y;
+            animate(&mut anim, &mut texture, time.delta(), false, Vec2::ZERO);
+        } else if distance > 1.0 {
             let step = (PLAYER_SPEED * time.delta_seconds()).min(distance);
             let dir = to_target / distance;
             transform.translation.x += dir.x * step;
