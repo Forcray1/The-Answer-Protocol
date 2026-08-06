@@ -5,14 +5,33 @@ use crate::AppState;
 
 const MAX_CHAT_LINES: usize = 8;
 
+#[derive(Component)]
+pub struct InventoryDescriptionText;
+
+#[derive(Component, Clone)]
+pub struct InventorySlotInfo {
+    pub id: String,
+    pub name: String,
+    pub damage: u32,
+    pub slot: String,
+    pub is_equipped: bool,
+}
+
 pub struct ConsolePlugin;
 pub struct InventoryPlugin;
 
 impl Plugin for InventoryPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<InventoryState>()
+            .init_resource::<SelectedItem>()
             .add_systems(Startup, setup_inventory_ui)
-            .add_systems(Update, toggle_inventory.run_if(in_state(AppState::InGame)));
+            .add_systems(Update, (
+                toggle_inventory,
+                handle_inventory_data,
+                handle_equip_data,
+                handle_slot_interactions,
+                handle_action_btn,
+            ).run_if(in_state(AppState::InGame)));
     }
 }
 
@@ -23,6 +42,28 @@ pub struct InventoryState {
 
 #[derive(Component)]
 struct InventoryUiRoot;
+
+#[derive(Component)]
+struct InventoryGrid;
+
+#[derive(Component)]
+pub struct EquipmentPanel;
+
+#[derive(Component)]
+pub struct EquipmentSlot(pub String);
+
+#[derive(Component)]
+pub struct InventoryActionBtn;
+
+#[derive(Component)]
+pub struct InventoryActionText;
+
+#[derive(Resource, Default)]
+pub struct SelectedItem {
+    pub id: Option<String>,
+    pub name: Option<String>,
+    pub is_equipped: bool,
+}
 
 fn setup_inventory_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
@@ -43,14 +84,149 @@ fn setup_inventory_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
             InventoryUiRoot,
         ))
         .with_children(|parent| {
-            parent.spawn(ImageBundle {
+            // Main Inventory Window
+            parent.spawn(NodeBundle {
                 style: Style {
-                    width: Val::Percent(60.0), // Augmente la taille pour qu'elle prenne 60% de la largeur de l'écran
-                    height: Val::Auto,         // Garde les proportions de l'image
+                    width: Val::Px(850.0), // Agrandit pour faire de la place
+                    height: Val::Px(550.0),
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    padding: UiRect::all(Val::Px(20.0)),
+                    border: UiRect::all(Val::Px(2.0)),
                     ..default()
                 },
-                image: UiImage::new(asset_server.load("UI/inventory-ui.png")),
+                background_color: Color::rgba(0.1, 0.1, 0.1, 0.95).into(),
+                border_color: Color::rgba(0.8, 0.8, 0.8, 1.0).into(),
                 ..default()
+            }).with_children(|window| {
+                // Title
+                window.spawn(TextBundle::from_section(
+                    "Inventaire",
+                    TextStyle { font_size: 30.0, color: Color::WHITE, ..default() },
+                ).with_style(Style {
+                    margin: UiRect { bottom: Val::Px(20.0), ..default() },
+                    ..default()
+                }));
+                
+                // Split Panel
+                window.spawn(NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(100.0),
+                        flex_direction: FlexDirection::Row,
+                        ..default()
+                    },
+                    ..default()
+                }).with_children(|split| {
+                    // Left Panel (Equipment Silhouette)
+                    split.spawn((
+                        NodeBundle {
+                            style: Style {
+                                width: Val::Px(150.0),
+                                height: Val::Percent(100.0),
+                                flex_direction: FlexDirection::Column,
+                                align_items: AlignItems::Center,
+                                justify_content: JustifyContent::SpaceEvenly,
+                                margin: UiRect { right: Val::Px(20.0), ..default() },
+                                padding: UiRect::all(Val::Px(10.0)),
+                                border: UiRect::right(Val::Px(2.0)),
+                                ..default()
+                            },
+                            border_color: Color::rgba(0.5, 0.5, 0.5, 0.5).into(),
+                            ..default()
+                        },
+                        EquipmentPanel,
+                    )).with_children(|equip| {
+                        let slots = vec!["head", "chest", "legs", "weapon"];
+                        let labels = vec!["Casque", "Torse", "Jambes", "Arme"];
+                        for (i, slot) in slots.iter().enumerate() {
+                            equip.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        width: Val::Px(80.0),
+                                        height: Val::Px(80.0),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        border: UiRect::all(Val::Px(1.0)),
+                                        ..default()
+                                    },
+                                    background_color: Color::rgba(0.2, 0.2, 0.2, 1.0).into(),
+                                    border_color: Color::rgba(0.4, 0.4, 0.4, 1.0).into(),
+                                    ..default()
+                                },
+                                EquipmentSlot(slot.to_string()),
+                            )).with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    labels[i],
+                                    TextStyle { font_size: 14.0, color: Color::GRAY, ..default() },
+                                ));
+                            });
+                        }
+                    });
+
+                    // Right Panel (Grid container)
+                    split.spawn((
+                        NodeBundle {
+                            style: Style {
+                                flex_grow: 1.0,
+                                height: Val::Percent(100.0),
+                                display: Display::Grid,
+                                grid_template_columns: vec![GridTrack::flex(1.0); 5],
+                                grid_template_rows: vec![GridTrack::flex(1.0); 4],
+                                row_gap: Val::Px(10.0),
+                                column_gap: Val::Px(10.0),
+                                ..default()
+                            },
+                            ..default()
+                        },
+                        InventoryGrid,
+                    ));
+                });
+                
+                // Bottom Action & Description Bar
+                window.spawn(NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        margin: UiRect { top: Val::Px(15.0), ..default() },
+                        flex_direction: FlexDirection::Row,
+                        justify_content: JustifyContent::SpaceBetween,
+                        align_items: AlignItems::Center,
+                        ..default()
+                    },
+                    ..default()
+                }).with_children(|bottom| {
+                    bottom.spawn((
+                        TextBundle::from_section(
+                            "Survolez ou cliquez sur un objet pour voir ses détails.",
+                            TextStyle { font_size: 16.0, color: Color::WHITE, ..default() },
+                        ),
+                        InventoryDescriptionText,
+                    ));
+                    
+                    bottom.spawn((
+                        ButtonBundle {
+                            style: Style {
+                                width: Val::Px(120.0),
+                                height: Val::Px(35.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                display: Display::None,
+                                ..default()
+                            },
+                            background_color: Color::rgba(0.2, 0.6, 0.2, 1.0).into(),
+                            ..default()
+                        },
+                        InventoryActionBtn,
+                    )).with_children(|btn| {
+                        btn.spawn((
+                            TextBundle::from_section(
+                                "Equiper",
+                                TextStyle { font_size: 16.0, color: Color::WHITE, ..default() },
+                            ),
+                            InventoryActionText,
+                        ));
+                    });
+                });
             });
         });
 }
@@ -60,6 +236,7 @@ fn toggle_inventory(
     mut state: ResMut<InventoryState>,
     mut query: Query<&mut Visibility, With<InventoryUiRoot>>,
     console: Res<ChatConsole>,
+    sender: Res<crate::net::NetworkSender>,
 ) {
     if console.open {
         return;
@@ -68,7 +245,259 @@ fn toggle_inventory(
     if keys.just_pressed(KeyCode::KeyI) {
         state.open = !state.open;
         if let Ok(mut visibility) = query.get_single_mut() {
-            *visibility = if state.open { Visibility::Inherited } else { Visibility::Hidden };
+            if state.open {
+                *visibility = Visibility::Inherited;
+                let _ = sender.0.send("INVENTORY\n".to_string());
+            } else {
+                *visibility = Visibility::Hidden;
+            }
+        }
+    }
+}
+
+#[derive(Component)]
+struct InventorySlot;
+
+fn handle_inventory_data(
+    mut commands: Commands,
+    mut events: EventReader<crate::net::ServerMessageEvent>,
+    asset_server: Res<AssetServer>,
+    grid_query: Query<Entity, With<InventoryGrid>>,
+    existing_slots: Query<Entity, With<InventorySlot>>,
+) {
+    for ev in events.read() {
+        if let Some(data) = ev.0.strip_prefix("S: EVT INV_DATA ") {
+            let Ok(grid) = grid_query.get_single() else { continue };
+
+            // Remove old slots
+            for entity in existing_slots.iter() {
+                commands.entity(entity).despawn_recursive();
+            }
+
+            if data.trim() == "empty" {
+                continue;
+            }
+
+            for item in data.trim().split('|') {
+                let parts: Vec<&str> = item.split(':').collect();
+                if parts.len() >= 5 {
+                    let count: u32 = parts[1].parse().unwrap_or(1);
+                    let slot_type = parts[2];
+                    let item_name = parts[3].to_string();
+                    let damage: u32 = parts[4].parse().unwrap_or(0);
+                    
+                    let mut icon = None;
+                    if slot_type == "weapon" {
+                        icon = Some(asset_server.load("UI/sword_icone.png"));
+                    }
+                    
+                    if let Some(texture) = icon {
+                        let slot_entity = commands.spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    width: Val::Percent(100.0),
+                                    height: Val::Percent(100.0),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    border: UiRect::all(Val::Px(1.0)),
+                                    ..default()
+                                },
+                                background_color: Color::rgba(0.2, 0.2, 0.2, 1.0).into(),
+                                border_color: Color::rgba(0.4, 0.4, 0.4, 1.0).into(),
+                                ..default()
+                            },
+                            InventorySlot,
+                            InventorySlotInfo {
+                                id: parts[0].to_string(),
+                                name: item_name,
+                                damage,
+                                slot: slot_type.to_string(),
+                                is_equipped: false,
+                            },
+                        )).with_children(|slot| {
+                            slot.spawn(ImageBundle {
+                                style: Style {
+                                    width: Val::Px(50.0),
+                                    height: Val::Px(50.0),
+                                    ..default()
+                                },
+                                image: UiImage::new(texture),
+                                ..default()
+                            });
+                            
+                            if count > 1 {
+                                slot.spawn(TextBundle::from_section(
+                                    format!("x{}", count),
+                                    TextStyle { font_size: 16.0, color: Color::WHITE, ..default() },
+                                ).with_style(Style {
+                                    position_type: PositionType::Absolute,
+                                    bottom: Val::Px(2.0),
+                                    right: Val::Px(5.0),
+                                    ..default()
+                                }));
+                            }
+                        }).id();
+                        commands.entity(grid).add_child(slot_entity);
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn handle_slot_interactions(
+    mut interaction_query: Query<
+        (&Interaction, &InventorySlotInfo, &mut BackgroundColor),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut text_query: Query<&mut Text, With<InventoryDescriptionText>>,
+    mut action_btn_q: Query<&mut Style, With<InventoryActionBtn>>,
+    mut action_txt_q: Query<&mut Text, (With<InventoryActionText>, Without<InventoryDescriptionText>)>,
+    mut selected_item: ResMut<SelectedItem>,
+) {
+    for (interaction, info, mut color) in &mut interaction_query {
+        match *interaction {
+            Interaction::Pressed => {
+                *color = Color::rgba(0.4, 0.4, 0.4, 1.0).into(); // Highlight
+                if let Ok(mut text) = text_query.get_single_mut() {
+                    let dmg_str = if info.damage > 0 { format!(" | Degats: +{}", info.damage) } else { "".to_string() };
+                    text.sections[0].value = format!("{} {}", info.name, dmg_str);
+                }
+                
+                selected_item.id = Some(info.id.clone());
+                selected_item.name = Some(info.name.clone());
+                selected_item.is_equipped = info.is_equipped;
+                
+                if let Ok(mut style) = action_btn_q.get_single_mut() {
+                    if info.slot != "none" {
+                        style.display = Display::Flex;
+                        if let Ok(mut btn_txt) = action_txt_q.get_single_mut() {
+                            btn_txt.sections[0].value = if info.is_equipped { "Desequiper".to_string() } else { "Equiper".to_string() };
+                        }
+                    } else {
+                        style.display = Display::None;
+                    }
+                }
+            }
+            Interaction::Hovered => {
+                *color = Color::rgba(0.3, 0.3, 0.3, 1.0).into(); // Lighten on hover
+            }
+            Interaction::None => {
+                *color = Color::rgba(0.2, 0.2, 0.2, 1.0).into(); // Normal color
+            }
+        }
+    }
+}
+
+fn handle_action_btn(
+    mut interaction_query: Query<
+        (&Interaction, &mut BackgroundColor),
+        (Changed<Interaction>, With<InventoryActionBtn>),
+    >,
+    selected_item: Res<SelectedItem>,
+    sender: Res<crate::net::NetworkSender>,
+) {
+    for (interaction, mut color) in &mut interaction_query {
+        match *interaction {
+            Interaction::Pressed => {
+                *color = Color::rgba(0.2, 0.8, 0.2, 1.0).into();
+                if let Some(id) = &selected_item.id {
+                    let cmd = if selected_item.is_equipped { "UNEQUIP" } else { "EQUIP" };
+                    let _ = sender.0.send(format!("{} {}\n", cmd, id));
+                }
+            }
+            Interaction::Hovered => {
+                *color = Color::rgba(0.3, 0.7, 0.3, 1.0).into();
+            }
+            Interaction::None => {
+                *color = Color::rgba(0.2, 0.6, 0.2, 1.0).into();
+            }
+        }
+    }
+}
+
+fn handle_equip_data(
+    mut commands: Commands,
+    mut events: EventReader<crate::net::ServerMessageEvent>,
+    asset_server: Res<AssetServer>,
+    mut slots_query: Query<(Entity, &EquipmentSlot)>,
+) {
+    for ev in events.read() {
+        if let Some(data) = ev.0.strip_prefix("S: EVT EQUIP_DATA ") {
+            for item in data.trim().split('|') {
+                let parts: Vec<&str> = item.split(':').collect();
+                if parts.len() >= 2 {
+                    let slot_name = parts[0];
+                    let id = parts[1];
+                    
+                    let mut is_equipped = false;
+                    let mut item_name = "Vide".to_string();
+                    let mut damage = 0;
+                    
+                    if id != "none" && parts.len() >= 4 {
+                        is_equipped = true;
+                        item_name = parts[2].to_string();
+                        damage = parts[3].parse().unwrap_or(0);
+                    }
+                    
+                    for (entity, slot_cmp) in slots_query.iter_mut() {
+                        if slot_cmp.0 == slot_name {
+                            // Update slot UI
+                            commands.entity(entity).despawn_descendants();
+                            if is_equipped {
+                                commands.entity(entity).insert(InventorySlotInfo {
+                                    id: id.to_string(),
+                                    name: item_name.clone(),
+                                    damage,
+                                    slot: slot_name.to_string(),
+                                    is_equipped: true,
+                                });
+                                
+                                let mut icon = None;
+                                if slot_name == "weapon" {
+                                    icon = Some(asset_server.load("UI/sword_icone.png"));
+                                }
+                                
+                                if let Some(texture) = icon {
+                                    commands.entity(entity).with_children(|p| {
+                                        p.spawn(ImageBundle {
+                                            style: Style {
+                                                width: Val::Px(50.0),
+                                                height: Val::Px(50.0),
+                                                ..default()
+                                            },
+                                            image: UiImage::new(texture),
+                                            ..default()
+                                        });
+                                    });
+                                } else {
+                                    commands.entity(entity).with_children(|p| {
+                                        p.spawn(TextBundle::from_section(
+                                            &item_name,
+                                            TextStyle { font_size: 14.0, color: Color::WHITE, ..default() },
+                                        ));
+                                    });
+                                }
+                            } else {
+                                commands.entity(entity).remove::<InventorySlotInfo>();
+                                commands.entity(entity).with_children(|p| {
+                                    let label = match slot_name {
+                                        "head" => "Casque",
+                                        "chest" => "Torse",
+                                        "legs" => "Jambes",
+                                        "weapon" => "Arme",
+                                        _ => "Vide",
+                                    };
+                                    p.spawn(TextBundle::from_section(
+                                        label,
+                                        TextStyle { font_size: 14.0, color: Color::GRAY, ..default() },
+                                    ));
+                                });
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

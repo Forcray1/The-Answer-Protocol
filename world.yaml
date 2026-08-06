@@ -25,6 +25,12 @@ world:
       slot: "weapon"
       obtainable: true
       description: "A legendary sword."
+    - id: "Dague"
+      name: "Dague"
+      damage: 1
+      slot: "weapon"
+      obtainable: true
+      description: "Simple dague"
   quests: []
   locations:
     Wild1:
@@ -75,7 +81,7 @@ world:
         south: "Wild6"
         west: "Wild3"
       npcs: []
-      items: []
+      items: ["Excalibur", "Dague"]
     Wild4:
       name: "Wild4"
       description: ""

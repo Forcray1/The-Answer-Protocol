@@ -70,7 +70,7 @@ pub async fn process_command(
         GameCommand::Inventory      => (handle_inventory(addr, state, world), false),
         GameCommand::Info(c)        => (handle_info(addr, c, state, world), false),
         GameCommand::Equip(c)       => (handle_equip(addr, c, state, world), false),
-        GameCommand::Unequip(c)     => (handle_unequip(addr, c, state), false),
+        GameCommand::Unequip(c)     => (handle_unequip(addr, c, state, world), false),
         GameCommand::Equipment      => (handle_equipment(addr, state), false),
         GameCommand::Take(c)        => (handle_take(addr, c, state, world), false),
         GameCommand::Drop(c)        => (handle_drop(addr, c, state, world), false),
@@ -375,19 +375,45 @@ fn handle_move(addr: SocketAddr, dir: String, state: &mut ServerState, world: &W
     format!("S: OK room-loc.{}{}\n{}", next_room, exits, room_presence_roster(addr, state, &next_room))
 }
 
+fn get_inv_data_event(player: &crate::state::Player, world: &WorldData) -> String {
+    if player.inventory.is_empty() {
+        return "S: EVT INV_DATA empty\n".to_string();
+    }
+    let mut data_objets = Vec::new();
+    for (id, count) in player.inventory.iter() {
+        let item_opt = world.world.items.iter().find(|i| &i.id == id);
+        let name = item_opt.map(|i| i.name.clone()).unwrap_or_else(|| id.to_string());
+        let slot = item_opt.and_then(|i| i.slot.clone()).unwrap_or_else(|| "none".to_string());
+        let damage = item_opt.and_then(|i| i.damage).unwrap_or(0);
+        data_objets.push(format!("{}:{}:{}:{}:{}", id, count, slot, name, damage));
+    }
+    format!("S: EVT INV_DATA {}\n", data_objets.join("|"))
+}
+
+fn get_equip_data_event(player: &crate::state::Player) -> String {
+    let head = player.equipement.helmet.as_ref().map(|a| format!("{}:{}:{}", a.id, a.name, a.defense)).unwrap_or_else(|| "none".to_string());
+    let chest = player.equipement.chestplate.as_ref().map(|a| format!("{}:{}:{}", a.id, a.name, a.defense)).unwrap_or_else(|| "none".to_string());
+    let legs = player.equipement.legging.as_ref().map(|a| format!("{}:{}:{}", a.id, a.name, a.defense)).unwrap_or_else(|| "none".to_string());
+    let weapon = player.equipement.weapon.as_ref().map(|w| format!("{}:{}:{}", w.id, w.name, w.damages)).unwrap_or_else(|| "none".to_string());
+    format!("S: EVT EQUIP_DATA head:{}|chest:{}|legs:{}|weapon:{}\n", head, chest, legs, weapon)
+}
+
 fn handle_inventory(addr: SocketAddr, state: &ServerState, world: &WorldData) -> String {
     if let Some(player) = state.players.get(&addr) {
         if player.inventory.is_empty() {
-            "S: OK Your inventory is empty.\n".to_string()
+            format!("S: OK Your inventory is empty.\n{}{}", get_inv_data_event(player, world), get_equip_data_event(player))
         } else {
-            let noms_objets: Vec<String> = player.inventory.iter().map(|(id, count)| {
-                let name = world.world.items.iter()
-                    .find(|i| &i.id == id)
-                    .map(|i| i.name.clone())
-                    .unwrap_or_else(|| id.to_string());
-                if *count > 1 { format!("{} (x{})", name, count) } else { name }
-            }).collect();
-            format!("S: OK Inventory: [{}]\n", noms_objets.join(", "))
+            let mut noms_objets = Vec::new();
+            for (id, count) in player.inventory.iter() {
+                let item_opt = world.world.items.iter().find(|i| &i.id == id);
+                let name = item_opt.map(|i| i.name.clone()).unwrap_or_else(|| id.to_string());
+                if *count > 1 {
+                    noms_objets.push(format!("{} (x{})", name, count));
+                } else {
+                    noms_objets.push(name);
+                }
+            }
+            format!("S: OK Inventory: [{}]\n{}{}", noms_objets.join(", "), get_inv_data_event(player, world), get_equip_data_event(player))
         }
     } else { "S: ERR utilize_connect_first\n".to_string() }
 }
@@ -421,13 +447,13 @@ fn handle_equip(addr: SocketAddr, cible: String, state: &mut ServerState, world:
                 player.equipement.weapon = Some(make_weapon(item));
                 if let Some(old) = old { player.inventory.add(old.id, ItemBucket::Weapon); }
                 player.inventory.remove_one(&item.id);
-                format!("S: OK You equipped {} in slot [{}].\n", item.name, slot)
+                format!("S: OK You equipped {} in slot [{}].\n{}{}", item.name, slot, get_inv_data_event(player, world), get_equip_data_event(player))
             } else if let Some(slot_ref) = player.equipement.armor_slot_mut(&slot) {
                 let old = slot_ref.take();
                 *slot_ref = Some(make_armor(item));
                 if let Some(old) = old { player.inventory.add(old.id, ItemBucket::Item); }
                 player.inventory.remove_one(&item.id);
-                format!("S: OK You equipped {} in slot [{}].\n", item.name, slot)
+                format!("S: OK You equipped {} in slot [{}].\n{}{}", item.name, slot, get_inv_data_event(player, world), get_equip_data_event(player))
             } else {
                 "S: ERR This item cannot be equipped.\n".to_string()
             }
@@ -435,7 +461,7 @@ fn handle_equip(addr: SocketAddr, cible: String, state: &mut ServerState, world:
     } else { "S: ERR utilize_connect_first\n".to_string() }
 }
 
-fn handle_unequip(addr: SocketAddr, cible: String, state: &mut ServerState) -> String {
+fn handle_unequip(addr: SocketAddr, cible: String, state: &mut ServerState, world: &WorldData) -> String {
     if let Some(player) = state.players.get_mut(&addr) {
         let found = player.equipement.equipped().into_iter()
             .find(|(_, id, name)| ci_eq(id.as_str(), &cible) || ci_eq(name, &cible));
@@ -447,7 +473,7 @@ fn handle_unequip(addr: SocketAddr, cible: String, state: &mut ServerState) -> S
                 *slot_ref = None;
                 player.inventory.add(id, ItemBucket::Item);
             }
-            format!("S: OK You unequipped {}.\n", name)
+            format!("S: OK You unequipped {}.\n{}{}", name, get_inv_data_event(player, world), get_equip_data_event(player))
         } else { "S: ERR You are not wearing this item.\n".to_string() }
     } else { "S: ERR utilize_connect_first\n".to_string() }
 }
@@ -459,7 +485,7 @@ fn handle_equipment(addr: SocketAddr, state: &ServerState) -> String {
         let chest  = player.equipement.chestplate.as_ref().map(|a| a.name.clone()).unwrap_or_else(aucun);
         let legs   = player.equipement.legging.as_ref().map(|a| a.name.clone()).unwrap_or_else(aucun);
         let weapon = player.equipement.weapon.as_ref().map(|w| w.name.clone()).unwrap_or_else(aucun);
-        format!("S: OK --- EQUIPMENT ---\n  Head: {}\n  Chest: {}\n  Legs: {}\n  Weapon: {}\n", head, chest, legs, weapon)
+        format!("S: OK --- EQUIPMENT ---\n  Head: {}\n  Chest: {}\n  Legs: {}\n  Weapon: {}\n{}", head, chest, legs, weapon, get_equip_data_event(player))
     } else { "S: ERR utilize_connect_first\n".to_string() }
 }
 
