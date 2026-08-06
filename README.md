@@ -357,6 +357,7 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 06/08/2026:
 	avauclai:
 		- fix du bug de teleportation
+		- brouillon fonctionnel de l'inventaire UI
 
 
 TODO:
