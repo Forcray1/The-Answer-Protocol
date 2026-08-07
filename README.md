@@ -361,7 +361,6 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 
 
 TODO:
-	- Add a main menu with the login
 	- Reorganize the Start_oasis with the new version for the perspective
 	- link all the rooms
 	- Add the collisions and interactions
