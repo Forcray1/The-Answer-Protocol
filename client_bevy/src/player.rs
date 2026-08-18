@@ -43,6 +43,12 @@ const NAME_Z_OFFSET: f32 = 500.0;
 const MAP_HALF_W: f32 = 1280.0;
 const MAP_HALF_H: f32 = 720.0;
 
+const FOOT_HALF_W: f32 = 28.0;
+const FOOT_HALF_H: f32 = 12.0;
+const FOOT_OFFSET_Y: f32 = -48.0;
+
+const SPAWN_POINT: Vec2 = Vec2::new(-MAP_HALF_W + 80.0, 0.0);
+
 const POS_SEND_INTERVAL: f32 = 0.1;
 
 #[derive(Component)]
@@ -118,16 +124,23 @@ fn spawn_local_player_on_connect(
 
         let mut skin = DEFAULT_SKIN;
         let mut name = DEFAULT_NAME;
+        let mut spawn = SPAWN_POINT;
         for token in rest.split_whitespace() {
             if let Some(v) = token.strip_prefix("skin=").filter(|v| !v.is_empty()) {
                 skin = v;
             } else if let Some(v) = token.strip_prefix("name=").filter(|v| !v.is_empty()) {
                 name = v;
+            } else if let Some(v) = token.strip_prefix("pos=") {
+                if let Some((xs, ys)) = v.split_once(',') {
+                    if let (Ok(x), Ok(y)) = (xs.parse::<f32>(), ys.parse::<f32>()) {
+                        spawn = Vec2::new(x, y);
+                    }
+                }
             }
         }
 
         local_name.0 = Some(name.to_string());
-        let entity = spawn_player_visual(&mut commands, &asset_server, skin, name, Vec2::ZERO);
+        let entity = spawn_player_visual(&mut commands, &asset_server, skin, name, spawn);
         commands.entity(entity).insert(LocalPlayer);
         println!("[PLAYER] Avatar local '{}' (skin '{}').", name, skin);
     }
@@ -191,6 +204,7 @@ fn update_local_player(
     time: Res<Time>,
     game_state: Res<crate::game::GameState>,
     sender: Res<crate::net::NetworkSender>,
+    collision: Res<crate::collision::CollisionMask>,
     mut held: ResMut<HeldDirections>,
     mut last_tp: Local<f32>,
     mut query: Query<(&mut Transform, &mut PlayerAnimation, &mut Handle<Image>), With<LocalPlayer>>,
@@ -212,15 +226,27 @@ fn update_local_player(
 
     if let Some(&d) = held.0.first() {
         let delta = d.vec() * PLAYER_SPEED * time.delta_seconds();
-        let mut new_x = transform.translation.x + delta.x;
-        let mut new_y = transform.translation.y + delta.y;
-        
+        let cur_x = transform.translation.x;
+        let cur_y = transform.translation.y;
+
+        let half = Vec2::new(FOOT_HALF_W, FOOT_HALF_H);
+        let foot = |x: f32, y: f32| Vec2::new(x, y + FOOT_OFFSET_Y);
+
+        let try_x = cur_x + delta.x;
+        let res_x = if collision.blocks_box(foot(try_x, cur_y), half) { cur_x } else { try_x };
+        let try_y = cur_y + delta.y;
+        let res_y = if collision.blocks_box(foot(res_x, try_y), half) { cur_y } else { try_y };
+
+        let mut new_x = res_x;
+        let mut new_y = res_y;
+
         let can_tp = time.elapsed_seconds() - *last_tp > 1.0;
 
         if new_y > MAP_HALF_H {
             if game_state.exits.contains(&"north".to_string()) && can_tp {
                 let _ = sender.0.send("MOVE north\n".to_string());
                 new_y = -MAP_HALF_H + 5.0;
+                new_x = 0.0;
                 *last_tp = time.elapsed_seconds();
             } else {
                 new_y = MAP_HALF_H;
@@ -229,16 +255,18 @@ fn update_local_player(
             if game_state.exits.contains(&"south".to_string()) && can_tp {
                 let _ = sender.0.send("MOVE south\n".to_string());
                 new_y = MAP_HALF_H - 5.0;
+                new_x = 0.0;
                 *last_tp = time.elapsed_seconds();
             } else {
                 new_y = -MAP_HALF_H;
             }
         }
-        
+
         if new_x > MAP_HALF_W {
             if game_state.exits.contains(&"east".to_string()) && can_tp {
                 let _ = sender.0.send("MOVE east\n".to_string());
                 new_x = -MAP_HALF_W + 5.0;
+                new_y = 0.0;
                 *last_tp = time.elapsed_seconds();
             } else {
                 new_x = MAP_HALF_W;
@@ -247,6 +275,7 @@ fn update_local_player(
             if game_state.exits.contains(&"west".to_string()) && can_tp {
                 let _ = sender.0.send("MOVE west\n".to_string());
                 new_x = MAP_HALF_W - 5.0;
+                new_y = 0.0;
                 *last_tp = time.elapsed_seconds();
             } else {
                 new_x = -MAP_HALF_W;

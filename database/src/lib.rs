@@ -29,6 +29,9 @@ pub struct PlayerData {
     pub completed_quests: Vec<QuestId>,
     /// Nom du skin (fichier sous sprites/skin/, sans extension). "default" par défaut.
     pub skin: String,
+    /// Dernière position (x, y) dans la salle. `None` si jamais sauvegardée
+    /// (nouveau joueur) : le client retombe alors sur son point d'apparition.
+    pub position: Option<(f32, f32)>,
 }
 
 // Init
@@ -128,8 +131,8 @@ pub async fn load_player(
     pool: &SqlitePool,
     username: &str,
 ) -> Result<Option<PlayerData>, sqlx::Error> {
-    let row: Option<(i32, i32, i32, i32, String, String, String, String, String)> = sqlx::query_as(
-        "SELECT hp, exp, level, money, current_room, inventory, equipment, completed_quests, skin
+    let row: Option<(i32, i32, i32, i32, String, String, String, String, String, Option<f64>, Option<f64>)> = sqlx::query_as(
+        "SELECT hp, exp, level, money, current_room, inventory, equipment, completed_quests, skin, pos_x, pos_y
          FROM players WHERE username = ?"
     )
     .bind(username)
@@ -138,7 +141,7 @@ pub async fn load_player(
 
     match row {
         None => Ok(None),
-        Some((hp, exp, level, money, current_room, inv_json, equip_json, quests_json, skin)) => {
+        Some((hp, exp, level, money, current_room, inv_json, equip_json, quests_json, skin, pos_x, pos_y)) => {
             // Colonnes JSON vers types Rust forts
             let inventory: Inventory =
                 serde_json::from_str(&inv_json).unwrap_or_default();
@@ -146,6 +149,12 @@ pub async fn load_player(
                 serde_json::from_str(&equip_json).unwrap_or_default();
             let completed_quests: Vec<QuestId> =
                 serde_json::from_str(&quests_json).unwrap_or_default();
+
+            // Position seulement si les deux colonnes sont renseignées.
+            let position = match (pos_x, pos_y) {
+                (Some(x), Some(y)) => Some((x as f32, y as f32)),
+                _ => None,
+            };
 
             Ok(Some(PlayerData {
                 hp,
@@ -157,6 +166,7 @@ pub async fn load_player(
                 equipment,
                 completed_quests,
                 skin,
+                position,
             }))
         }
     }
@@ -178,6 +188,8 @@ pub async fn save_player(
     equipment: &HashMap<String, ItemId>,
     completed_quests: &Vec<QuestId>,
     skin: &str,
+    pos_x: f64,
+    pos_y: f64,
 ) -> Result<(), sqlx::Error> {
     let inv_json = serde_json::to_string(inventory).unwrap_or_default();
     let equip_json = serde_json::to_string(equipment).unwrap_or_default();
@@ -186,7 +198,8 @@ pub async fn save_player(
     sqlx::query(
         "UPDATE players
          SET hp = ?, exp = ?, level = ?, money = ?, current_room = ?,
-             inventory = ?, equipment = ?, completed_quests = ?, skin = ?
+             inventory = ?, equipment = ?, completed_quests = ?, skin = ?,
+             pos_x = ?, pos_y = ?
          WHERE username = ?"
     )
     .bind(hp)
@@ -198,6 +211,8 @@ pub async fn save_player(
     .bind(&equip_json)
     .bind(&quests_json)
     .bind(skin)
+    .bind(pos_x)
+    .bind(pos_y)
     .bind(username)
     .execute(pool)
     .await?;

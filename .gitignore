@@ -1,13 +1,8 @@
 target/
-game.db
 
 Cargo.lock
-game.db-shm
-game.db-wal
 
 logs.json
-world.yaml
 yaml_format.md
 
 logs.json
-game.db

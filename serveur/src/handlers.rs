@@ -112,6 +112,8 @@ pub async fn save_player_to_db(pool: &DbPool, player: &Player) {
         &equipment,
         &player.completed_quests,
         &player.skin,
+        player.pos_x as f64,
+        player.pos_y as f64,
     ).await;
 
     if let Err(e) = result {
@@ -173,6 +175,8 @@ async fn handle_connect(
                 }
             }
 
+            let saved_pos = data.position;
+
             // Joueur trouvé → restaurer son état dans le modèle enrichi
             let mut player = Player::new(pseudo.clone(), data.current_room);
             player.hp = data.hp;
@@ -184,11 +188,16 @@ async fn handle_connect(
             player.completed_quests = data.completed_quests;
             player.equipement = build_equipement(world, &data.equipment);
             player.skin = data.skin;
+            if let Some((x, y)) = saved_pos {
+                player.pos_x = x;
+                player.pos_y = y;
+            }
 
             // On capture le skin avant que `player` ne soit déplacé dans l'état :
             // le client s'en sert pour afficher le bon avatar.
             let skin = player.skin.clone();
             let enter_room = player.current_room.clone();
+            let (px, py) = (player.pos_x as i64, player.pos_y as i64);
             state.players.insert(addr, player);
             log_event("CONNECT", &pseudo, json!({"ip": addr.to_string(), "type": "returning"}));
             let _ = tx.send(GlobalEvent {
@@ -200,15 +209,18 @@ async fn handle_connect(
             });
             let _ = tx.send(GlobalEvent {
                 sender_addr: addr,
-                message: format!("S: EVT ROOM {} PRESENCE ENTER {} {} 0 0\n", enter_room, pseudo, skin),
+                message: format!("S: EVT ROOM {} PRESENCE ENTER {} {} {} {}\n", enter_room, pseudo, skin, px, py),
                 target_room: Some(enter_room.clone()),
                 target_group: None,
             target_player: None,
             });
             let exits = format_exits(world, &enter_room);
+            let pos_str = saved_pos
+                .map(|(x, y)| format!(" pos={},{}", x as i64, y as i64))
+                .unwrap_or_default();
             format!(
-                "S: OK connected skin={} name={} room={}{}\n{}",
-                skin, pseudo, enter_room, exits,
+                "S: OK connected skin={} name={} room={}{}{}\n{}",
+                skin, pseudo, enter_room, exits, pos_str,
                 room_presence_roster(addr, state, &enter_room)
             )
         }

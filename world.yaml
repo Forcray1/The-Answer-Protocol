@@ -46,7 +46,7 @@ world:
       description: ""
       exits:
         west: "Wild1"
-        south: "Oasis1"
+        south: "Start_oasis"
       npcs: []
       items: []
     City:
@@ -69,11 +69,11 @@ world:
       description: ""
       exits:
         north: "Wild1"
-        east: "Oasis1"
+        east: "Start_oasis"
       npcs: []
       items: []
-    Oasis1:
-      name: "Oasis1"
+    Start_oasis:
+      name: "Start_oasis"
       description: ""
       exits:
         north: "Wild2"
@@ -89,7 +89,7 @@ world:
         north: "City"
         east: "Wild5"
         south: "Oasis2"
-        west: "Oasis1"
+        west: "Start_oasis"
       npcs: []
       items: []
     Wild5:
@@ -111,7 +111,7 @@ world:
       description: ""
       exits:
         west: "Cave"
-        north: "Oasis1"
+        north: "Start_oasis"
       npcs: []
       items: []
     Oasis2:

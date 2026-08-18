@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+mod collision;
 mod menu;
 mod game;
 mod map;
@@ -33,6 +34,7 @@ fn main() {
             ui::ConsolePlugin,
             ui::InventoryPlugin,
             map::MapPlugin,
+            collision::CollisionPlugin,
             player::PlayerPlugin,
         ))
         .run();

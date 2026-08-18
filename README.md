@@ -358,11 +358,17 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 	avauclai:
 		- fix du bug de teleportation
 		- brouillon fonctionnel de l'inventaire UI
+12/08/2026:
+	mlorenzo:
+		- Added the move between zones through the bevy client
+18/08/2026:
+	mlorenzo:
+		- Added collision in the maps
 
 
 TODO:
 	- Reorganize the Start_oasis with the new version for the perspective
-	- link all the rooms
+	- link all the rooms V
 	- Add the collisions and interactions
 	- finish the world.yaml with all the informations
 	- Make all of the combat system
@@ -371,3 +377,4 @@ TODO:
 	- key for command, remain : E, F, Q (quests).
 
 PS: fait placage de MOB sur la map et implementation de l'inventory avec la key I. 
+PS: Toujours le problème de perspective a corriger mais pour le reste on devrais être bon. On a pas encore la map de cave je vais l'implémenter des que je les recois
