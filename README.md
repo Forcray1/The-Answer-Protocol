@@ -364,6 +364,7 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 18/08/2026:
 	mlorenzo:
 		- Added collision in the maps
+		- Position of player showed
 
 
 TODO:

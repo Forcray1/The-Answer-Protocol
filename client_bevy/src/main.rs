@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 mod collision;
+mod debug;
 mod menu;
 mod game;
 mod map;
@@ -36,6 +37,7 @@ fn main() {
             map::MapPlugin,
             collision::CollisionPlugin,
             player::PlayerPlugin,
+            debug::DebugPlugin,
         ))
         .run();
 }

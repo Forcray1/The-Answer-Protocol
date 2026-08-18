@@ -198,6 +198,25 @@ fn load_skin_textures(asset_server: &AssetServer, skin: &str) -> [[Handle<Image>
     })
 }
 
+fn default_arrival(dir: &str) -> Vec2 {
+    match dir {
+        "north" => Vec2::new(0.0, -MAP_HALF_H + 5.0),
+        "south" => Vec2::new(0.0, MAP_HALF_H - 5.0),
+        "east" => Vec2::new(-MAP_HALF_W + 5.0, 0.0),
+        "west" => Vec2::new(MAP_HALF_W - 5.0, 0.0),
+        _ => Vec2::ZERO,
+    }
+}
+
+const C_TO_W6: Vec2 = Vec2::new(-950.0, 225.0);
+
+fn arrival_point(from_room: &str, dir: &str) -> Vec2 {
+    match (from_room, dir) {
+        ("Cave", "east") => C_TO_W6,
+        _ => default_arrival(dir),
+    }
+}
+
 fn update_local_player(
     keys: Res<ButtonInput<KeyCode>>,
     console: Res<crate::ui::ChatConsole>,
@@ -245,8 +264,9 @@ fn update_local_player(
         if new_y > MAP_HALF_H {
             if game_state.exits.contains(&"north".to_string()) && can_tp {
                 let _ = sender.0.send("MOVE north\n".to_string());
-                new_y = -MAP_HALF_H + 5.0;
-                new_x = 0.0;
+                let a = arrival_point(&game_state.current_room, "north");
+                new_x = a.x;
+                new_y = a.y;
                 *last_tp = time.elapsed_seconds();
             } else {
                 new_y = MAP_HALF_H;
@@ -254,8 +274,9 @@ fn update_local_player(
         } else if new_y < -MAP_HALF_H {
             if game_state.exits.contains(&"south".to_string()) && can_tp {
                 let _ = sender.0.send("MOVE south\n".to_string());
-                new_y = MAP_HALF_H - 5.0;
-                new_x = 0.0;
+                let a = arrival_point(&game_state.current_room, "south");
+                new_x = a.x;
+                new_y = a.y;
                 *last_tp = time.elapsed_seconds();
             } else {
                 new_y = -MAP_HALF_H;
@@ -265,8 +286,9 @@ fn update_local_player(
         if new_x > MAP_HALF_W {
             if game_state.exits.contains(&"east".to_string()) && can_tp {
                 let _ = sender.0.send("MOVE east\n".to_string());
-                new_x = -MAP_HALF_W + 5.0;
-                new_y = 0.0;
+                let a = arrival_point(&game_state.current_room, "east");
+                new_x = a.x;
+                new_y = a.y;
                 *last_tp = time.elapsed_seconds();
             } else {
                 new_x = MAP_HALF_W;
@@ -274,8 +296,9 @@ fn update_local_player(
         } else if new_x < -MAP_HALF_W {
             if game_state.exits.contains(&"west".to_string()) && can_tp {
                 let _ = sender.0.send("MOVE west\n".to_string());
-                new_x = MAP_HALF_W - 5.0;
-                new_y = 0.0;
+                let a = arrival_point(&game_state.current_room, "west");
+                new_x = a.x;
+                new_y = a.y;
                 *last_tp = time.elapsed_seconds();
             } else {
                 new_x = -MAP_HALF_W;
