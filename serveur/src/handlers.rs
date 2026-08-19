@@ -136,6 +136,26 @@ fn format_exits(world: &WorldData, room: &RoomId) -> String {
     exits_str
 }
 
+fn room_mob_roster(room: &RoomId, state: &ServerState, world: &WorldData) -> String {
+    let mut out = String::new();
+    if let Some(npc_ids) = state.room_npcs.get(room) {
+        for npc_id in npc_ids {
+            if let Some(npc) = world.world.npcs.iter().find(|n| &n.id == npc_id) {
+                let sprite = npc.sprite.as_deref().unwrap_or("default");
+                let (x, y) = npc.spawn_pos.map(|p| (p[0] as i64, p[1] as i64)).unwrap_or((0, 0));
+                let hp = state.npc_hps.get(npc_id).copied().unwrap_or(npc.hp);
+                let max_hp = npc.hp;
+                let scale = npc.scale.unwrap_or(1.0);
+                out.push_str(&format!(
+                    "S: EVT ROOM {} MOB_SPAWN {} {} {} {} {} {} {}\n",
+                    room, npc_id, sprite, x, y, hp, max_hp, scale
+                ));
+            }
+        }
+    }
+    out
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn handle_connect(
     addr: SocketAddr,
@@ -219,9 +239,10 @@ async fn handle_connect(
                 .map(|(x, y)| format!(" pos={},{}", x as i64, y as i64))
                 .unwrap_or_default();
             format!(
-                "S: OK connected skin={} name={} room={}{}{}\n{}",
+                "S: OK connected skin={} name={} room={}{}{}\n{}{}",
                 skin, pseudo, enter_room, exits, pos_str,
-                room_presence_roster(addr, state, &enter_room)
+                room_presence_roster(addr, state, &enter_room),
+                room_mob_roster(&enter_room, state, world)
             )
         }
         Ok(None) => {
@@ -258,9 +279,10 @@ async fn handle_connect(
             });
             let exits = format_exits(world, &enter_room);
             format!(
-                "S: OK connected skin={} name={} room={}{}\n{}",
+                "S: OK connected skin={} name={} room={}{}\n{}{}",
                 skin, pseudo, enter_room, exits,
-                room_presence_roster(addr, state, &enter_room)
+                room_presence_roster(addr, state, &enter_room),
+                room_mob_roster(&enter_room, state, world)
             )
         }
         Err(e) => {
@@ -384,7 +406,7 @@ fn handle_move(addr: SocketAddr, dir: String, state: &mut ServerState, world: &W
             target_player: None,
     });
     let exits = format_exits(world, &next_room);
-    format!("S: OK room-loc.{}{}\n{}", next_room, exits, room_presence_roster(addr, state, &next_room))
+    format!("S: OK room-loc.{}{}\n{}{}", next_room, exits, room_presence_roster(addr, state, &next_room), room_mob_roster(&next_room, state, world))
 }
 
 fn get_inv_data_event(player: &crate::state::Player, world: &WorldData) -> String {
@@ -678,6 +700,13 @@ fn handle_attack(addr: SocketAddr, cible: String, state: &mut ServerState, world
                     }
                 }
             }
+            let _ = tx.send(GlobalEvent {
+                sender_addr: addr,
+                message: format!("S: EVT ROOM {} MOB_DESPAWN {}\n", salle_actuelle, m_id),
+                target_room: Some(salle_actuelle.clone()),
+                target_group: None,
+                target_player: None,
+            });
             let mut msg = format!("S: OK You dealt {} damage. {} collapses! (+{} EXP)\n", degats_finaux, monstre_nom, exp_gagnee);
             if !noms_drops.is_empty() { msg.push_str(&format!("You obtain: {}\n", noms_drops.join(", "))); }
             msg

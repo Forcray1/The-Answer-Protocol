@@ -174,7 +174,7 @@ impl ServerState {
         }
     }
 
-    pub fn update_respawns(&mut self, world_data: &WorldData) {
+    pub fn update_respawns(&mut self, world_data: &WorldData) -> Vec<(NpcId, RoomId)> {
         let now = Instant::now();
         let mut to_respawn = Vec::new();
 
@@ -187,12 +187,15 @@ impl ServerState {
             }
         });
 
+        let mut respawned = Vec::new();
         for (npc_id, room_id) in to_respawn {
             if let Some(npc) = world_data.world.npcs.iter().find(|n| n.id == npc_id) {
                 self.npc_hps.insert(npc_id.clone(), npc.hp);
-                self.room_npcs.entry(room_id).or_default().push(npc_id);
+                self.room_npcs.entry(room_id.clone()).or_default().push(npc_id.clone());
+                respawned.push((npc_id, room_id));
             }
         }
+        respawned
     }
 
     pub fn initialize_from_world(&mut self, world_data: &WorldData) {

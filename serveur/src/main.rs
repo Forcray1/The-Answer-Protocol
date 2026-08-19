@@ -133,7 +133,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 let (reponse, quitter) = {
                                     let mut guard = state.lock().await;
                                     let server_state = &mut *guard;
-                                    server_state.update_respawns(&world);
+                                    let respawned = server_state.update_respawns(&world);
+                                    for (npc_id, room_id) in &respawned {
+                                        if let Some(npc) = world.world.npcs.iter().find(|n| &n.id == npc_id) {
+                                            let sprite = npc.sprite.as_deref().unwrap_or("default");
+                                            let (x, y) = npc.spawn_pos.map(|p| (p[0] as i64, p[1] as i64)).unwrap_or((0, 0));
+                                            let hp = server_state.npc_hps.get(npc_id).copied().unwrap_or(npc.hp);
+                                            let scale = npc.scale.unwrap_or(1.0);
+                                            let _ = tx.send(GlobalEvent {
+                                                sender_addr: addr,
+                                                message: format!("S: EVT ROOM {} MOB_SPAWN {} {} {} {} {} {} {}\n", room_id, npc_id, sprite, x, y, hp, npc.hp, scale),
+                                                target_room: Some(room_id.clone()),
+                                                target_group: None,
+                                                target_player: None,
+                                            });
+                                        }
+                                    }
                                     handlers::process_command(
                                         addr,
                                         commande,

@@ -52,6 +52,12 @@ pub struct Npc {
     pub drops: Vec<DropChance>,
     #[serde(default)]
     pub respawn_time: Option<u64>,
+    #[serde(default)]
+    pub sprite: Option<String>,
+    #[serde(default)]
+    pub spawn_pos: Option<[f32; 2]>,
+    #[serde(default)]
+    pub scale: Option<f32>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

@@ -6,6 +6,7 @@ mod game;
 mod loading;
 mod map;
 mod menu;
+mod mob;
 mod net;
 mod player;
 mod ui;
@@ -39,6 +40,7 @@ fn main() {
             map::MapPlugin,
             collision::CollisionPlugin,
             player::PlayerPlugin,
+            mob::MobPlugin,
             debug::DebugPlugin,
         ))
         .run();

@@ -1,9 +1,12 @@
 world:
   name: "The Answer Protocol"
   npcs: 
-    - id: "Goblin_1"
-      name: "Goblin"
+    - id: "SandMonster"
+      name: "SandMonster"
       role: "enemy"
+      sprite: "SandMonster"
+      spawn_pos: [300, -200]
+      scale: 1.7
       hp: 50
       damage: 1
       defense: 2
@@ -70,7 +73,7 @@ world:
       exits:
         north: "Wild1"
         east: "Start_oasis"
-      npcs: []
+      npcs: ["SandMonster"]
       items: []
     Start_oasis:
       name: "Start_oasis"

@@ -42,6 +42,7 @@ fn setup_camera(mut commands: Commands) {
     };
     camera.projection.far = 10_000.0;
     camera.projection.near = -10_000.0;
+    camera.tonemapping = bevy::core_pipeline::tonemapping::Tonemapping::None;
     commands.spawn(camera);
     println!("[CLIENT] 2D camera initialized, ready for precomputed assets.");
 }
