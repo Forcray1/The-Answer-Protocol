@@ -55,6 +55,9 @@ const POS_SEND_INTERVAL: f32 = 0.1;
 pub struct LocalPlayer;
 
 #[derive(Component)]
+pub struct PlayerName(pub String);
+
+#[derive(Component)]
 struct RemotePlayer {
     name: String,
     target: Vec2,
@@ -173,6 +176,7 @@ fn spawn_player_visual(
                 timer: Timer::from_seconds(ANIM_FRAME_TIME, TimerMode::Repeating),
             },
             YSort,
+            PlayerName(name.to_string()),
         ))
         .with_children(|parent| {
             parent.spawn(Text2dBundle {

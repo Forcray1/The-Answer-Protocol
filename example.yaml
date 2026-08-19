@@ -1,0 +1,157 @@
+world:
+  name: "The Answer Protocol - Full Example"
+  
+  # ==========================================
+  # 1. NPCS (Personnages non-joueurs et monstres)
+  # ==========================================
+  npcs: 
+    # Exemple 1 : Un monstre agressif avec toutes les options de combat et d'affichage
+    - id: "Boss_Dragon"
+      name: "Dragon Ancestral"
+      role: "enemy"
+      hp: 1000
+      damage: 45
+      defense: 20
+      exp_reward: 500
+      respawn_time: 300 # Réapparaît après 5 minutes (300 secondes)
+      dialogue: 
+        - "ROOOAAARRRR !"
+        - "Tu oses défier le maître des cieux ?"
+      # Affichage sur le client Bevy
+      sprite: "Dragon"        # Le fichier image doit s'appeler "Dragon.png"
+      spawn_pos: [500.0, 100.0] # Position X, Y sur la map 2D
+      scale: 3.5              # Il sera 3.5x plus gros que la taille de base !
+      # Système de butin
+      drops:
+        - item_id: "Epee_Legendaire"
+          chance: 5 # 5% de chance de loot
+        - item_id: "Potion_Soin"
+          chance: 50 # 50% de chance de loot
+
+    # Exemple 2 : Un PNJ donneur de quête pacifique
+    - id: "Marchand_Bob"
+      name: "Bob le Marchand"
+      role: "quest_giver"
+      hp: 100 # Même les PNJ pacifiques ont besoin de HP techniques
+      dialogue:
+        - "Bienvenue dans mon échoppe !"
+        - "As-tu trouvé les peaux de loups que je t'ai demandées ?"
+      sprite: "Marchand"
+      spawn_pos: [-120.0, 45.0]
+      scale: 1.0
+
+  # ==========================================
+  # 2. ITEMS (Objets, Armes, Armures, Objets de Quête)
+  # ==========================================
+  items: 
+    # Exemple 1 : Une arme équipable
+    - id: "Epee_Legendaire"
+      name: "Épée Légendaire de Feu"
+      description: "Une lame brûlante qui a terrassé d'innombrables dragons."
+      obtainable: true
+      type: "standard"  # standard ou quest
+      slot: "weapon"    # Mettre "weapon" pour qu'elle puisse être équipée dans les mains
+      damage: 120
+      defense: 5        # Les armes peuvent aussi donner de l'armure !
+
+    # Exemple 2 : Une pièce d'armure
+    - id: "Plastron_Fer"
+      name: "Plastron en Fer"
+      description: "Une armure solide et lourde."
+      obtainable: true
+      type: "standard"
+      slot: "armor"     # N'importe quel autre mot que "weapon" le mettra en équipement
+      damage: 0
+      defense: 25
+
+    # Exemple 3 : Un objet de quête impossible à équiper
+    - id: "Lettre_Secrete"
+      name: "Lettre Scellée"
+      description: "Ne doit être ouverte que par le Roi."
+      obtainable: true
+      type: "quest"     # Ne sera pas rangé au même endroit dans l'inventaire
+      # Pas de slot, damage ou defense nécessaires
+
+    # Exemple 4 : Un consommable générique
+    - id: "Potion_Soin"
+      name: "Potion de Soin"
+      description: "Restaure 50 HP."
+      obtainable: true
+      type: "standard"
+
+  # ==========================================
+  # 3. QUÊTES (Objectifs et récompenses)
+  # ==========================================
+  quests:
+    # Exemple 1 : Quête de type "Tuer un mob"
+    - id: "Q1_Tuer_Dragon"
+      name: "La Menace Ailée"
+      description: "Le Roi te demande de tuer le Dragon Ancestral."
+      giver_id: "Marchand_Bob" # L'ID du PNJ qui valide la quête
+      objective:
+        type: "defeat_npc"
+        npc: "Boss_Dragon"
+      target_id: "Potion_Soin" # (Héritage technique du code, obligatoire pour l'instant)
+      reward_exp: 1000
+      reward_item: "Epee_Legendaire" # Donne cet item en récompense
+
+    # Exemple 2 : Quête de type "Récolter / Rapporter un objet"
+    - id: "Q2_Ramener_Lettre"
+      name: "Courrier Urgent"
+      description: "Trouve la lettre secrète et ramène-la."
+      giver_id: "Marchand_Bob"
+      objective:
+        type: "fetch_item"
+        item: "Lettre_Secrete"
+      target_id: "Lettre_Secrete"
+      reward_exp: 200
+
+    # Exemple 3 : Quête de type "Livrer un objet à quelqu'un"
+    - id: "Q3_Livraison"
+      name: "Le Colis"
+      description: "Livre l'épée à Bob."
+      giver_id: "Marchand_Bob"
+      objective:
+        type: "deliver_item"
+        item: "Epee_Legendaire"
+        to: "Marchand_Bob"
+      target_id: "Epee_Legendaire"
+      reward_exp: 50
+
+  # ==========================================
+  # 4. LOCATIONS (Les salles, la map, et leurs liaisons)
+  # ==========================================
+  locations:
+    # Exemple de la salle de départ avec des PNJ et des items par terre
+    Village_Depart:
+      name: "Village de Départ"
+      description: "Un petit village paisible où l'aventure commence."
+      exits:
+        north: "Foret_Sombre"
+        east: "Grotte_Cristal"
+      npcs: 
+        - "Marchand_Bob"  # Fait apparaître ce PNJ dans la salle au démarrage
+      items:
+        - "Potion_Soin"   # Pose cet objet sur le sol de la salle au démarrage
+        - "Lettre_Secrete"
+
+    # Salle sans PNJ, juste un couloir
+    Foret_Sombre:
+      name: "Forêt Sombre"
+      description: "Tu as du mal à y voir à plus de 2 mètres..."
+      exits:
+        south: "Village_Depart"
+        north: "Antre_Dragon"
+      npcs: []
+      items: []
+
+    # Salle du boss
+    Antre_Dragon:
+      name: "Antre du Dragon"
+      description: "Il fait une chaleur étouffante ici."
+      exits:
+        south: "Foret_Sombre"
+      npcs: 
+        - "Boss_Dragon" # Spawn le boss
+      items:
+        - "Plastron_Fer" # Un petit bonus caché dans l'antre

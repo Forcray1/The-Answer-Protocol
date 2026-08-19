@@ -18,6 +18,7 @@ pub enum GameCommand {
     Quests,
     Quest(String),
     Chat { channel: String, message: String },
+    Interact(String),
     Who,
     Pos { x: f32, y: f32 },
     GroupCreate,
@@ -60,6 +61,7 @@ impl GameCommand {
             
             "ATTACK" if parts.len() > 1 => GameCommand::Attack(parts[1..].join(" ")),
             "TALK" if parts.len() > 1 => GameCommand::Talk(parts[1..].join(" ")),
+            "INTERACT" if parts.len() > 1 => GameCommand::Interact(parts[1..].join(" ")),
             "QUESTS" => GameCommand::Quests,
             "QUEST" if parts.len() > 1 => GameCommand::Quest(parts[1].to_string()),
             

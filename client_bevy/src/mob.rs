@@ -4,19 +4,29 @@ use bevy::prelude::*;
 
 use crate::map::YSort;
 use crate::net::ServerMessageEvent;
+use crate::player::PlayerName;
+use crate::player::LocalPlayer;
 use crate::AppState;
 
 pub struct MobPlugin;
 
 impl Plugin for MobPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
-            Update,
-            (handle_mob_events, animate_mobs, cleanup_mobs_on_room_change)
-                .run_if(in_state(AppState::InGame)),
-        );
+        app.init_resource::<InteractableTarget>()
+            .add_systems(Startup, setup_interaction_ui)
+            .add_systems(
+                Update,
+                (handle_mob_events, animate_mobs, cleanup_mobs_on_room_change, interaction_system, handle_interaction_input)
+                    .run_if(in_state(AppState::InGame)),
+            );
     }
 }
+
+#[derive(Resource, Default)]
+pub struct InteractableTarget(pub Option<String>);
+
+#[derive(Component)]
+pub struct InteractionPrompt;
 
 const MOB_FOLDER: &str = "mob";
 const MOB_RENDER_SIZE: f32 = 230.0;
@@ -61,6 +71,7 @@ fn handle_mob_events(
             let x: f32 = parts[7].parse().unwrap_or(0.0);
             let y: f32 = parts[8].parse().unwrap_or(0.0);
             let scale: f32 = parts.get(11).and_then(|s| s.parse().ok()).unwrap_or(1.0);
+            let npc_name = parts.get(12).map(|s| s.replace("_", " ")).unwrap_or_else(|| npc_id.to_string());
 
             // Don't duplicate if already spawned
             if mobs.iter().any(|(_, m)| m.npc_id == npc_id) {
@@ -89,6 +100,7 @@ fn handle_mob_events(
                 Mob {
                     npc_id: npc_id.to_string(),
                 },
+                PlayerName(npc_name.clone()),
                 MobAnimation {
                     frames,
                     frame_index: 0,
@@ -97,7 +109,7 @@ fn handle_mob_events(
                 },
                 YSort,
             ));
-            println!("[MOB] Spawned '{}' (sprite '{}') at ({}, {}) scale: {}", npc_id, sprite_name, x, y, scale);
+            println!("[MOB] Spawned '{}' (name '{}', sprite '{}') at ({}, {}) scale: {}", npc_id, npc_name, sprite_name, x, y, scale);
         }
 
         // S: EVT ROOM <room> MOB_DESPAWN <npc_id>
@@ -173,6 +185,70 @@ fn cleanup_mobs_on_room_change(
             for entity in &mobs {
                 commands.entity(entity).despawn_recursive();
             }
+        }
+    }
+}
+
+fn setup_interaction_ui(mut commands: Commands) {
+    commands.spawn((
+        Text2dBundle {
+            text: Text::from_section(
+                "Interagir - E -",
+                TextStyle {
+                    font_size: 40.0,
+                    color: Color::WHITE,
+                    ..default()
+                },
+            ).with_justify(JustifyText::Center),
+            transform: Transform::from_xyz(0.0, 0.0, 900.0),
+            visibility: Visibility::Hidden,
+            ..default()
+        },
+        InteractionPrompt,
+    ));
+}
+
+fn interaction_system(
+    player_q: Query<&Transform, With<LocalPlayer>>,
+    mob_q: Query<(&Transform, &Mob)>,
+    mut prompt_q: Query<(&mut Visibility, &mut Transform), (With<InteractionPrompt>, Without<LocalPlayer>, Without<Mob>)>,
+    mut interactable: ResMut<InteractableTarget>,
+) {
+    let Ok(player_transform) = player_q.get_single() else { return; };
+    let mut closest_dist = f32::MAX;
+    let mut closest_npc = None;
+    let mut closest_pos = Vec3::ZERO;
+
+    for (mob_transform, mob) in &mob_q {
+        let dist = player_transform.translation.distance(mob_transform.translation);
+        if dist < 150.0 && dist < closest_dist {
+            closest_dist = dist;
+            closest_npc = Some(mob.npc_id.clone());
+            closest_pos = mob_transform.translation;
+        }
+    }
+
+    interactable.0 = closest_npc;
+
+    if let Ok((mut vis, mut prompt_transform)) = prompt_q.get_single_mut() {
+        if interactable.0.is_some() {
+            *vis = Visibility::Visible;
+            // Float above the mob
+            prompt_transform.translation = closest_pos + Vec3::new(0.0, 100.0, 900.0);
+        } else {
+            *vis = Visibility::Hidden;
+        }
+    }
+}
+
+fn handle_interaction_input(
+    input: Res<ButtonInput<KeyCode>>,
+    interactable: Res<InteractableTarget>,
+    mut sender: ResMut<crate::net::NetworkSender>,
+) {
+    if input.just_pressed(KeyCode::KeyE) {
+        if let Some(ref npc_id) = interactable.0 {
+            let _ = sender.0.send(format!("INTERACT {}\n", npc_id));
         }
     }
 }

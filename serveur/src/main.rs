@@ -24,7 +24,7 @@ pub type DbPool = Arc<sqlx::SqlitePool>;
 
 #[derive(Clone, Debug)]
 pub struct GlobalEvent {
-    sender_addr: std::net::SocketAddr,
+    pub sender_addr: Option<std::net::SocketAddr>,
     message: String,
     target_room: Option<RoomId>,
     target_group: Option<GroupId>,
@@ -111,14 +111,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     handlers::save_player_to_db(&pool, &player).await;
                                     log_event("DISCONNECT", &player.username, json!({"reason": "connection_lost"}));
                                     let _ = tx.send(GlobalEvent {
-                                        sender_addr: addr,
+                                        sender_addr: Some(addr),
                                         message: format!("S: EVT ROOM {} PRESENCE LEAVE {}\n", player.current_room, player.username),
                                         target_room: Some(player.current_room.clone()),
                                         target_group: None,
                                         target_player: None,
                                     });
                                     let _ = tx.send(GlobalEvent {
-                                        sender_addr: addr,
+                                        sender_addr: Some(addr),
                                         message: format!("S: EVT GLOBAL CHAT Server {} lost connection.\n", player.username),
                                         target_room: None,
                                         target_group: None,
@@ -141,8 +141,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             let hp = server_state.npc_hps.get(npc_id).copied().unwrap_or(npc.hp);
                                             let scale = npc.scale.unwrap_or(1.0);
                                             let _ = tx.send(GlobalEvent {
-                                                sender_addr: addr,
-                                                message: format!("S: EVT ROOM {} MOB_SPAWN {} {} {} {} {} {} {}\n", room_id, npc_id, sprite, x, y, hp, npc.hp, scale),
+                                                sender_addr: None, // Serveur envoie, personne n'est exclu
+                                                message: format!("S: EVT ROOM {} MOB_SPAWN {} {} {} {} {} {} {} {}\n", room_id, npc_id, sprite, x, y, hp, npc.hp, scale, npc.name.replace(" ", "_")),
                                                 target_room: Some(room_id.clone()),
                                                 target_group: None,
                                                 target_player: None,
@@ -167,14 +167,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         handlers::save_player_to_db(&pool, &player).await;
                                         log_event("DISCONNECT", &player.username, json!({"reason": "QUIT"}));
                                         let _ = tx.send(GlobalEvent {
-                                            sender_addr: addr,
+                                            sender_addr: Some(addr),
                                             message: format!("S: EVT ROOM {} PRESENCE LEAVE {}\n", player.current_room, player.username),
                                             target_room: Some(player.current_room.clone()),
                                             target_group: None,
                                             target_player: None,
                                         });
                                         let _ = tx.send(GlobalEvent {
-                                            sender_addr: addr,
+                                            sender_addr: Some(addr),
                                             message: format!("S: EVT GLOBAL CHAT Server {} left the world.\n", player.username),
                                             target_room: None,
                                             target_group: None,
@@ -187,7 +187,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     Ok(event) = rx.recv() => {
-                        if event.sender_addr != addr {
+                        if event.sender_addr != Some(addr) {
                             if let Some(ref target) = event.target_player {
                                 // If it's a direct message, ONLY send to that player.
                                 // We don't skip the sender check here since the target might be the sender in weird cases, but normally they differ.
