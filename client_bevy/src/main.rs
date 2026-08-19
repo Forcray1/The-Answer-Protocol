@@ -2,9 +2,10 @@ use bevy::prelude::*;
 
 mod collision;
 mod debug;
-mod menu;
 mod game;
+mod loading;
 mod map;
+mod menu;
 mod net;
 mod player;
 mod ui;
@@ -34,6 +35,7 @@ fn main() {
             game::GamePlugin,
             ui::ConsolePlugin,
             ui::InventoryPlugin,
+            loading::LoadingPlugin,
             map::MapPlugin,
             collision::CollisionPlugin,
             player::PlayerPlugin,

@@ -2,9 +2,9 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
+use crate::loading::{RoomTransition, RoomTransitionRequest};
 use crate::map::YSort;
 use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::ui::ChatConsole;
 use crate::AppState;
 
 pub struct PlayerPlugin;
@@ -222,15 +222,23 @@ fn update_local_player(
     console: Res<crate::ui::ChatConsole>,
     time: Res<Time>,
     game_state: Res<crate::game::GameState>,
-    sender: Res<crate::net::NetworkSender>,
+    transition: Res<RoomTransition>,
     collision: Res<crate::collision::CollisionMask>,
     mut held: ResMut<HeldDirections>,
     mut last_tp: Local<f32>,
+    mut transition_events: EventWriter<RoomTransitionRequest>,
     mut query: Query<(&mut Transform, &mut PlayerAnimation, &mut Handle<Image>), With<LocalPlayer>>,
 ) {
     let Ok((mut transform, mut anim, mut texture)) = query.get_single_mut() else {
         return;
     };
+
+    // Freeze player during transitions.
+    if transition.is_active() {
+        held.0.clear();
+        animate(&mut anim, &mut texture, time.delta(), false, Vec2::ZERO);
+        return;
+    }
 
     if console.open {
         held.0.clear();
@@ -263,21 +271,25 @@ fn update_local_player(
 
         if new_y > MAP_HALF_H {
             if game_state.exits.contains(&"north".to_string()) && can_tp {
-                let _ = sender.0.send("MOVE north\n".to_string());
                 let a = arrival_point(&game_state.current_room, "north");
-                new_x = a.x;
-                new_y = a.y;
+                transition_events.send(RoomTransitionRequest {
+                    direction: "north".to_string(),
+                    arrival_point: a,
+                });
                 *last_tp = time.elapsed_seconds();
+                new_y = MAP_HALF_H;
             } else {
                 new_y = MAP_HALF_H;
             }
         } else if new_y < -MAP_HALF_H {
             if game_state.exits.contains(&"south".to_string()) && can_tp {
-                let _ = sender.0.send("MOVE south\n".to_string());
                 let a = arrival_point(&game_state.current_room, "south");
-                new_x = a.x;
-                new_y = a.y;
+                transition_events.send(RoomTransitionRequest {
+                    direction: "south".to_string(),
+                    arrival_point: a,
+                });
                 *last_tp = time.elapsed_seconds();
+                new_y = -MAP_HALF_H;
             } else {
                 new_y = -MAP_HALF_H;
             }
@@ -285,21 +297,25 @@ fn update_local_player(
 
         if new_x > MAP_HALF_W {
             if game_state.exits.contains(&"east".to_string()) && can_tp {
-                let _ = sender.0.send("MOVE east\n".to_string());
                 let a = arrival_point(&game_state.current_room, "east");
-                new_x = a.x;
-                new_y = a.y;
+                transition_events.send(RoomTransitionRequest {
+                    direction: "east".to_string(),
+                    arrival_point: a,
+                });
                 *last_tp = time.elapsed_seconds();
+                new_x = MAP_HALF_W;
             } else {
                 new_x = MAP_HALF_W;
             }
         } else if new_x < -MAP_HALF_W {
             if game_state.exits.contains(&"west".to_string()) && can_tp {
-                let _ = sender.0.send("MOVE west\n".to_string());
                 let a = arrival_point(&game_state.current_room, "west");
-                new_x = a.x;
-                new_y = a.y;
+                transition_events.send(RoomTransitionRequest {
+                    direction: "west".to_string(),
+                    arrival_point: a,
+                });
                 *last_tp = time.elapsed_seconds();
+                new_x = -MAP_HALF_W;
             } else {
                 new_x = -MAP_HALF_W;
             }
