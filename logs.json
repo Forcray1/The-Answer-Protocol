@@ -232,3 +232,15 @@
 {"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-19T20:06:15"}
 {"details":{"ip":"127.0.0.1:50836","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-08-19T20:06:37"}
 {"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-19T20:06:47"}
+{"details":{"ip":"127.0.0.1:47166","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-08-20T11:59:29"}
+{"details":{"ip":"127.0.0.1:56580","type":"new"},"event":"CONNECT","player":"test","timestamp":"2026-08-20T11:59:45"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"test","timestamp":"2026-08-20T12:01:58"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-20T12:01:59"}
+{"details":{"ip":"127.0.0.1:48588","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-08-20T12:03:01"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-20T12:04:10"}
+{"details":{"ip":"127.0.0.1:53380","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-08-20T12:04:26"}
+{"details":{"item_id":"Excalibur"},"event":"TAKE","player":"axel","timestamp":"2026-08-20T12:04:46"}
+{"details":{"item_id":"Dague"},"event":"TAKE","player":"axel","timestamp":"2026-08-20T12:06:51"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-20T12:20:58"}
+{"details":{"ip":"127.0.0.1:50834","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-08-20T12:25:19"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-20T12:25:35"}
