@@ -365,6 +365,14 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 	mlorenzo:
 		- Added collision in the maps
 		- Position of player showed
+	avauclai:
+		- Room Transition
+		- Mob function placing
+		- "E" Interaction Button
+19/08/2026:
+	avauclai
+		- Quest UI
+		- Health and XP Bar UI
 
 
 TODO:
@@ -374,8 +382,7 @@ TODO:
 	- finish the world.yaml with all the informations
 	- Make all of the combat system
 	- Edit the map sprites marked with the flag (_not-png) as they are not in png, so only the upper layer is shown
-	- Logs not working for bevy client
-	- key for command, remain : E, F, Q (quests).
+	- Logs not working for bevy client (ah ouais ?)
 
 PS: fait placage de MOB sur la map et implementation de l'inventory avec la key I. 
 PS: Toujours le problème de perspective a corriger mais pour le reste on devrais être bon. On a pas encore la map de cave je vais l'implémenter des que je les recois

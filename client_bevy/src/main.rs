@@ -36,6 +36,8 @@ fn main() {
             game::GamePlugin,
             ui::ConsolePlugin,
             ui::InventoryPlugin,
+            ui::QuestPlugin,
+            ui::HudPlugin,
             loading::LoadingPlugin,
             map::MapPlugin,
             collision::CollisionPlugin,

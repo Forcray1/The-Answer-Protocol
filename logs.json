@@ -244,3 +244,13 @@
 {"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-20T12:20:58"}
 {"details":{"ip":"127.0.0.1:50834","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-08-20T12:25:19"}
 {"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-20T12:25:35"}
+{"details":{"ip":"127.0.0.1:53369","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-08-20T12:55:02"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-20T12:55:11"}
+{"details":{"ip":"127.0.0.1:53383","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-08-20T12:56:59"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-20T12:57:04"}
+{"details":{"ip":"127.0.0.1:53760","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-08-20T13:34:55"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-20T13:35:08"}
+{"details":{"ip":"127.0.0.1:53771","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-08-20T13:36:58"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-20T13:37:19"}
+{"details":{"ip":"127.0.0.1:53822","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-08-20T13:39:15"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-20T13:39:29"}

@@ -236,9 +236,10 @@ fn toggle_inventory(
     mut state: ResMut<InventoryState>,
     mut query: Query<&mut Visibility, With<InventoryUiRoot>>,
     console: Res<ChatConsole>,
+    quest_state: Res<QuestState>,
     sender: Res<crate::net::NetworkSender>,
 ) {
-    if console.open {
+    if console.open || quest_state.open {
         return;
     }
     
@@ -761,6 +762,635 @@ fn tick_chat_bubbles(
         bubble.timer.tick(time.delta());
         if bubble.timer.just_finished() {
             commands.entity(entity).despawn_recursive();
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Quest Journal UI  (touche U)
+// ──────────────────────────────────────────────────────────────────────────────
+
+pub struct QuestPlugin;
+
+impl Plugin for QuestPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<QuestState>()
+            .init_resource::<SelectedQuest>()
+            .add_systems(Startup, setup_quest_ui)
+            .add_systems(Update, (
+                toggle_quest_ui,
+                handle_quest_data,
+                handle_quest_selection,
+            ).run_if(in_state(AppState::InGame)));
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct QuestState {
+    pub open: bool,
+}
+
+#[derive(Resource, Default)]
+struct SelectedQuest {
+    id: Option<String>,
+}
+
+#[derive(Component)]
+struct QuestUiRoot;
+
+#[derive(Component)]
+struct QuestListPanel;
+
+#[derive(Component)]
+struct QuestEmptyText;
+
+#[derive(Component)]
+struct QuestDetailTitle;
+
+#[derive(Component)]
+struct QuestDetailDescription;
+
+#[derive(Component)]
+struct QuestDetailObjective;
+
+#[derive(Component)]
+struct QuestEntry {
+    id: String,
+    name: String,
+    description: String,
+    objective: String,
+}
+
+#[derive(Component)]
+struct QuestEntrySlot;
+
+// Couleurs du thème "Quest Journal"
+const QUEST_BG: Color          = Color::rgba(0.08, 0.07, 0.06, 0.96);
+const QUEST_BORDER: Color      = Color::rgba(0.55, 0.42, 0.18, 1.0);
+const QUEST_TITLE_COLOR: Color = Color::rgba(0.90, 0.75, 0.35, 1.0);
+const QUEST_ENTRY_BG: Color    = Color::rgba(0.30, 0.24, 0.10, 0.92);
+const QUEST_ENTRY_BORDER: Color = Color::rgba(0.50, 0.40, 0.15, 0.8);
+const QUEST_ENTRY_TEXT: Color  = Color::rgba(0.88, 0.76, 0.42, 1.0);
+const QUEST_PARCHMENT: Color   = Color::rgba(0.82, 0.75, 0.60, 0.92);
+const QUEST_DETAIL_TITLE: Color = Color::rgba(0.15, 0.12, 0.08, 1.0);
+const QUEST_DETAIL_TEXT: Color  = Color::rgba(0.25, 0.22, 0.18, 1.0);
+const QUEST_ENTRY_HOVER: Color  = Color::rgba(0.40, 0.33, 0.14, 0.95);
+const QUEST_ENTRY_SELECTED: Color = Color::rgba(0.48, 0.38, 0.16, 1.0);
+
+fn setup_quest_ui(mut commands: Commands) {
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    position_type: PositionType::Absolute,
+                    ..default()
+                },
+                visibility: Visibility::Hidden,
+                z_index: ZIndex::Global(10),
+                ..default()
+            },
+            QuestUiRoot,
+        ))
+        .with_children(|root| {
+            // ── Main Window ──
+            root.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Px(780.0),
+                    height: Val::Px(520.0),
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Center,
+                    padding: UiRect::all(Val::Px(16.0)),
+                    border: UiRect::all(Val::Px(3.0)),
+                    ..default()
+                },
+                background_color: QUEST_BG.into(),
+                border_color: QUEST_BORDER.into(),
+                ..default()
+            })
+            .with_children(|window| {
+                // ── Header ──
+                window.spawn(NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        padding: UiRect::new(Val::Px(0.0), Val::Px(0.0), Val::Px(8.0), Val::Px(12.0)),
+                        border: UiRect::bottom(Val::Px(2.0)),
+                        margin: UiRect::bottom(Val::Px(12.0)),
+                        ..default()
+                    },
+                    border_color: QUEST_BORDER.into(),
+                    ..default()
+                })
+                .with_children(|header| {
+                    header.spawn(TextBundle::from_section(
+                        "Journal de Quetes",
+                        TextStyle { font_size: 28.0, color: QUEST_TITLE_COLOR, ..default() },
+                    ));
+                });
+
+                // ── Split Panel ──
+                window.spawn(NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        flex_grow: 1.0,
+                        flex_direction: FlexDirection::Row,
+                        column_gap: Val::Px(12.0),
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|split| {
+                    // ── Left Panel: Quest List ──
+                    split.spawn(NodeBundle {
+                        style: Style {
+                            width: Val::Percent(38.0),
+                            height: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Column,
+                            overflow: Overflow::clip_y(),
+                            row_gap: Val::Px(6.0),
+                            padding: UiRect::all(Val::Px(6.0)),
+                            border: UiRect::all(Val::Px(1.0)),
+                            ..default()
+                        },
+                        border_color: Color::rgba(0.4, 0.35, 0.2, 0.5).into(),
+                        ..default()
+                    })
+                    .with_children(|left| {
+                        // Quest list container
+                        left.spawn((
+                            NodeBundle {
+                                style: Style {
+                                    width: Val::Percent(100.0),
+                                    flex_direction: FlexDirection::Column,
+                                    row_gap: Val::Px(6.0),
+                                    ..default()
+                                },
+                                ..default()
+                            },
+                            QuestListPanel,
+                        ));
+
+                        // Empty state message
+                        left.spawn((
+                            TextBundle::from_section(
+                                "Aucune quete active",
+                                TextStyle { font_size: 18.0, color: Color::rgba(0.6, 0.55, 0.4, 0.7), ..default() },
+                            ).with_style(Style {
+                                margin: UiRect::top(Val::Px(20.0)),
+                                align_self: AlignSelf::Center,
+                                ..default()
+                            }),
+                            QuestEmptyText,
+                        ));
+                    });
+
+                    // ── Right Panel: Quest Details (parchment) ──
+                    split.spawn(NodeBundle {
+                        style: Style {
+                            flex_grow: 1.0,
+                            height: Val::Percent(100.0),
+                            flex_direction: FlexDirection::Column,
+                            padding: UiRect::all(Val::Px(20.0)),
+                            border: UiRect::all(Val::Px(2.0)),
+                            row_gap: Val::Px(16.0),
+                            ..default()
+                        },
+                        background_color: QUEST_PARCHMENT.into(),
+                        border_color: Color::rgba(0.6, 0.5, 0.3, 0.6).into(),
+                        ..default()
+                    })
+                    .with_children(|right| {
+                        // Quest Title
+                        right.spawn((
+                            TextBundle::from_section(
+                                "Selectionnez une quete",
+                                TextStyle { font_size: 24.0, color: QUEST_DETAIL_TITLE, ..default() },
+                            ),
+                            QuestDetailTitle,
+                        ));
+
+                        // Separator
+                        right.spawn(NodeBundle {
+                            style: Style {
+                                width: Val::Percent(100.0),
+                                height: Val::Px(2.0),
+                                ..default()
+                            },
+                            background_color: Color::rgba(0.5, 0.4, 0.25, 0.5).into(),
+                            ..default()
+                        });
+
+                        // Description label + text
+                        right.spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Column,
+                                row_gap: Val::Px(4.0),
+                                ..default()
+                            },
+                            ..default()
+                        })
+                        .with_children(|desc_block| {
+                            desc_block.spawn(TextBundle::from_section(
+                                "Description",
+                                TextStyle { font_size: 16.0, color: Color::rgba(0.4, 0.35, 0.25, 0.8), ..default() },
+                            ));
+                            desc_block.spawn((
+                                TextBundle::from_section(
+                                    "",
+                                    TextStyle { font_size: 18.0, color: QUEST_DETAIL_TEXT, ..default() },
+                                ),
+                                QuestDetailDescription,
+                            ));
+                        });
+
+                        // Objective label + text
+                        right.spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Column,
+                                row_gap: Val::Px(4.0),
+                                ..default()
+                            },
+                            ..default()
+                        })
+                        .with_children(|obj_block| {
+                            obj_block.spawn(TextBundle::from_section(
+                                "Objectif",
+                                TextStyle { font_size: 16.0, color: Color::rgba(0.4, 0.35, 0.25, 0.8), ..default() },
+                            ));
+                            obj_block.spawn((
+                                TextBundle::from_section(
+                                    "",
+                                    TextStyle { font_size: 18.0, color: Color::rgba(0.45, 0.30, 0.12, 1.0), ..default() },
+                                ),
+                                QuestDetailObjective,
+                            ));
+                        });
+                    });
+                });
+            });
+        });
+}
+
+fn toggle_quest_ui(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut state: ResMut<QuestState>,
+    mut query: Query<&mut Visibility, With<QuestUiRoot>>,
+    console: Res<ChatConsole>,
+    inventory: Res<InventoryState>,
+    sender: Res<crate::net::NetworkSender>,
+) {
+    if console.open || inventory.open {
+        return;
+    }
+
+    if keys.just_pressed(KeyCode::KeyU) {
+        state.open = !state.open;
+        if let Ok(mut visibility) = query.get_single_mut() {
+            if state.open {
+                *visibility = Visibility::Inherited;
+                let _ = sender.0.send("QUESTS\n".to_string());
+            } else {
+                *visibility = Visibility::Hidden;
+            }
+        }
+    }
+}
+
+fn handle_quest_data(
+    mut commands: Commands,
+    mut events: EventReader<crate::net::ServerMessageEvent>,
+    list_query: Query<Entity, With<QuestListPanel>>,
+    existing_entries: Query<Entity, With<QuestEntrySlot>>,
+    mut empty_text: Query<&mut Style, With<QuestEmptyText>>,
+) {
+    for ev in events.read() {
+        if let Some(data) = ev.0.strip_prefix("S: EVT QUEST_DATA ") {
+            let Ok(list) = list_query.get_single() else { continue };
+
+            // Remove old entries
+            for entity in existing_entries.iter() {
+                commands.entity(entity).despawn_recursive();
+            }
+
+            if data.trim() == "empty" {
+                // Show "Aucune quête active"
+                if let Ok(mut style) = empty_text.get_single_mut() {
+                    style.display = Display::Flex;
+                }
+                continue;
+            }
+
+            // Hide empty text
+            if let Ok(mut style) = empty_text.get_single_mut() {
+                style.display = Display::None;
+            }
+
+            for item in data.trim().split('|') {
+                let parts: Vec<&str> = item.splitn(4, ':').collect();
+                if parts.len() >= 4 {
+                    let quest_id = parts[0].to_string();
+                    let quest_name = parts[1].to_string();
+                    let quest_desc = parts[2].to_string();
+                    let quest_obj = parts[3].to_string();
+
+                    let entry_entity = commands.spawn((
+                        ButtonBundle {
+                            style: Style {
+                                width: Val::Percent(100.0),
+                                min_height: Val::Px(44.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                padding: UiRect::new(Val::Px(12.0), Val::Px(12.0), Val::Px(8.0), Val::Px(8.0)),
+                                border: UiRect::all(Val::Px(1.0)),
+                                ..default()
+                            },
+                            background_color: QUEST_ENTRY_BG.into(),
+                            border_color: QUEST_ENTRY_BORDER.into(),
+                            ..default()
+                        },
+                        QuestEntrySlot,
+                        QuestEntry {
+                            id: quest_id,
+                            name: quest_name.clone(),
+                            description: quest_desc,
+                            objective: quest_obj,
+                        },
+                    )).with_children(|btn| {
+                        btn.spawn(TextBundle::from_section(
+                            quest_name,
+                            TextStyle { font_size: 17.0, color: QUEST_ENTRY_TEXT, ..default() },
+                        ));
+                    }).id();
+                    commands.entity(list).add_child(entry_entity);
+                }
+            }
+        }
+    }
+}
+
+fn handle_quest_selection(
+    mut interaction_query: Query<
+        (&Interaction, &QuestEntry, &mut BackgroundColor),
+        (Changed<Interaction>, With<Button>, With<QuestEntrySlot>),
+    >,
+    mut title_q: Query<&mut Text, With<QuestDetailTitle>>,
+    mut desc_q: Query<&mut Text, (With<QuestDetailDescription>, Without<QuestDetailTitle>, Without<QuestDetailObjective>)>,
+    mut obj_q: Query<&mut Text, (With<QuestDetailObjective>, Without<QuestDetailTitle>, Without<QuestDetailDescription>)>,
+    mut selected: ResMut<SelectedQuest>,
+) {
+    for (interaction, entry, mut color) in &mut interaction_query {
+        match *interaction {
+            Interaction::Pressed => {
+                *color = QUEST_ENTRY_SELECTED.into();
+                selected.id = Some(entry.id.clone());
+
+                if let Ok(mut title) = title_q.get_single_mut() {
+                    title.sections[0].value = entry.name.clone();
+                }
+                if let Ok(mut desc) = desc_q.get_single_mut() {
+                    desc.sections[0].value = entry.description.clone();
+                }
+                if let Ok(mut obj) = obj_q.get_single_mut() {
+                    obj.sections[0].value = entry.objective.clone();
+                }
+            }
+            Interaction::Hovered => {
+                if selected.id.as_deref() != Some(&entry.id) {
+                    *color = QUEST_ENTRY_HOVER.into();
+                }
+            }
+            Interaction::None => {
+                if selected.id.as_deref() != Some(&entry.id) {
+                    *color = QUEST_ENTRY_BG.into();
+                }
+            }
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Player HUD (HP & XP)
+// ──────────────────────────────────────────────────────────────────────────────
+
+pub struct HudPlugin;
+
+impl Plugin for HudPlugin {
+    fn build(&self, app: &mut App) {
+        app.init_resource::<PlayerStats>()
+            .add_systems(Startup, setup_hud_ui)
+            .add_systems(Update, handle_player_stats.run_if(in_state(AppState::InGame)))
+            .add_systems(OnEnter(AppState::InGame), show_hud)
+            .add_systems(OnExit(AppState::InGame), hide_hud);
+    }
+}
+
+#[derive(Resource, Default)]
+pub struct PlayerStats {
+    pub hp: i32,
+    pub max_hp: i32,
+    pub xp: i32,
+    pub max_xp: i32,
+    pub level: i32,
+}
+
+#[derive(Component)]
+struct HudUiRoot;
+
+#[derive(Component)]
+struct HpBarFill;
+
+#[derive(Component)]
+struct HpText;
+
+#[derive(Component)]
+struct XpBarFill;
+
+#[derive(Component)]
+struct XpText;
+
+fn setup_hud_ui(mut commands: Commands) {
+    // HUD Root - Top Left
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    left: Val::Px(20.0),
+                    top: Val::Px(20.0),
+                    flex_direction: FlexDirection::Column,
+                    row_gap: Val::Px(10.0),
+                    ..default()
+                },
+                visibility: Visibility::Hidden,
+                z_index: ZIndex::Global(5),
+                ..default()
+            },
+            HudUiRoot,
+        ))
+        .with_children(|root| {
+            // ── HP Bar ──
+            root.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Px(250.0),
+                    height: Val::Px(25.0),
+                    padding: UiRect::all(Val::Px(2.0)), // Inset for the fill
+                    ..default()
+                },
+                background_color: Color::rgba(0.1, 0.1, 0.1, 0.8).into(),
+                ..default()
+            })
+            .with_children(|bg| {
+                // Fill
+                bg.spawn((
+                    NodeBundle {
+                        style: Style {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            ..default()
+                        },
+                        background_color: Color::rgba(0.8, 0.2, 0.2, 0.9).into(), // Red
+                        ..default()
+                    },
+                    HpBarFill,
+                ));
+                // Text overlay
+                bg.spawn((
+                    TextBundle::from_section(
+                        "100/100",
+                        TextStyle {
+                            font_size: 16.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    )
+                    .with_style(Style {
+                        position_type: PositionType::Absolute,
+                        left: Val::Percent(50.0),
+                        top: Val::Percent(50.0),
+                        margin: UiRect {
+                            left: Val::Px(-30.0),
+                            top: Val::Px(-8.0),
+                            ..default()
+                        },
+                        ..default()
+                    }),
+                    HpText,
+                ));
+            });
+
+            // ── XP Bar ──
+            root.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Px(250.0),
+                    height: Val::Px(25.0),
+                    padding: UiRect::all(Val::Px(2.0)), // Inset for the fill
+                    ..default()
+                },
+                background_color: Color::rgba(0.1, 0.1, 0.1, 0.8).into(),
+                ..default()
+            })
+            .with_children(|bg| {
+                // Fill
+                bg.spawn((
+                    NodeBundle {
+                        style: Style {
+                            width: Val::Percent(0.0),
+                            height: Val::Percent(100.0),
+                            ..default()
+                        },
+                        background_color: Color::rgba(0.2, 0.6, 0.8, 0.9).into(), // Blue
+                        ..default()
+                    },
+                    XpBarFill,
+                ));
+                // Text overlay
+                bg.spawn((
+                    TextBundle::from_section(
+                        "Niv 1  0/100",
+                        TextStyle {
+                            font_size: 16.0,
+                            color: Color::WHITE,
+                            ..default()
+                        },
+                    )
+                    .with_style(Style {
+                        position_type: PositionType::Absolute,
+                        left: Val::Percent(50.0),
+                        top: Val::Percent(50.0),
+                        margin: UiRect {
+                            left: Val::Px(-40.0),
+                            top: Val::Px(-8.0),
+                            ..default()
+                        },
+                        ..default()
+                    }),
+                    XpText,
+                ));
+            });
+        });
+}
+
+fn show_hud(mut q: Query<&mut Visibility, With<HudUiRoot>>) {
+    for mut vis in q.iter_mut() {
+        *vis = Visibility::Inherited;
+    }
+}
+
+fn hide_hud(mut q: Query<&mut Visibility, With<HudUiRoot>>) {
+    for mut vis in q.iter_mut() {
+        *vis = Visibility::Hidden;
+    }
+}
+
+fn handle_player_stats(
+    mut events: EventReader<crate::net::ServerMessageEvent>,
+    mut stats: ResMut<PlayerStats>,
+    mut hp_fill_q: Query<&mut Style, (With<HpBarFill>, Without<XpBarFill>)>,
+    mut hp_text_q: Query<&mut Text, (With<HpText>, Without<XpText>)>,
+    mut xp_fill_q: Query<&mut Style, (With<XpBarFill>, Without<HpBarFill>)>,
+    mut xp_text_q: Query<&mut Text, (With<XpText>, Without<HpText>)>,
+) {
+    for ev in events.read() {
+        if let Some(data) = ev.0.strip_prefix("S: EVT PLAYER_STATS ") {
+            let parts: Vec<&str> = data.trim().split_whitespace().collect();
+            if parts.len() >= 5 {
+                if let (Ok(hp), Ok(max_hp), Ok(xp), Ok(max_xp), Ok(lvl)) = (
+                    parts[0].parse::<i32>(),
+                    parts[1].parse::<i32>(),
+                    parts[2].parse::<i32>(),
+                    parts[3].parse::<i32>(),
+                    parts[4].parse::<i32>(),
+                ) {
+                    stats.hp = hp;
+                    stats.max_hp = max_hp;
+                    stats.xp = xp;
+                    stats.max_xp = max_xp;
+                    stats.level = lvl;
+
+                    // Update HP UI
+                    let hp_pct = if max_hp > 0 { (hp as f32 / max_hp as f32).clamp(0.0, 1.0) * 100.0 } else { 0.0 };
+                    if let Ok(mut style) = hp_fill_q.get_single_mut() {
+                        style.width = Val::Percent(hp_pct);
+                    }
+                    if let Ok(mut text) = hp_text_q.get_single_mut() {
+                        text.sections[0].value = format!("{}/{}", hp, max_hp);
+                    }
+
+                    // Update XP UI
+                    let xp_pct = if max_xp > 0 { (xp as f32 / max_xp as f32).clamp(0.0, 1.0) * 100.0 } else { 0.0 };
+                    if let Ok(mut style) = xp_fill_q.get_single_mut() {
+                        style.width = Val::Percent(xp_pct);
+                    }
+                    if let Ok(mut text) = xp_text_q.get_single_mut() {
+                        text.sections[0].value = format!("Niv {}  {}/{}", lvl, xp, max_xp);
+                    }
+                }
+            }
         }
     }
 }

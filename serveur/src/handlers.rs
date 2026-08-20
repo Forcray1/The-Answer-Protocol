@@ -86,6 +86,7 @@ pub async fn process_command(
         GameCommand::GroupAccept    => (handle_group_accept(addr, state, tx), false),
         GameCommand::GroupLeave     => (handle_group_leave(addr, state, tx), false),
         GameCommand::GroupInfo      => (handle_group_info(addr, state), false),
+        GameCommand::Quests         => (handle_quests(addr, state, world), false),
         GameCommand::Quit           => ("S: OK goodbye\n".to_string(), true),
         GameCommand::Unknown        => ("S: ERR malformed_command\n".to_string(), false),
         _                           => ("S: OK command received but not implemented yet\n".to_string(), false),
@@ -239,11 +240,13 @@ async fn handle_connect(
             let pos_str = saved_pos
                 .map(|(x, y)| format!(" pos={},{}", x as i64, y as i64))
                 .unwrap_or_default();
+            let p = state.players.get(&addr).unwrap();
             format!(
-                "S: OK connected skin={} name={} room={}{}{}\n{}{}",
+                "S: OK connected skin={} name={} room={}{}{}\n{}{}\nS: EVT PLAYER_STATS {} {} {} {} {}\n",
                 skin, pseudo, enter_room, exits, pos_str,
                 room_presence_roster(addr, state, &enter_room),
-                room_mob_roster(&enter_room, state, world)
+                room_mob_roster(&enter_room, state, world),
+                p.hp, p.max_hp, p.xp_bar.current, p.xp_bar.requiered, p.level
             )
         }
         Ok(None) => {
@@ -279,11 +282,13 @@ async fn handle_connect(
             target_player: None,
             });
             let exits = format_exits(world, &enter_room);
+            let player = state.players.get(&addr).unwrap();
             format!(
-                "S: OK connected skin={} name={} room={}{}\n{}{}",
+                "S: OK connected skin={} name={} room={}{}\n{}{}\nS: EVT PLAYER_STATS {} {} {} {} {}\n",
                 skin, pseudo, enter_room, exits,
                 room_presence_roster(addr, state, &enter_room),
-                room_mob_roster(&enter_room, state, world)
+                room_mob_roster(&enter_room, state, world),
+                player.hp, player.max_hp, player.xp_bar.current, player.xp_bar.requiered, player.level
             )
         }
         Err(e) => {
@@ -729,6 +734,7 @@ fn handle_attack(addr: SocketAddr, cible: String, state: &mut ServerState, world
                 });
             }
             let mut noms_drops = Vec::new();
+            let mut stat_str = String::new();
             if let Some(player) = state.players.get_mut(&addr) {
                 player.add_xp(exp_gagnee);
                 for drop in drops_monstre {
@@ -739,6 +745,7 @@ fn handle_attack(addr: SocketAddr, cible: String, state: &mut ServerState, world
                         noms_drops.push(nom);
                     }
                 }
+                stat_str = format!("S: EVT PLAYER_STATS {} {} {} {} {}\n", player.hp, player.max_hp, player.xp_bar.current, player.xp_bar.requiered, player.level);
             }
             let _ = tx.send(GlobalEvent {
                 sender_addr: None, // Tout le monde doit le voir disparaitre
@@ -749,8 +756,10 @@ fn handle_attack(addr: SocketAddr, cible: String, state: &mut ServerState, world
             });
             let mut msg = format!("S: OK You dealt {} damage. {} collapses! (+{} EXP)\n", degats_finaux, monstre_nom, exp_gagnee);
             if !noms_drops.is_empty() { msg.push_str(&format!("You obtain: {}\n", noms_drops.join(", "))); }
+            msg.push_str(&stat_str);
             msg
         } else {
+            let mut stat_str = String::new();
             let mut joueur_mort = false;
             let mut pv_joueur = 0;
             let degats_monstre_finaux = (degats_monstre - armure_joueur).max(1);
@@ -762,13 +771,14 @@ fn handle_attack(addr: SocketAddr, cible: String, state: &mut ServerState, world
                     player.hp = player.max_hp;
                     player.current_room = RoomId::from(START_ROOM);
                 }
+                stat_str = format!("S: EVT PLAYER_STATS {} {} {} {} {}\n", player.hp, player.max_hp, player.xp_bar.current, player.xp_bar.requiered, player.level);
             }
             if joueur_mort {
                 let _ = tx.send(GlobalEvent { sender_addr: Some(addr), message: format!("S: EVT GLOBAL CHAT Server A player was killed by {}!\n", monstre_nom), target_room: None, target_group: None, target_player: None });
                 log_event("DEATH", &joueur_nom, json!({"killer": monstre_nom}));
-                format!("S: OK You deal {} damage, but {} finishes you off. You are DEAD! You wake up at the oasis.\n", degats_finaux, monstre_nom)
+                format!("S: OK You deal {} damage, but {} finishes you off. You are DEAD! You wake up at the oasis.\n{}", degats_finaux, monstre_nom, stat_str)
             } else {
-                format!("S: OK You attack {} ({} HP left). It retaliates (-{} HP). (Your HP: {})\n", monstre_nom, pv_monstre_restants, degats_monstre_finaux, pv_joueur)
+                format!("S: OK You attack {} ({} HP left). It retaliates (-{} HP). (Your HP: {})\n{}", monstre_nom, pv_monstre_restants, degats_monstre_finaux, pv_joueur, stat_str)
             }
         }
     } else { "S: ERR You can't attack that.\n".to_string() }
@@ -1015,4 +1025,32 @@ fn handle_group_info(addr: SocketAddr, state: &ServerState) -> String {
             }
         }
     } else { "S: ERR utilize_connect_first\n".to_string() }
+}
+
+fn handle_quests(addr: SocketAddr, state: &ServerState, world: &WorldData) -> String {
+    let Some(player) = state.players.get(&addr) else {
+        return "S: ERR utilize_connect_first\n".to_string();
+    };
+
+    if player.active_quests.is_empty() {
+        return "S: EVT QUEST_DATA empty\n".to_string();
+    }
+
+    let mut parts = Vec::new();
+    for quest_id in &player.active_quests {
+        if let Some(q) = world.world.quests.iter().find(|q| &q.id == quest_id) {
+            let objective_str = match &q.objective {
+                crate::world::QuestObjective::FetchItem { item } => format!("Recuperer {}", item),
+                crate::world::QuestObjective::DefeatNpc { npc } => format!("Vaincre {}", npc),
+                crate::world::QuestObjective::DeliverItem { item, to } => format!("Livrer {} a {}", item, to),
+            };
+            parts.push(format!("{}:{}:{}:{}", q.id, q.name, q.description, objective_str));
+        }
+    }
+
+    if parts.is_empty() {
+        "S: EVT QUEST_DATA empty\n".to_string()
+    } else {
+        format!("S: EVT QUEST_DATA {}\n", parts.join("|"))
+    }
 }
