@@ -23,6 +23,7 @@ fn make_weapon(item: &CatalogItem) -> Weapon {
         name: item.name.clone(),
         damages: item.damage.unwrap_or(0),
         category: WeaponType::Melee,
+        sprite: item.sprite.clone(),
     }
 }
 
@@ -34,6 +35,7 @@ fn make_armor(item: &CatalogItem) -> Armor {
         description: item.description.clone(),
         defense: item.defense.unwrap_or(0),
         special_defense: 0,
+        sprite: item.sprite.clone(),
     }
 }
 
@@ -425,23 +427,38 @@ fn get_inv_data_event(player: &crate::state::Player, world: &WorldData) -> Strin
         let name = item_opt.map(|i| i.name.clone()).unwrap_or_else(|| id.to_string());
         let slot = item_opt.and_then(|i| i.slot.clone()).unwrap_or_else(|| "none".to_string());
         let damage = item_opt.and_then(|i| i.damage).unwrap_or(0);
-        data_objets.push(format!("{}:{}:{}:{}:{}", id, count, slot, name, damage));
+        let sprite = item_opt.and_then(|i| i.sprite.clone()).unwrap_or_else(|| "none".to_string());
+        data_objets.push(format!("{}:{}:{}:{}:{}:{}", id, count, slot, name, damage, sprite));
     }
     format!("S: EVT INV_DATA {}\n", data_objets.join("|"))
 }
 
 fn get_equip_data_event(player: &crate::state::Player) -> String {
-    let head = player.equipement.helmet.as_ref().map(|a| format!("{}:{}:{}", a.id, a.name, a.defense)).unwrap_or_else(|| "none".to_string());
-    let chest = player.equipement.chestplate.as_ref().map(|a| format!("{}:{}:{}", a.id, a.name, a.defense)).unwrap_or_else(|| "none".to_string());
-    let legs = player.equipement.legging.as_ref().map(|a| format!("{}:{}:{}", a.id, a.name, a.defense)).unwrap_or_else(|| "none".to_string());
-    let weapon = player.equipement.weapon.as_ref().map(|w| format!("{}:{}:{}", w.id, w.name, w.damages)).unwrap_or_else(|| "none".to_string());
+    let head = player.equipement.helmet.as_ref().map(|a| format!("{}:{}:{}:{}", a.id, a.name, a.defense, a.sprite.as_deref().unwrap_or("none"))).unwrap_or_else(|| "none".to_string());
+    let chest = player.equipement.chestplate.as_ref().map(|a| format!("{}:{}:{}:{}", a.id, a.name, a.defense, a.sprite.as_deref().unwrap_or("none"))).unwrap_or_else(|| "none".to_string());
+    let legs = player.equipement.legging.as_ref().map(|a| format!("{}:{}:{}:{}", a.id, a.name, a.defense, a.sprite.as_deref().unwrap_or("none"))).unwrap_or_else(|| "none".to_string());
+    let weapon = player.equipement.weapon.as_ref().map(|w| format!("{}:{}:{}:{}", w.id, w.name, w.damages, w.sprite.as_deref().unwrap_or("none"))).unwrap_or_else(|| "none".to_string());
     format!("S: EVT EQUIP_DATA head:{}|chest:{}|legs:{}|weapon:{}\n", head, chest, legs, weapon)
+}
+
+fn get_char_stats_event(player: &crate::state::Player) -> String {
+    let weapon_dmg = player.equipement.weapon_damage();
+    let total_dmg = player.stats.damage + weapon_dmg;
+    let total_spe_dmg = player.stats.special_damage;
+    let total_def = player.stats.defense + player.equipement.total_defense();
+    let total_spe_def: i32 = player.stats.special_defense
+        + [&player.equipement.helmet, &player.equipement.chestplate, &player.equipement.legging, &player.equipement.boot]
+            .iter()
+            .filter_map(|s| s.as_ref())
+            .map(|a| a.special_defense)
+            .sum::<i32>();
+    format!("S: EVT CHAR_STATS {} {} {} {} {}\n", total_dmg, total_spe_dmg, total_def, total_spe_def, player.max_hp)
 }
 
 fn handle_inventory(addr: SocketAddr, state: &ServerState, world: &WorldData) -> String {
     if let Some(player) = state.players.get(&addr) {
         if player.inventory.is_empty() {
-            format!("S: OK Your inventory is empty.\n{}{}", get_inv_data_event(player, world), get_equip_data_event(player))
+            format!("S: OK Your inventory is empty.\n{}{}{}", get_inv_data_event(player, world), get_equip_data_event(player), get_char_stats_event(player))
         } else {
             let mut noms_objets = Vec::new();
             for (id, count) in player.inventory.iter() {
@@ -453,7 +470,7 @@ fn handle_inventory(addr: SocketAddr, state: &ServerState, world: &WorldData) ->
                     noms_objets.push(name);
                 }
             }
-            format!("S: OK Inventory: [{}]\n{}{}", noms_objets.join(", "), get_inv_data_event(player, world), get_equip_data_event(player))
+            format!("S: OK Inventory: [{}]\n{}{}{}", noms_objets.join(", "), get_inv_data_event(player, world), get_equip_data_event(player), get_char_stats_event(player))
         }
     } else { "S: ERR utilize_connect_first\n".to_string() }
 }
@@ -487,13 +504,13 @@ fn handle_equip(addr: SocketAddr, cible: String, state: &mut ServerState, world:
                 player.equipement.weapon = Some(make_weapon(item));
                 if let Some(old) = old { player.inventory.add(old.id, ItemBucket::Weapon); }
                 player.inventory.remove_one(&item.id);
-                format!("S: OK You equipped {} in slot [{}].\n{}{}", item.name, slot, get_inv_data_event(player, world), get_equip_data_event(player))
+                format!("S: OK You equipped {} in slot [{}].\n{}{}{}", item.name, slot, get_inv_data_event(player, world), get_equip_data_event(player), get_char_stats_event(player))
             } else if let Some(slot_ref) = player.equipement.armor_slot_mut(&slot) {
                 let old = slot_ref.take();
                 *slot_ref = Some(make_armor(item));
                 if let Some(old) = old { player.inventory.add(old.id, ItemBucket::Item); }
                 player.inventory.remove_one(&item.id);
-                format!("S: OK You equipped {} in slot [{}].\n{}{}", item.name, slot, get_inv_data_event(player, world), get_equip_data_event(player))
+                format!("S: OK You equipped {} in slot [{}].\n{}{}{}", item.name, slot, get_inv_data_event(player, world), get_equip_data_event(player), get_char_stats_event(player))
             } else {
                 "S: ERR This item cannot be equipped.\n".to_string()
             }
@@ -513,7 +530,7 @@ fn handle_unequip(addr: SocketAddr, cible: String, state: &mut ServerState, worl
                 *slot_ref = None;
                 player.inventory.add(id, ItemBucket::Item);
             }
-            format!("S: OK You unequipped {}.\n{}{}", name, get_inv_data_event(player, world), get_equip_data_event(player))
+            format!("S: OK You unequipped {}.\n{}{}{}", name, get_inv_data_event(player, world), get_equip_data_event(player), get_char_stats_event(player))
         } else { "S: ERR You are not wearing this item.\n".to_string() }
     } else { "S: ERR utilize_connect_first\n".to_string() }
 }
@@ -525,7 +542,7 @@ fn handle_equipment(addr: SocketAddr, state: &ServerState) -> String {
         let chest  = player.equipement.chestplate.as_ref().map(|a| a.name.clone()).unwrap_or_else(aucun);
         let legs   = player.equipement.legging.as_ref().map(|a| a.name.clone()).unwrap_or_else(aucun);
         let weapon = player.equipement.weapon.as_ref().map(|w| w.name.clone()).unwrap_or_else(aucun);
-        format!("S: OK --- EQUIPMENT ---\n  Head: {}\n  Chest: {}\n  Legs: {}\n  Weapon: {}\n{}", head, chest, legs, weapon, get_equip_data_event(player))
+        format!("S: OK --- EQUIPMENT ---\n  Head: {}\n  Chest: {}\n  Legs: {}\n  Weapon: {}\n{}{}", head, chest, legs, weapon, get_equip_data_event(player), get_char_stats_event(player))
     } else { "S: ERR utilize_connect_first\n".to_string() }
 }
 

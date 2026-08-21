@@ -28,6 +28,7 @@ world:
       slot: "weapon"
       obtainable: true
       description: "A legendary sword."
+      sprite: "sword/Excalibur"
     - id: "Dague"
       name: "Dague"
       damage: 1

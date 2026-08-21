@@ -147,6 +147,7 @@ pub struct Weapon {
     pub name: String,
     pub damages: i32,
     pub category: WeaponType,
+    pub sprite: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -156,6 +157,7 @@ pub struct Armor {
     pub description: String,
     pub defense: i32,
     pub special_defense: i32,
+    pub sprite: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]

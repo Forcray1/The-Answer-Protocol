@@ -256,3 +256,7 @@
 {"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-20T13:39:29"}
 {"details":{"ip":"127.0.0.1:33876","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-08-21T11:19:13"}
 {"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-21T11:22:04"}
+{"details":{"ip":"127.0.0.1:57062","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-08-21T11:50:02"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-21T11:50:13"}
+{"details":{"ip":"127.0.0.1:57099","type":"returning"},"event":"CONNECT","player":"axel","timestamp":"2026-08-21T11:50:47"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"axel","timestamp":"2026-08-21T11:51:36"}

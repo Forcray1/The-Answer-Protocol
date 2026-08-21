@@ -91,6 +91,8 @@ pub struct Item {
     pub defense: Option<i32>,
     #[serde(default)]
     pub slot: Option<String>,
+    #[serde(default)]
+    pub sprite: Option<String>,
 }
 
 impl Item {
