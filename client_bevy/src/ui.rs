@@ -62,6 +62,9 @@ pub struct InventoryActionText;
 #[derive(Component)]
 pub struct StatValueText(pub usize);
 
+#[derive(Component)]
+pub struct CloseButton(pub String);
+
 #[derive(Resource, Default)]
 pub struct SelectedItem {
     pub id: Option<String>,
@@ -121,19 +124,37 @@ fn setup_inventory_ui(mut commands: Commands, _asset_server: Res<AssetServer>) {
                     style: Style {
                         width: Val::Percent(100.0),
                         height: Val::Px(45.0),
-                        justify_content: JustifyContent::Center,
+                        justify_content: JustifyContent::SpaceBetween,
                         align_items: AlignItems::Center,
                         border: UiRect::bottom(Val::Px(2.0)),
+                        padding: UiRect::horizontal(Val::Px(15.0)),
                         ..default()
                     },
                     background_color: Color::rgba(0.15, 0.12, 0.08, 1.0).into(),
                     border_color: border_gold.into(),
                     ..default()
                 }).with_children(|title_bar| {
+                    title_bar.spawn(NodeBundle { style: Style { width: Val::Px(24.0), ..default() }, ..default() });
                     title_bar.spawn(TextBundle::from_section(
                         "PERSONNAGE",
                         TextStyle { font_size: 26.0, color: title_color, ..default() },
                     ));
+                    title_bar.spawn((
+                        ButtonBundle {
+                            style: Style {
+                                width: Val::Px(24.0),
+                                height: Val::Px(24.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            background_color: Color::NONE.into(),
+                            ..default()
+                        },
+                        CloseButton("inventory".to_string()),
+                    )).with_children(|btn| {
+                        btn.spawn(TextBundle::from_section("X", TextStyle { font_size: 20.0, color: title_color, ..default() }));
+                    });
                 });
 
                 // ── Main content area ──
@@ -459,16 +480,17 @@ fn toggle_inventory(
     quest_state: Res<QuestState>,
     sender: Res<crate::net::NetworkSender>,
 ) {
-    if console.open || quest_state.open {
-        return;
-    }
-    
-    if keys.just_pressed(KeyCode::KeyI) {
+    if !console.open && !quest_state.open && keys.just_pressed(KeyCode::KeyI) {
         state.open = !state.open;
+        if state.open {
+            let _ = sender.0.send("INVENTORY\n".to_string());
+        }
+    }
+
+    if state.is_changed() {
         if let Ok(mut visibility) = query.get_single_mut() {
             if state.open {
                 *visibility = Visibility::Inherited;
-                let _ = sender.0.send("INVENTORY\n".to_string());
             } else {
                 *visibility = Visibility::Hidden;
             }
@@ -1032,7 +1054,24 @@ impl Plugin for QuestPlugin {
                 toggle_quest_ui,
                 handle_quest_data,
                 handle_quest_selection,
+                handle_close_buttons,
             ).run_if(in_state(AppState::InGame)));
+    }
+}
+
+fn handle_close_buttons(
+    mut interaction_query: Query<(&Interaction, &CloseButton), (Changed<Interaction>, With<Button>)>,
+    mut inv_state: ResMut<InventoryState>,
+    mut quest_state: ResMut<QuestState>,
+) {
+    for (interaction, close_btn) in interaction_query.iter_mut() {
+        if *interaction == Interaction::Pressed {
+            if close_btn.0 == "inventory" {
+                inv_state.open = false;
+            } else if close_btn.0 == "quests" {
+                quest_state.open = false;
+            }
+        }
     }
 }
 
@@ -1127,9 +1166,9 @@ fn setup_quest_ui(mut commands: Commands) {
                 window.spawn(NodeBundle {
                     style: Style {
                         width: Val::Percent(100.0),
-                        justify_content: JustifyContent::Center,
+                        justify_content: JustifyContent::SpaceBetween,
                         align_items: AlignItems::Center,
-                        padding: UiRect::new(Val::Px(0.0), Val::Px(0.0), Val::Px(8.0), Val::Px(12.0)),
+                        padding: UiRect::new(Val::Px(12.0), Val::Px(12.0), Val::Px(8.0), Val::Px(12.0)),
                         border: UiRect::bottom(Val::Px(2.0)),
                         margin: UiRect::bottom(Val::Px(12.0)),
                         ..default()
@@ -1138,10 +1177,27 @@ fn setup_quest_ui(mut commands: Commands) {
                     ..default()
                 })
                 .with_children(|header| {
+                    header.spawn(NodeBundle { style: Style { width: Val::Px(24.0), ..default() }, ..default() });
                     header.spawn(TextBundle::from_section(
                         "Journal de Quetes",
                         TextStyle { font_size: 28.0, color: QUEST_TITLE_COLOR, ..default() },
                     ));
+                    header.spawn((
+                        ButtonBundle {
+                            style: Style {
+                                width: Val::Px(24.0),
+                                height: Val::Px(24.0),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::Center,
+                                ..default()
+                            },
+                            background_color: Color::NONE.into(),
+                            ..default()
+                        },
+                        CloseButton("quests".to_string()),
+                    )).with_children(|btn| {
+                        btn.spawn(TextBundle::from_section("X", TextStyle { font_size: 24.0, color: QUEST_TITLE_COLOR, ..default() }));
+                    });
                 });
 
                 // ── Split Panel ──
@@ -1295,16 +1351,17 @@ fn toggle_quest_ui(
     inventory: Res<InventoryState>,
     sender: Res<crate::net::NetworkSender>,
 ) {
-    if console.open || inventory.open {
-        return;
+    if !console.open && !inventory.open && keys.just_pressed(KeyCode::KeyU) {
+        state.open = !state.open;
+        if state.open {
+            let _ = sender.0.send("QUESTS\n".to_string());
+        }
     }
 
-    if keys.just_pressed(KeyCode::KeyU) {
-        state.open = !state.open;
+    if state.is_changed() {
         if let Ok(mut visibility) = query.get_single_mut() {
             if state.open {
                 *visibility = Visibility::Inherited;
-                let _ = sender.0.send("QUESTS\n".to_string());
             } else {
                 *visibility = Visibility::Hidden;
             }
