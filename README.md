@@ -373,6 +373,11 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 	avauclai
 		- Quest UI
 		- Health and XP Bar UI
+21/08/2026:
+	avauclai
+		- Inventory UI V2
+		- Close button
+		- Weapon icon on inventory
 
 
 TODO:
