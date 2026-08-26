@@ -300,7 +300,7 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 - vous téléporte sur la Place d’Ombreval.
 
 ## Timeline:
-
+````
 09/06/2026:
     avauclai:
         - Core Architecture: Set up an async TCP server using tokio and a custom text-command parser.
@@ -385,7 +385,10 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 26/08/2026:
 	mlorenzo:
 		- Edited exit from maps to link, and corrected the issues with the temple link 
-		- Dealt with the perspective issue, cords needed for map but working for Start_Oasis
+		- Dealt with the perspective issue
+		- Did some layer files
+````
+
 TODO:
 	- Add the collisions and interactions
 	- finish the world.yaml with all the informations

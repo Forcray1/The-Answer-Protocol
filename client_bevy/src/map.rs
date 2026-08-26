@@ -74,7 +74,7 @@ fn sync_map_to_room(
     if layer_profile.0.is_some() {
         println!("[MAP] Dynamic layers loaded for room '{}'.", room);
     } else {
-        println!("[MAP] No Layers.txt for room '{}', using fallback Y-sort.", room);
+        println!("[MAP] No layers.txt for room '{}', using fallback Y-sort.", room);
     }
 
     let (ground, overhead) = spawn_zone(&mut commands, &asset_server, room);

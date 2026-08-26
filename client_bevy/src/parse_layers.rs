@@ -61,7 +61,7 @@ impl LayerProfile {
 }
 
 pub fn load_room_layers(asset_root: &str, room: &str) -> Option<LayerProfile> {
-    let path = format!("{}/maps/{}/Layers.txt", asset_root, room);
+    let path = format!("{}/maps/{}/layers.txt", asset_root, room);
     let raw = std::fs::read_to_string(path).ok()?;
     let profile = LayerProfile::from_text(&raw);
     if profile.is_empty() {
