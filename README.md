@@ -385,7 +385,7 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 26/08/2026:
 	mlorenzo:
 		- Edited exit from maps to link, and corrected the issues with the temple link 
-
+		- Dealt with the perspective issue, cords needed for map but working for Start_Oasis
 TODO:
 	- Add the collisions and interactions
 	- finish the world.yaml with all the informations
@@ -395,5 +395,4 @@ TODO:
 PS: fait placage de MOB sur la map et implementation de l'inventory avec la key I. 
 PS: Toujours le problème de perspective a corriger mais pour le reste on devrais être bon. On a pas encore la map de cave je vais l'implémenter des que je les recois
 
-problème avec la cave 3 qui viens et part du même endroit j'ai demander ad doryann de le corriger je l'implémente dès que c'est bon
 Faire une sortie spécifique pour les map du temple pour revenir en haut de l'escalier

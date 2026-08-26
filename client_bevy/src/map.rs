@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
 
 use crate::game::GameState;
+use crate::parse_layers::LayerProfile;
 use crate::AppState;
 
 pub struct MapPlugin;
@@ -9,6 +10,7 @@ pub struct MapPlugin;
 impl Plugin for MapPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CurrentZone>()
+            .init_resource::<CurrentLayerProfile>()
             .add_systems(Startup, setup_camera)
             .add_systems(Update, sync_map_to_room.run_if(in_state(AppState::InGame)))
             .add_systems(PostUpdate, y_sort_entities.run_if(in_state(AppState::InGame)));
@@ -31,6 +33,9 @@ struct MapLayer;
 #[derive(Resource, Default)]
 struct CurrentZone(Option<String>);
 
+#[derive(Resource, Default)]
+struct CurrentLayerProfile(Option<LayerProfile>);
+
 #[derive(Component)]
 pub struct YSort;
 
@@ -52,6 +57,7 @@ fn sync_map_to_room(
     asset_server: Res<AssetServer>,
     game_state: Res<GameState>,
     mut current: ResMut<CurrentZone>,
+    mut layer_profile: ResMut<CurrentLayerProfile>,
     layers: Query<Entity, With<MapLayer>>,
 ) {
     let room = &game_state.current_room;
@@ -63,6 +69,14 @@ fn sync_map_to_room(
     for entity in &layers {
         commands.entity(entity).despawn();
     }
+
+    layer_profile.0 = crate::parse_layers::load_room_layers(ASSET_ROOT, room);
+    if layer_profile.0.is_some() {
+        println!("[MAP] Dynamic layers loaded for room '{}'.", room);
+    } else {
+        println!("[MAP] No Layers.txt for room '{}', using fallback Y-sort.", room);
+    }
+
     let (ground, overhead) = spawn_zone(&mut commands, &asset_server, room);
     println!(
         "[MAP] Zone '{}' built : {} ground + {} above",
@@ -125,8 +139,20 @@ fn trailing_number(name: &str) -> u32 {
     reversed_digits.chars().rev().collect::<String>().parse().unwrap_or(0)
 }
 
-fn y_sort_entities(mut query: Query<&mut Transform, With<YSort>>) {
+fn y_sort_entities(
+    mut query: Query<&mut Transform, With<YSort>>,
+    layer_profile: Res<CurrentLayerProfile>,
+) {
     for mut transform in &mut query {
+        if let Some(profile) = &layer_profile.0 {
+            if let Some(layer) = profile.get_layer(transform.translation.y) {
+                let t = ((MAP_HEIGHT * 0.5) - transform.translation.y) / MAP_HEIGHT;
+                let in_layer_offset = 0.05 + t.clamp(0.0, 1.0) * 0.9;
+                transform.translation.z = layer as f32 + in_layer_offset;
+                continue;
+            }
+        }
+
         transform.translation.z = ENTITY_Z_BASE - transform.translation.y * ENTITY_Y_SORT_SLOPE;
     }
 }

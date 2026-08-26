@@ -147,7 +147,7 @@ world:
       name: "Cave3"
       description: ""
       exits:
-        west: "Cave4"
+        south: "Cave4"
         north: "Cave2"
       npcs: []
       items: []
@@ -155,7 +155,7 @@ world:
       name: "Cave4"
       description: ""
       exits:
-        east: "Cave3"
+        north: "Cave3"
       npcs: []
       items: []
     Temple1:

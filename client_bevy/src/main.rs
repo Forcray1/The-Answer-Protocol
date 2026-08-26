@@ -8,6 +8,7 @@ mod map;
 mod menu;
 mod mob;
 mod net;
+mod parse_layers;
 mod player;
 mod ui;
 mod minimap;

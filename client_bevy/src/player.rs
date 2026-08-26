@@ -218,7 +218,7 @@ const T_TO_C: Vec2 = Vec2::new(1255.0, 60.0);
 
 fn arrival_point(from_room: &str, dir: &str) -> Vec2 {
     match (from_room, dir) {
-        ("Cave", "east") => C_TO_W6,
+        ("Cave1", "east") => C_TO_W6,
 		("City", "east") => C_TO_C,
 		("Castle", "west") => T_TO_C,
         _ => default_arrival(dir),
