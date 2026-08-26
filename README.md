@@ -378,16 +378,22 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 		- Inventory UI V2
 		- Close button
 		- Weapon icon on inventory
-
+25/08/2026:
+	mlorenzo:
+		- Edited the world.yaml for the last map zone to implement
+		- linked the lasts map except for the cave3 and cave4
+26/08/2026:
+	mlorenzo:
+		- Edited exit from maps to link, and corrected the issues with the temple link 
 
 TODO:
-	- Reorganize the Start_oasis with the new version for the perspective
-	- link all the rooms V
 	- Add the collisions and interactions
 	- finish the world.yaml with all the informations
 	- Make all of the combat system
-	- Edit the map sprites marked with the flag (_not-png) as they are not in png, so only the upper layer is shown
 	- Logs not working for bevy client (ah ouais ?)
 
 PS: fait placage de MOB sur la map et implementation de l'inventory avec la key I. 
 PS: Toujours le problème de perspective a corriger mais pour le reste on devrais être bon. On a pas encore la map de cave je vais l'implémenter des que je les recois
+
+problème avec la cave 3 qui viens et part du même endroit j'ai demander ad doryann de le corriger je l'implémente dès que c'est bon
+Faire une sortie spécifique pour les map du temple pour revenir en haut de l'escalier

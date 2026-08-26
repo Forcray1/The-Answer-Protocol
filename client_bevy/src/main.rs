@@ -10,6 +10,7 @@ mod mob;
 mod net;
 mod player;
 mod ui;
+mod minimap;
 
 #[derive(States, Default, Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {

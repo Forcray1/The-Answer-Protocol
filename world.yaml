@@ -66,6 +66,7 @@ world:
       description: ""
       exits:
         west: "City"
+        east: "Temple1"
       npcs: []
       items: []
     Wild3:
@@ -103,18 +104,11 @@ world:
         west: "Wild4"
       npcs: []
       items: []
-    Cave:
-      name: "Cave"
-      description: ""
-      exits:
-        east: "Wild6"
-      npcs: []
-      items: []
     Wild6:
       name: "Wild6"
       description: ""
       exits:
-        west: "Cave"
+        west: "Cave1"
         north: "Start_oasis"
       npcs: []
       items: []
@@ -131,5 +125,67 @@ world:
       description: ""
       exits:
         west: "Oasis2"
+      npcs: []
+      items: []
+    Cave1:
+      name: "Cave1"
+      description: ""
+      exits:
+        west: "Cave2"
+        east: "Wild6"
+      npcs: []
+      items: []
+    Cave2:
+      name: "Cave2"
+      description: ""
+      exits:
+        south: "Cave3"
+        east: "Cave1"
+      npcs: []
+      items: []
+    Cave3:
+      name: "Cave3"
+      description: ""
+      exits:
+        west: "Cave4"
+        north: "Cave2"
+      npcs: []
+      items: []
+    Cave4:
+      name: "Cave4"
+      description: ""
+      exits:
+        east: "Cave3"
+      npcs: []
+      items: []
+    Temple1:
+      name: "Temple1"
+      description: ""
+      exits:
+        west: "Castle"
+        east: "Temple2"
+      npcs: []
+      items: []
+    Temple2:
+      name: "Temple2"
+      description: ""
+      exits:
+        west: "Temple1"
+        east: "Temple3"
+      npcs: []
+      items: []
+    Temple3:
+      name: "Temple3"
+      description: ""
+      exits:
+        west: "Temple2"
+        east: "Temple4"
+      npcs: []
+      items: []
+    Temple4:
+      name: "Temple4"
+      description: ""
+      exits:
+        west: "Temple3"
       npcs: []
       items: []
