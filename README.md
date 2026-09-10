@@ -387,6 +387,9 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 		- Edited exit from maps to link, and corrected the issues with the temple link 
 		- Dealt with the perspective issue
 		- Did some layer files
+10/09/2026:
+	avauclai:
+		- First reflection about the combat system and QTE, highlighting the problems encountered and solutions.
 ````
 
 TODO:
@@ -395,7 +398,16 @@ TODO:
 	- Make all of the combat system
 	- Logs not working for bevy client (ah ouais ?)
 
-PS: fait placage de MOB sur la map et implementation de l'inventory avec la key I. 
 PS: Toujours le problème de perspective a corriger mais pour le reste on devrais être bon. On a pas encore la map de cave je vais l'implémenter des que je les recois
 
 Faire une sortie spécifique pour les map du temple pour revenir en haut de l'escalier
+
+
+Combat system : 
+Faire un systeme de combat avec QTE. On met une attaque fixe et les QTE permettent d'aller de 0 a 100% de l'attaque.
+Probleme : les qte sont realisable sur le client bevy, mais pas dans le client terminal. Donc comment faire?
+Idee 1 : Faire en sorte que les QTE soient executes automatiquement et a la perfection pour le client terminal, reussir a ne pas mettre les qte pour le client terminal et faire un system de one shot fight
+Idee 2 : Faire quand meme un mode combat en terminal et donc faire afficher les QTE dans le terminal
+
+Il faut faire un outil de ping de latence pour les QTE, en prenant en compte qu'on est sur du protocole TCP. Le temps du QTE doit alors etre : temps du QTE + la latence. Cela permet une fluidite du gameplay
+pour tout les clients.
