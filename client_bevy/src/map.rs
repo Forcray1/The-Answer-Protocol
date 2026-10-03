@@ -145,7 +145,7 @@ fn y_sort_entities(
 ) {
     for mut transform in &mut query {
         if let Some(profile) = &layer_profile.0 {
-            if let Some(layer) = profile.get_layer(transform.translation.y) {
+			if let Some(layer) = profile.get_layer(transform.translation.x, transform.translation.y) {
                 let t = ((MAP_HEIGHT * 0.5) - transform.translation.y) / MAP_HEIGHT;
                 let in_layer_offset = 0.05 + t.clamp(0.0, 1.0) * 0.9;
                 transform.translation.z = layer as f32 + in_layer_offset;

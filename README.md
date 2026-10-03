@@ -390,6 +390,10 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 10/09/2026:
 	avauclai:
 		- First reflection about the combat system and QTE, highlighting the problems encountered and solutions.
+18/09/2026:
+	mlorenzo:
+		- Implemented the minimap system
+		- Added x cords to layer files parser
 ````
 
 TODO:

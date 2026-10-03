@@ -46,6 +46,7 @@ fn main() {
             player::PlayerPlugin,
             mob::MobPlugin,
             debug::DebugPlugin,
+			minimap::MinimapPlugin,
         ))
         .run();
 }
