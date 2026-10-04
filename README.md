@@ -394,6 +394,9 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 	mlorenzo:
 		- Implemented the minimap system
 		- Added x cords to layer files parser
+04/10/2026:
+	mlorenzo:
+		- Added the collisions for all the maps
 ````
 
 TODO:
@@ -415,3 +418,5 @@ Idee 2 : Faire quand meme un mode combat en terminal et donc faire afficher les 
 
 Il faut faire un outil de ping de latence pour les QTE, en prenant en compte qu'on est sur du protocole TCP. Le temps du QTE doit alors etre : temps du QTE + la latence. Cela permet une fluidite du gameplay
 pour tout les clients.
+
+Au pire fuck le QTE nan c'est une galère a mort et on a déjà un bon projet
