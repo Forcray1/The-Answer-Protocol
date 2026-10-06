@@ -420,3 +420,4 @@ Il faut faire un outil de ping de latence pour les QTE, en prenant en compte qu'
 pour tout les clients.
 
 Au pire fuck le QTE nan c'est une galère a mort et on a déjà un bon projet
+AZY
