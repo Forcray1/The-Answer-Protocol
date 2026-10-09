@@ -33,14 +33,14 @@ fn setup_debug_text(mut commands: Commands) {
             "",
             TextStyle {
                 font_size: 22.0,
-                color: Color::YELLOW,
+                color: Color::BLACK,
                 ..default()
             },
         )
         .with_style(Style {
             position_type: PositionType::Absolute,
             top: Val::Px(8.0),
-            left: Val::Px(8.0),
+            right: Val::Px(8.0),
             ..default()
         }),
         DebugText,

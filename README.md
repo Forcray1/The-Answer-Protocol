@@ -397,6 +397,14 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 04/10/2026:
 	mlorenzo:
 		- Added the collisions for all the maps
+07/10/2026:
+	mlorenzo:
+		- Corrected the issue with the parser for the layers
+		- Did some layers files
+09/10/2026:
+	mlorenzo:
+		- Change the debug format for a more explicit display
+		- Did layers files for all the maps except dungeons
 ````
 
 TODO:
@@ -408,10 +416,3 @@ TODO:
 PS: Toujours le problème de perspective a corriger mais pour le reste on devrais être bon. On a pas encore la map de cave je vais l'implémenter des que je les recois
 
 Faire une sortie spécifique pour les map du temple pour revenir en haut de l'escalier
-
-
-Combat system : 
-
-
-Au pire fuck le QTE nan c'est une galère a mort et on a déjà un bon projet
-AZY
