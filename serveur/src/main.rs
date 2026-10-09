@@ -136,7 +136,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     let respawned = server_state.update_respawns(&world);
                                     for (npc_id, room_id) in &respawned {
                                         if let Some(npc) = world.world.npcs.iter().find(|n| &n.id == npc_id) {
-                                            let sprite = npc.sprite.as_deref().unwrap_or("default");
+                                            let sprite = npc.map_sprite();
                                             let (x, y) = npc.spawn_pos.map(|p| (p[0] as i64, p[1] as i64)).unwrap_or((0, 0));
                                             let hp = server_state.npc_hps.get(npc_id).copied().unwrap_or(npc.hp);
                                             let scale = npc.scale.unwrap_or(1.0);

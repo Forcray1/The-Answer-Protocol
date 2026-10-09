@@ -227,10 +227,9 @@ Ajouts au **protocole texte** (une ligne = un message) :
   - `handlers.rs` : `handle_pos` mémorise la position et la **relaie** aux autres
     de la salle via un `GlobalEvent { target_room: Some(...) }` ; il renvoie une
     chaîne **vide** (pas de réponse ⇒ pas de spam).
-  - **Roster** : `room_presence_roster` construit les lignes `PRESENCE ENTER` de
+  - **Roster** : `room_presence_roster` construit les lignes `PRESENCE ROSTER` de
     tous les **autres** déjà présents, **ajoutées** à la réponse de connexion / de
-    déplacement — pour qu'un arrivant voie ceux déjà là (le client lit chaque
-    ligne comme un message séparé).
+    déplacement — pour qu'un arrivant voie ceux déjà là sans déclencher de fausse notification de chat "entered the room".
   - Le broadcast salle exclut l'émetteur (`if event.sender_addr != addr`) et ne
     livre qu'aux joueurs de `target_room` (`tokio::select!` dans `main.rs`).
 - **Client** (`player.rs`) :

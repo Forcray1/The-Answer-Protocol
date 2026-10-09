@@ -78,8 +78,9 @@ fn handle_mob_events(
                 continue;
             }
 
+            let sprite_clean = sprite_name.strip_suffix(".png").unwrap_or(sprite_name);
             let texture: Handle<Image> =
-                asset_server.load(format!("{}/{}.png", MOB_FOLDER, sprite_name));
+                asset_server.load(format!("{}/{}.png", MOB_FOLDER, sprite_clean));
 
             // We build frame rects lazily — we don't know the actual pixel size
             // yet (the image hasn't loaded), so we store normalized UVs once we
@@ -109,7 +110,7 @@ fn handle_mob_events(
                 },
                 YSort,
             ));
-            println!("[MOB] Spawned '{}' (name '{}', sprite '{}') at ({}, {}) scale: {}", npc_id, npc_name, sprite_name, x, y, scale);
+            println!("[MOB] Spawned '{}' (name '{}', sprite '{}') at ({}, {}) scale: {}", npc_id, npc_name, sprite_clean, x, y, scale);
         }
 
         // S: EVT ROOM <room> MOB_DESPAWN <npc_id>
@@ -145,15 +146,22 @@ fn animate_mobs(
             let img_h = image.size().y as f32;
             anim.sheet_size = Vec2::new(img_w, img_h);
 
-            let frame_w = img_w / SHEET_COLS as f32;
-            let frame_h = img_h / SHEET_ROWS as f32;
+            // Si le ratio correspond à une spritesheet 2x3 (ex: 120x180, 100x150)
+            let is_2x3_sheet = (img_w * 3.0 - img_h * 2.0).abs() < 5.0 && img_w != img_h;
+            if is_2x3_sheet {
+                let frame_w = img_w / SHEET_COLS as f32;
+                let frame_h = img_h / SHEET_ROWS as f32;
 
-            for row in 0..SHEET_ROWS {
-                for col in 0..SHEET_COLS {
-                    let min = Vec2::new(col as f32 * frame_w, row as f32 * frame_h);
-                    let max = Vec2::new(min.x + frame_w, min.y + frame_h);
-                    anim.frames.push(Rect::from_corners(min, max));
+                for row in 0..SHEET_ROWS {
+                    for col in 0..SHEET_COLS {
+                        let min = Vec2::new(col as f32 * frame_w, row as f32 * frame_h);
+                        let max = Vec2::new(min.x + frame_w, min.y + frame_h);
+                        anim.frames.push(Rect::from_corners(min, max));
+                    }
                 }
+            } else {
+                // Image statique / pleine (ex: IdleSqueleton.png 500x500)
+                anim.frames.push(Rect::from_corners(Vec2::ZERO, Vec2::new(img_w, img_h)));
             }
 
             // Set initial frame rect

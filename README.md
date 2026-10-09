@@ -411,13 +411,7 @@ Faire une sortie spécifique pour les map du temple pour revenir en haut de l'es
 
 
 Combat system : 
-Faire un systeme de combat avec QTE. On met une attaque fixe et les QTE permettent d'aller de 0 a 100% de l'attaque.
-Probleme : les qte sont realisable sur le client bevy, mais pas dans le client terminal. Donc comment faire?
-Idee 1 : Faire en sorte que les QTE soient executes automatiquement et a la perfection pour le client terminal, reussir a ne pas mettre les qte pour le client terminal et faire un system de one shot fight
-Idee 2 : Faire quand meme un mode combat en terminal et donc faire afficher les QTE dans le terminal
 
-Il faut faire un outil de ping de latence pour les QTE, en prenant en compte qu'on est sur du protocole TCP. Le temps du QTE doit alors etre : temps du QTE + la latence. Cela permet une fluidite du gameplay
-pour tout les clients.
 
 Au pire fuck le QTE nan c'est une galère a mort et on a déjà un bon projet
 AZY

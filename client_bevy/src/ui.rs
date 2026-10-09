@@ -1,9 +1,10 @@
 use bevy::prelude::*;
 
 use crate::net::{NetworkSender, ServerMessageEvent};
+use crate::player::LocalPlayerName;
 use crate::AppState;
 
-const MAX_CHAT_LINES: usize = 8;
+const MAX_CHAT_LINES: usize = 10;
 
 #[derive(Component)]
 pub struct InventoryDescriptionText;
@@ -480,7 +481,7 @@ fn toggle_inventory(
     quest_state: Res<QuestState>,
     sender: Res<crate::net::NetworkSender>,
 ) {
-    if !console.open && !quest_state.open && keys.just_pressed(KeyCode::KeyI) {
+    if !console.open && !console.terminal_open && !quest_state.open && keys.just_pressed(KeyCode::KeyI) {
         state.open = !state.open;
         if state.open {
             let _ = sender.0.send("INVENTORY\n".to_string());
@@ -779,13 +780,25 @@ fn handle_char_stats(
 impl Plugin for ConsolePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ChatConsole>()
-            .add_systems(Startup, setup_ui)
+            .init_resource::<ChatHistory>()
+            .add_systems(Startup, setup_chat_ui)
+            .add_systems(OnEnter(AppState::InGame), on_enter_ingame)
+            .add_systems(OnExit(AppState::InGame), on_exit_ingame)
             .add_systems(
                 Update,
                 (
                     toggle_chat,
+                    toggle_terminal,
                     handle_inputs.after(toggle_chat),
-                    display_messages,
+                    handle_terminal_inputs.after(toggle_terminal),
+                    handle_tab_clicks,
+                    handle_input_clicks,
+                    process_chat_events,
+                    display_terminal_messages,
+                    update_chat_container_style,
+                    update_chat_tabs_ui,
+                    update_chat_input_ui,
+                    update_chat_messages_ui,
                     spawn_chat_bubbles,
                     tick_chat_bubbles,
                 ).run_if(in_state(AppState::InGame)),
@@ -793,104 +806,590 @@ impl Plugin for ConsolePlugin {
     }
 }
 
-#[derive(Resource, Default)]
-pub struct ChatConsole {
-    pub open: bool,
-    just_opened: bool,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ChatChannel {
+    #[default]
+    Global,
+    Room,
+    Group,
 }
 
+impl ChatChannel {
+    pub fn name(&self) -> &'static str {
+        match self {
+            ChatChannel::Global => "Global",
+            ChatChannel::Room => "Room",
+            ChatChannel::Group => "Group",
+        }
+    }
+
+    pub fn color(&self) -> Color {
+        match self {
+            ChatChannel::Global => Color::rgb(1.00, 0.85, 0.30),
+            ChatChannel::Room => Color::rgb(0.35, 0.90, 0.55),
+            ChatChannel::Group => Color::rgb(0.40, 0.72, 1.00),
+        }
+    }
+}
+
+#[derive(Resource)]
+pub struct ChatConsole {
+    pub open: bool,
+    pub just_opened: bool,
+    pub terminal_open: bool,
+    pub terminal_just_opened: bool,
+    pub active_channel: ChatChannel,
+    pub in_group: bool,
+    pub input_buffer: String,
+    pub unread_global: u32,
+    pub unread_room: u32,
+    pub unread_group: u32,
+    pub cursor_timer: Timer,
+    pub cursor_visible: bool,
+    pub last_sent: Option<(ChatChannel, String, std::time::Instant)>,
+    pub room_change_time: Option<std::time::Instant>,
+}
+
+impl Default for ChatConsole {
+    fn default() -> Self {
+        Self {
+            open: false,
+            just_opened: false,
+            terminal_open: false,
+            terminal_just_opened: false,
+            active_channel: ChatChannel::Global,
+            in_group: false,
+            input_buffer: String::new(),
+            unread_global: 0,
+            unread_room: 0,
+            unread_group: 0,
+            cursor_timer: Timer::from_seconds(0.5, TimerMode::Repeating),
+            cursor_visible: true,
+            last_sent: None,
+            room_change_time: None,
+        }
+    }
+}
+
+impl ChatConsole {
+    pub fn cycle_channel(&mut self) {
+        self.active_channel = match self.active_channel {
+            ChatChannel::Global => ChatChannel::Room,
+            ChatChannel::Room => {
+                if self.in_group {
+                    ChatChannel::Group
+                } else {
+                    ChatChannel::Global
+                }
+            }
+            ChatChannel::Group => ChatChannel::Global,
+        };
+        self.clear_unread_for_active();
+    }
+
+    pub fn clear_unread_for_active(&mut self) {
+        match self.active_channel {
+            ChatChannel::Global => self.unread_global = 0,
+            ChatChannel::Room => self.unread_room = 0,
+            ChatChannel::Group => self.unread_group = 0,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ChatMessage {
+    pub channel: ChatChannel,
+    pub text: String,
+    pub color: Color,
+}
+
+#[derive(Resource, Default)]
+pub struct ChatHistory {
+    pub messages: Vec<ChatMessage>,
+}
+
+impl ChatHistory {
+    pub fn add(&mut self, channel: ChatChannel, text: String, color: Color) {
+        self.messages.push(ChatMessage { channel, text, color });
+        if self.messages.len() > 100 {
+            self.messages.remove(0);
+        }
+    }
+}
+
+// ── Chatbox Components ──
 #[derive(Component)]
-struct ChatUiRoot;
+pub struct ChatUiRoot;
 
 #[derive(Component)]
-struct ChatText;
+pub struct ChatText;
 
 #[derive(Component)]
-struct InputText;
+pub struct ChatInputPrompt;
 
-fn setup_ui(mut commands: Commands) {
+#[derive(Component)]
+pub struct ChatInputText;
+
+#[derive(Component)]
+pub struct ChatInputContainer;
+
+#[derive(Component)]
+pub struct ChatTabButton(pub ChatChannel);
+
+#[derive(Component)]
+pub struct ChatTabText(pub ChatChannel);
+
+// ── Developer Terminal Components ──
+#[derive(Component)]
+pub struct TerminalUiRoot;
+
+#[derive(Component)]
+pub struct TerminalLogText;
+
+#[derive(Component)]
+pub struct TerminalInputText;
+
+fn setup_chat_ui(mut commands: Commands) {
+    // ══════════════════════════════════════════════════════════════════════════
+    // 1. CHATBOX JOUEUR (En bas à gauche)
+    // ══════════════════════════════════════════════════════════════════════════
     commands
         .spawn((
             NodeBundle {
                 style: Style {
-                    width: Val::Percent(100.0),
-                    height: Val::Percent(100.0),
+                    position_type: PositionType::Absolute,
+                    left: Val::Px(15.0),
+                    bottom: Val::Px(15.0),
+                    width: Val::Px(550.0),
+                    height: Val::Px(245.0),
                     flex_direction: FlexDirection::Column,
-                    justify_content: JustifyContent::FlexEnd,
-                    align_items: AlignItems::FlexStart,
+                    justify_content: JustifyContent::SpaceBetween,
+                    padding: UiRect::all(Val::Px(8.0)),
+                    border: UiRect::all(Val::Px(1.5)),
                     ..default()
                 },
+                background_color: Color::rgba(0.05, 0.06, 0.09, 0.70).into(),
+                border_color: Color::rgba(0.25, 0.25, 0.35, 0.45).into(),
                 visibility: Visibility::Hidden,
+                z_index: ZIndex::Global(10),
                 ..default()
             },
             ChatUiRoot,
         ))
-        .with_children(|parent| {
-            parent
-                .spawn(NodeBundle {
+        .with_children(|root| {
+            // ── Tabs row ──
+            root.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(26.0),
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::SpaceBetween,
+                    margin: UiRect { bottom: Val::Px(4.0), ..default() },
+                    ..default()
+                },
+                ..default()
+            })
+            .with_children(|tabs_row| {
+                tabs_row
+                    .spawn(NodeBundle {
+                        style: Style {
+                            flex_direction: FlexDirection::Row,
+                            column_gap: Val::Px(6.0),
+                            align_items: AlignItems::Center,
+                            ..default()
+                        },
+                        ..default()
+                    })
+                    .with_children(|tabs| {
+                        // Global tab button
+                        tabs.spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    padding: UiRect { left: Val::Px(10.0), right: Val::Px(10.0), top: Val::Px(3.0), bottom: Val::Px(3.0) },
+                                    border: UiRect::all(Val::Px(1.0)),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
+                                background_color: Color::rgba(0.20, 0.22, 0.30, 0.95).into(),
+                                border_color: ChatChannel::Global.color().into(),
+                                ..default()
+                            },
+                            ChatTabButton(ChatChannel::Global),
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn((
+                                TextBundle::from_section(
+                                    "Global",
+                                    TextStyle { font_size: 13.0, color: ChatChannel::Global.color(), ..default() },
+                                ),
+                                ChatTabText(ChatChannel::Global),
+                            ));
+                        });
+
+                        // Room tab button
+                        tabs.spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    padding: UiRect { left: Val::Px(10.0), right: Val::Px(10.0), top: Val::Px(3.0), bottom: Val::Px(3.0) },
+                                    border: UiRect::all(Val::Px(1.0)),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
+                                background_color: Color::rgba(0.08, 0.08, 0.12, 0.60).into(),
+                                border_color: Color::rgba(0.20, 0.20, 0.28, 0.40).into(),
+                                ..default()
+                            },
+                            ChatTabButton(ChatChannel::Room),
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn((
+                                TextBundle::from_section(
+                                    "Room",
+                                    TextStyle { font_size: 13.0, color: Color::rgba(0.65, 0.65, 0.70, 0.8), ..default() },
+                                ),
+                                ChatTabText(ChatChannel::Room),
+                            ));
+                        });
+
+                        // Group tab button (hidden until player is in a group)
+                        tabs.spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    display: Display::None,
+                                    padding: UiRect { left: Val::Px(10.0), right: Val::Px(10.0), top: Val::Px(3.0), bottom: Val::Px(3.0) },
+                                    border: UiRect::all(Val::Px(1.0)),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
+                                background_color: Color::rgba(0.08, 0.08, 0.12, 0.60).into(),
+                                border_color: Color::rgba(0.20, 0.20, 0.28, 0.40).into(),
+                                ..default()
+                            },
+                            ChatTabButton(ChatChannel::Group),
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn((
+                                TextBundle::from_section(
+                                    "Group",
+                                    TextStyle { font_size: 13.0, color: Color::rgba(0.65, 0.65, 0.70, 0.8), ..default() },
+                                ),
+                                ChatTabText(ChatChannel::Group),
+                            ));
+                        });
+                    });
+
+                tabs_row.spawn(TextBundle::from_section(
+                    "[Tab] Canal  [T] Parler  [F1] Console Dev",
+                    TextStyle { font_size: 11.0, color: Color::rgba(0.55, 0.55, 0.62, 0.7), ..default() },
+                ));
+            });
+
+            // ── Messages Area ──
+            root.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    flex_grow: 1.0,
+                    margin: UiRect { top: Val::Px(2.0), bottom: Val::Px(4.0), ..default() },
+                    padding: UiRect::all(Val::Px(6.0)),
+                    flex_direction: FlexDirection::ColumnReverse,
+                    overflow: Overflow::clip(),
+                    ..default()
+                },
+                background_color: Color::rgba(0.02, 0.03, 0.05, 0.50).into(),
+                ..default()
+            })
+            .with_children(|msg_area| {
+                msg_area.spawn((
+                    TextBundle::from_section(
+                        "Bienvenue ! Écrivez directement pour discuter.\n",
+                        TextStyle { font_size: 14.0, color: Color::rgba(0.85, 0.85, 0.90, 1.0), ..default() },
+                    ),
+                    ChatText,
+                ));
+            });
+
+            // ── Input Area ──
+            root.spawn((
+                ButtonBundle {
                     style: Style {
-                        width: Val::Px(600.0),
-                        height: Val::Px(250.0),
-                        margin: UiRect { left: Val::Px(15.0), bottom: Val::Px(5.0), ..default() },
-                        padding: UiRect::all(Val::Px(15.0)),
-                        flex_direction: FlexDirection::ColumnReverse,
-                        overflow: Overflow::clip(),
+                        width: Val::Percent(100.0),
+                        height: Val::Px(32.0),
+                        padding: UiRect { left: Val::Px(8.0), right: Val::Px(8.0), top: Val::Px(3.0), bottom: Val::Px(3.0) },
+                        border: UiRect::all(Val::Px(1.0)),
+                        flex_direction: FlexDirection::Row,
+                        align_items: AlignItems::Center,
                         ..default()
                     },
-                    background_color: Color::rgba(0.0, 0.0, 0.0, 0.8).into(),
+                    background_color: Color::rgba(0.04, 0.05, 0.08, 0.80).into(),
+                    border_color: Color::rgba(0.25, 0.25, 0.35, 0.50).into(),
                     ..default()
-                })
-                .with_children(|parent| {
-                    parent.spawn((
-                        TextBundle::from_section(
-                            "Connecting...\n",
-                            TextStyle { font_size: 20.0, color: Color::WHITE, ..default() },
-                        ),
-                        ChatText,
-                    ));
-                });
-            parent
-                .spawn(NodeBundle {
-                    style: Style {
-                        width: Val::Px(600.0),
-                        height: Val::Px(40.0),
-                        margin: UiRect { left: Val::Px(15.0), bottom: Val::Px(15.0), ..default() },
-                        padding: UiRect { left: Val::Px(15.0), right: Val::Px(15.0), top: Val::Px(8.0), bottom: Val::Px(8.0) },
-                        ..default()
-                    },
-                    background_color: Color::rgba(0.1, 0.1, 0.1, 0.9).into(),
-                    ..default()
-                })
-                .with_children(|parent| {
-                    parent.spawn((
-                        TextBundle::from_section(
-                            "> ",
-                            TextStyle { font_size: 20.0, color: Color::YELLOW, ..default() },
-                        ),
-                        InputText,
-                    ));
-                });
+                },
+                ChatInputContainer,
+            ))
+            .with_children(|input_box| {
+                input_box.spawn((
+                    TextBundle::from_section(
+                        "[Global] ",
+                        TextStyle { font_size: 14.0, color: ChatChannel::Global.color(), ..default() },
+                    ),
+                    ChatInputPrompt,
+                ));
+                input_box.spawn((
+                    TextBundle::from_section(
+                        "Appuyez sur 'T' pour parler...",
+                        TextStyle { font_size: 13.0, color: Color::rgba(0.55, 0.55, 0.60, 0.7), ..default() },
+                    ),
+                    ChatInputText,
+                ));
+            });
         });
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 2. TERMINAL DÉVELOPPEUR (Touche F1 ou Backquote `~`/`²`)
+    // ══════════════════════════════════════════════════════════════════════════
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(20.0),
+                    left: Val::Px(20.0),
+                    width: Val::Px(640.0),
+                    height: Val::Px(290.0),
+                    flex_direction: FlexDirection::Column,
+                    justify_content: JustifyContent::SpaceBetween,
+                    padding: UiRect::all(Val::Px(10.0)),
+                    border: UiRect::all(Val::Px(1.5)),
+                    ..default()
+                },
+                background_color: Color::rgba(0.02, 0.02, 0.04, 0.94).into(),
+                border_color: Color::rgba(0.85, 0.70, 0.20, 0.80).into(),
+                visibility: Visibility::Hidden,
+                z_index: ZIndex::Global(100),
+                ..default()
+            },
+            TerminalUiRoot,
+        ))
+        .with_children(|term| {
+            // Header
+            term.spawn(TextBundle::from_section(
+                "[TERMINAL DÉVELOPPEUR] Commandes: LOOK, MOVE, ATTACK, WHO, STATUS, etc.  Fermer: [F1] / [Échap]",
+                TextStyle { font_size: 13.0, color: Color::YELLOW, ..default() },
+            ));
+
+            // Log Area
+            term.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    flex_grow: 1.0,
+                    margin: UiRect { top: Val::Px(6.0), bottom: Val::Px(6.0), ..default() },
+                    padding: UiRect::all(Val::Px(8.0)),
+                    flex_direction: FlexDirection::ColumnReverse,
+                    overflow: Overflow::clip(),
+                    ..default()
+                },
+                background_color: Color::rgba(0.0, 0.0, 0.0, 0.85).into(),
+                ..default()
+            })
+            .with_children(|log_area| {
+                log_area.spawn((
+                    TextBundle::from_section(
+                        "Connecté au serveur.\nTapez vos commandes ci-dessous.\n",
+                        TextStyle { font_size: 14.0, color: Color::WHITE, ..default() },
+                    ),
+                    TerminalLogText,
+                ));
+            });
+
+            // Input Bar
+            term.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(34.0),
+                    padding: UiRect { left: Val::Px(10.0), right: Val::Px(10.0), top: Val::Px(5.0), bottom: Val::Px(5.0) },
+                    border: UiRect::all(Val::Px(1.0)),
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                background_color: Color::rgba(0.1, 0.1, 0.12, 0.95).into(),
+                border_color: Color::rgba(0.4, 0.4, 0.5, 0.6).into(),
+                ..default()
+            })
+            .with_children(|input_bar| {
+                input_bar.spawn((
+                    TextBundle::from_section(
+                        "> ",
+                        TextStyle { font_size: 16.0, color: Color::YELLOW, ..default() },
+                    ),
+                    TerminalInputText,
+                ));
+            });
+        });
+}
+
+fn on_enter_ingame(
+    mut chat_root_q: Query<&mut Visibility, (With<ChatUiRoot>, Without<TerminalUiRoot>)>,
+    sender: Res<NetworkSender>,
+) {
+    if let Ok(mut vis) = chat_root_q.get_single_mut() {
+        *vis = Visibility::Inherited;
+    }
+    let _ = sender.0.send("GROUP\n".to_string());
+}
+
+fn on_exit_ingame(
+    mut chat_root_q: Query<&mut Visibility, (With<ChatUiRoot>, Without<TerminalUiRoot>)>,
+    mut term_root_q: Query<&mut Visibility, (With<TerminalUiRoot>, Without<ChatUiRoot>)>,
+    mut console: ResMut<ChatConsole>,
+) {
+    if let Ok(mut vis) = chat_root_q.get_single_mut() {
+        *vis = Visibility::Hidden;
+    }
+    if let Ok(mut vis) = term_root_q.get_single_mut() {
+        *vis = Visibility::Hidden;
+    }
+    console.open = false;
+    console.terminal_open = false;
+    console.input_buffer.clear();
 }
 
 fn toggle_chat(
     keys: Res<ButtonInput<KeyCode>>,
     mut console: ResMut<ChatConsole>,
-    mut query: Query<&mut Visibility, With<ChatUiRoot>>,
 ) {
-    let new_state = if !console.open && keys.just_pressed(KeyCode::KeyT) {
-        Some(true)
-    } else if console.open && keys.just_pressed(KeyCode::Escape) {
-        Some(false)
+    if console.terminal_open {
+        return;
+    }
+    if !console.open {
+        if keys.just_pressed(KeyCode::KeyT) || keys.just_pressed(KeyCode::Enter) {
+            console.open = true;
+            console.just_opened = true;
+        } else if keys.just_pressed(KeyCode::Slash) {
+            console.open = true;
+            console.just_opened = true;
+            console.input_buffer = "/".to_string();
+        }
     } else {
-        None
+        if keys.just_pressed(KeyCode::Escape) {
+            console.open = false;
+            console.input_buffer.clear();
+        } else if keys.just_pressed(KeyCode::Tab) {
+            console.cycle_channel();
+        }
+    }
+}
+
+fn toggle_terminal(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut console: ResMut<ChatConsole>,
+    mut query: Query<&mut Visibility, With<TerminalUiRoot>>,
+) {
+    let toggle_pressed = keys.just_pressed(KeyCode::F1)
+        || keys.just_pressed(KeyCode::Backquote)
+        || keys.just_pressed(KeyCode::F2);
+
+    if toggle_pressed {
+        console.terminal_open = !console.terminal_open;
+        console.terminal_just_opened = console.terminal_open;
+        if console.terminal_open {
+            console.open = false;
+        }
+        if let Ok(mut vis) = query.get_single_mut() {
+            *vis = if console.terminal_open { Visibility::Inherited } else { Visibility::Hidden };
+        }
+    } else if console.terminal_open && keys.just_pressed(KeyCode::Escape) {
+        console.terminal_open = false;
+        if let Ok(mut vis) = query.get_single_mut() {
+            *vis = Visibility::Hidden;
+        }
+    }
+}
+
+fn handle_tab_clicks(
+    interaction_q: Query<(&Interaction, &ChatTabButton), (Changed<Interaction>, With<Button>)>,
+    mut console: ResMut<ChatConsole>,
+) {
+    for (interaction, btn) in &interaction_q {
+        if *interaction == Interaction::Pressed {
+            console.active_channel = btn.0;
+            console.clear_unread_for_active();
+        }
+    }
+}
+
+fn handle_input_clicks(
+    interaction_q: Query<&Interaction, (Changed<Interaction>, With<ChatInputContainer>)>,
+    mut console: ResMut<ChatConsole>,
+) {
+    for interaction in &interaction_q {
+        if *interaction == Interaction::Pressed {
+            console.open = true;
+        }
+    }
+}
+
+fn handle_terminal_inputs(
+    mut char_evr: EventReader<ReceivedCharacter>,
+    keys: Res<ButtonInput<KeyCode>>,
+    sender: Res<NetworkSender>,
+    mut console: ResMut<ChatConsole>,
+    mut input_query: Query<&mut Text, (With<TerminalInputText>, Without<TerminalLogText>)>,
+    mut log_query: Query<&mut Text, (With<TerminalLogText>, Without<TerminalInputText>)>,
+) {
+    if !console.terminal_open {
+        return;
+    }
+    let swallow_chars = std::mem::take(&mut console.terminal_just_opened);
+
+    let Ok(mut input_text) = input_query.get_single_mut() else {
+        return;
     };
 
-    if let Some(open) = new_state {
-        console.open = open;
-        console.just_opened = open;
-        if let Ok(mut visibility) = query.get_single_mut() {
-            *visibility = if open { Visibility::Inherited } else { Visibility::Hidden };
+    for ev in char_evr.read() {
+        if swallow_chars {
+            continue;
+        }
+        let s = ev.char.to_string();
+        if !s.contains('\u{8}') && !s.contains('\r') && !s.contains('\n') && !s.contains('`') && !s.contains('~') && !s.contains('²') {
+            input_text.sections[0].value.push_str(&s);
+        }
+    }
+
+    if keys.just_pressed(KeyCode::Backspace) && input_text.sections[0].value.chars().count() > 2 {
+        input_text.sections[0].value.pop();
+    }
+
+    if keys.just_pressed(KeyCode::Enter) {
+        let command = input_text.sections[0].value[2..].trim().to_string();
+        if !command.is_empty() {
+            let _ = sender.0.send(format!("{}\n", command));
+            if let Ok(mut log_text) = log_query.get_single_mut() {
+                log_text.sections[0].value.push_str(&format!("> {}\n", command));
+                let lines: Vec<&str> = log_text.sections[0].value.lines().collect();
+                if lines.len() > 15 {
+                    log_text.sections[0].value = lines[lines.len() - 15..].join("\n") + "\n";
+                }
+            }
+            input_text.sections[0].value = "> ".to_string();
+        }
+    }
+}
+
+fn display_terminal_messages(
+    mut events: EventReader<ServerMessageEvent>,
+    mut query: Query<&mut Text, With<TerminalLogText>>,
+) {
+    for ev in events.read() {
+        for mut text in query.iter_mut() {
+            text.sections[0].value.push_str(&format!("{}\n", ev.0.trim()));
+            let lines: Vec<&str> = text.sections[0].value.lines().collect();
+            if lines.len() > 15 {
+                text.sections[0].value = lines[lines.len() - 15..].join("\n") + "\n";
+            }
         }
     }
 }
@@ -900,51 +1399,508 @@ fn handle_inputs(
     keys: Res<ButtonInput<KeyCode>>,
     sender: Res<NetworkSender>,
     mut console: ResMut<ChatConsole>,
-    mut query: Query<&mut Text, With<InputText>>,
+    mut history: ResMut<ChatHistory>,
+    local_name: Res<LocalPlayerName>,
 ) {
-    if !console.open {
+    if !console.open || console.terminal_open {
         return;
     }
     let swallow_chars = std::mem::take(&mut console.just_opened);
-
-    let Ok(mut text) = query.get_single_mut() else {
-        return;
-    };
 
     for ev in char_evr.read() {
         if swallow_chars {
             continue;
         }
         let s = ev.char.to_string();
-        if !s.contains('\u{8}') && !s.contains('\r') && !s.contains('\n') {
-            text.sections[0].value.push_str(&s);
+        if !s.contains('\u{8}') && !s.contains('\r') && !s.contains('\n') && !s.contains('\t') {
+            console.input_buffer.push_str(&s);
         }
     }
 
-    if keys.just_pressed(KeyCode::Backspace) && text.sections[0].value.chars().count() > 2 {
-        text.sections[0].value.pop();
+    if keys.just_pressed(KeyCode::Backspace) {
+        console.input_buffer.pop();
     }
 
     if keys.just_pressed(KeyCode::Enter) {
-        let command = text.sections[0].value[2..].trim().to_string();
-        if !command.is_empty() {
-            let _ = sender.0.send(format!("{}\n", command));
-            text.sections[0].value = "> ".to_string();
+        let msg = console.input_buffer.trim().to_string();
+        if !msg.is_empty() {
+            let my_name = local_name.0.clone().unwrap_or_else(|| "Moi".to_string());
+            if msg.starts_with('/') {
+                let cmd = msg[1..].trim();
+                let parts: Vec<&str> = cmd.split_whitespace().collect();
+                let first = parts.first().map(|s| s.to_uppercase()).unwrap_or_default();
+
+                match first.as_str() {
+                    "HELP" => {
+                        history.add(
+                            console.active_channel,
+                            "Commandes: /group (create|invite <nom>|accept|leave), /who, /global <msg>, /room <msg>, /group <msg>".to_string(),
+                            Color::rgb(0.95, 0.85, 0.40),
+                        );
+                    }
+                    "INVITE" if parts.len() > 1 => {
+                        let _ = sender.0.send(format!("GROUP INVITE {}\n", parts[1..].join(" ")));
+                    }
+                    "ACCEPT" => {
+                        let _ = sender.0.send("GROUP ACCEPT\n".to_string());
+                    }
+                    "LEAVE" => {
+                        let _ = sender.0.send("GROUP LEAVE\n".to_string());
+                    }
+                    "GLOBAL" if parts.len() > 1 => {
+                        let text = parts[1..].join(" ");
+                        let _ = sender.0.send(format!("CHAT GLOBAL {}\n", text));
+                        history.add(ChatChannel::Global, format!("[Global] {}: {}", my_name, text), Color::rgb(0.95, 0.90, 0.80));
+                        console.last_sent = Some((ChatChannel::Global, text, std::time::Instant::now()));
+                    }
+                    "ROOM" if parts.len() > 1 => {
+                        let text = parts[1..].join(" ");
+                        let _ = sender.0.send(format!("CHAT ROOM {}\n", text));
+                        history.add(ChatChannel::Room, format!("[Room] {}: {}", my_name, text), Color::rgb(0.85, 1.0, 0.88));
+                        console.last_sent = Some((ChatChannel::Room, text, std::time::Instant::now()));
+                    }
+                    "GROUP" if parts.len() > 1 && !["CREATE", "INVITE", "ACCEPT", "LEAVE", "INFO"].contains(&parts[1].to_uppercase().as_str()) => {
+                        let text = parts[1..].join(" ");
+                        let _ = sender.0.send(format!("CHAT GROUP {}\n", text));
+                        history.add(ChatChannel::Group, format!("[Group] {}: {}", my_name, text), Color::rgb(0.80, 0.90, 1.0));
+                        console.last_sent = Some((ChatChannel::Group, text, std::time::Instant::now()));
+                    }
+                    _ => {
+                        let _ = sender.0.send(format!("{}\n", cmd));
+                    }
+                }
+            } else if msg.to_uppercase().starts_with("CHAT ") {
+                let _ = sender.0.send(format!("{}\n", msg));
+            } else {
+                let channel_cmd = match console.active_channel {
+                    ChatChannel::Global => "GLOBAL",
+                    ChatChannel::Room => "ROOM",
+                    ChatChannel::Group => "GROUP",
+                };
+                let _ = sender.0.send(format!("CHAT {} {}\n", channel_cmd, msg));
+
+                // Ajout immédiat pour un affichage instantané et garanti
+                let (prefix, color) = match console.active_channel {
+                    ChatChannel::Global => (format!("[Global] {}: {}", my_name, msg), Color::rgb(0.95, 0.90, 0.80)),
+                    ChatChannel::Room => (format!("[Room] {}: {}", my_name, msg), Color::rgb(0.85, 1.0, 0.88)),
+                    ChatChannel::Group => (format!("[Group] {}: {}", my_name, msg), Color::rgb(0.80, 0.90, 1.0)),
+                };
+                history.add(console.active_channel, prefix, color);
+                console.last_sent = Some((console.active_channel, msg.clone(), std::time::Instant::now()));
+            }
+            console.input_buffer.clear();
+        }
+        console.open = false;
+    }
+}
+
+fn process_chat_events(
+    mut events: EventReader<ServerMessageEvent>,
+    mut console: ResMut<ChatConsole>,
+    mut history: ResMut<ChatHistory>,
+    local_name: Res<LocalPlayerName>,
+) {
+    for ev in events.read() {
+        let line = ev.0.trim();
+
+        // 1. GLOBAL CHAT: S: EVT GLOBAL CHAT <sender> <message>
+        if let Some(rest) = line.strip_prefix("S: EVT GLOBAL CHAT ") {
+            let parts: Vec<&str> = rest.split_whitespace().collect();
+            if parts.len() >= 2 {
+                let sender = parts[0];
+                let message = parts[1..].join(" ");
+                let is_recent_self = local_name.0.as_deref() == Some(sender)
+                    && console.last_sent.as_ref().map_or(false, |(c, m, t)| *c == ChatChannel::Global && m == &message && t.elapsed().as_secs() < 3);
+
+                if !is_recent_self {
+                    if sender == "Server" {
+                        history.add(
+                            ChatChannel::Global,
+                            format!("[Server] {}", message),
+                            Color::rgb(1.0, 0.85, 0.3),
+                        );
+                    } else {
+                        history.add(
+                            ChatChannel::Global,
+                            format!("[Global] {}: {}", sender, message),
+                            Color::rgb(0.95, 0.90, 0.80),
+                        );
+                    }
+                    if console.active_channel != ChatChannel::Global {
+                        console.unread_global += 1;
+                    }
+                }
+            }
+            continue;
+        }
+
+        // 2. ROOM EVENTS: S: EVT ROOM <room> ...
+        if line.starts_with("S: EVT ROOM ") {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 5 {
+                match parts[4] {
+                    "CHAT" if parts.len() >= 7 => {
+                        let sender = parts[5].replace('_', " ");
+                        let message = parts[6..].join(" ");
+                        let is_recent_self = local_name.0.as_deref() == Some(sender.as_str())
+                            && console.last_sent.as_ref().map_or(false, |(c, m, t)| *c == ChatChannel::Room && m == &message && t.elapsed().as_secs() < 3);
+
+                        if !is_recent_self {
+                            history.add(
+                                ChatChannel::Room,
+                                format!("[Room] {}: {}", sender, message),
+                                Color::rgb(0.85, 1.0, 0.88),
+                            );
+                            if console.active_channel != ChatChannel::Room {
+                                console.unread_room += 1;
+                            }
+                        }
+                    }
+                    "PRESENCE" if parts.len() >= 7 => {
+                        let action = parts[5];
+                        let user = parts[6];
+                        let is_me = local_name.0.as_deref() == Some(user);
+                        if !is_me {
+                            if action == "LEAVE" {
+                                history.add(
+                                    ChatChannel::Room,
+                                    format!("[Room] {} left the room", user),
+                                    Color::rgb(0.70, 0.70, 0.75),
+                                );
+                                if console.active_channel != ChatChannel::Room {
+                                    console.unread_room += 1;
+                                }
+                            } else if action == "ENTER" {
+                                let is_room_loading = console.room_change_time.as_ref().map_or(false, |t| t.elapsed().as_millis() < 800);
+                                if !is_room_loading {
+                                    history.add(
+                                        ChatChannel::Room,
+                                        format!("[Room] {} entered the room", user),
+                                        Color::rgb(0.70, 0.70, 0.75),
+                                    );
+                                    if console.active_channel != ChatChannel::Room {
+                                        console.unread_room += 1;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            continue;
+        }
+
+        // 3. ROOM LOCATION CHANGE: S: OK room-loc.<room>
+        if let Some(room) = line.strip_prefix("S: OK room-loc.") {
+            console.room_change_time = Some(std::time::Instant::now());
+            history.add(
+                ChatChannel::Room,
+                format!("[Room] Arrivée dans : {}", room),
+                Color::rgb(0.40, 0.80, 0.90),
+            );
+            continue;
+        }
+
+        if line.starts_with("S: OK connected") {
+            console.room_change_time = Some(std::time::Instant::now());
+        }
+
+        // 4. GROUP EVENTS: S: EVT GROUP ...
+        if line.starts_with("S: EVT GROUP ") {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 4 {
+                match parts[3] {
+                    "CHAT" if parts.len() >= 6 => {
+                        let sender = parts[4];
+                        let message = parts[5..].join(" ");
+                        let is_recent_self = local_name.0.as_deref() == Some(sender)
+                            && console.last_sent.as_ref().map_or(false, |(c, m, t)| *c == ChatChannel::Group && m == &message && t.elapsed().as_secs() < 3);
+
+                        if !is_recent_self {
+                            history.add(
+                                ChatChannel::Group,
+                                format!("[Group] {}: {}", sender, message),
+                                Color::rgb(0.80, 0.90, 1.0),
+                            );
+                            if console.active_channel != ChatChannel::Group {
+                                console.unread_group += 1;
+                            }
+                        }
+                    }
+                    "JOIN" if parts.len() >= 5 => {
+                        let user = parts[4];
+                        history.add(
+                            ChatChannel::Group,
+                            format!("[Group] {} a rejoint le groupe", user),
+                            Color::rgb(0.50, 0.85, 1.0),
+                        );
+                        if local_name.0.as_deref() == Some(user) {
+                            console.in_group = true;
+                        }
+                    }
+                    "LEAVE" if parts.len() >= 5 => {
+                        let user = parts[4];
+                        history.add(
+                            ChatChannel::Group,
+                            format!("[Group] {} a quitté le groupe", user),
+                            Color::rgb(0.70, 0.75, 0.90),
+                        );
+                        if local_name.0.as_deref() == Some(user) {
+                            console.in_group = false;
+                            if console.active_channel == ChatChannel::Group {
+                                console.active_channel = ChatChannel::Room;
+                            }
+                        }
+                    }
+                    "CREATED" if parts.len() >= 5 => {
+                        let user = parts[4];
+                        history.add(
+                            ChatChannel::Group,
+                            format!("[Group] {} a créé le groupe", user),
+                            Color::rgb(0.50, 0.85, 1.0),
+                        );
+                        if local_name.0.as_deref() == Some(user) {
+                            console.in_group = true;
+                        }
+                    }
+                    "DISBAND" => {
+                        let text = parts[4..].join(" ");
+                        history.add(
+                            ChatChannel::Group,
+                            format!("[Group] {}", text),
+                            Color::rgb(1.0, 0.6, 0.4),
+                        );
+                        history.add(
+                            ChatChannel::Room,
+                            format!("[Group] {}", text),
+                            Color::rgb(1.0, 0.6, 0.4),
+                        );
+                        console.in_group = false;
+                        if console.active_channel == ChatChannel::Group {
+                            console.active_channel = ChatChannel::Room;
+                        }
+                    }
+                    "INVITED" => {
+                        let text = parts[4..].join(" ");
+                        let msg = format!("[Group] {}", text);
+                        history.add(ChatChannel::Room, msg.clone(), Color::rgb(1.0, 0.85, 0.4));
+                        history.add(ChatChannel::Global, msg, Color::rgb(1.0, 0.85, 0.4));
+                    }
+                    _ => {}
+                }
+            }
+            continue;
+        }
+
+        // 5. SERVER RESPONSES
+        if line == "S: OK you_joined_the_group" {
+            console.in_group = true;
+            history.add(ChatChannel::Room, "[Group] Vous avez rejoint le groupe !".to_string(), Color::rgb(0.5, 0.85, 1.0));
+            history.add(ChatChannel::Group, "[Group] Vous avez rejoint le groupe !".to_string(), Color::rgb(0.5, 0.85, 1.0));
+        } else if line == "S: OK group_created" {
+            console.in_group = true;
+            history.add(ChatChannel::Room, "[Group] Groupe créé !".to_string(), Color::rgb(0.5, 0.85, 1.0));
+            history.add(ChatChannel::Group, "[Group] Groupe créé !".to_string(), Color::rgb(0.5, 0.85, 1.0));
+        } else if line == "S: OK you_left_the_group" {
+            console.in_group = false;
+            if console.active_channel == ChatChannel::Group {
+                console.active_channel = ChatChannel::Room;
+            }
+            history.add(ChatChannel::Room, "[Group] Vous avez quitté le groupe.".to_string(), Color::rgb(0.7, 0.7, 0.8));
+        } else if line == "S: OK group_disbanded" {
+            console.in_group = false;
+            if console.active_channel == ChatChannel::Group {
+                console.active_channel = ChatChannel::Room;
+            }
+            history.add(ChatChannel::Room, "[Group] Le groupe a été dissous.".to_string(), Color::rgb(1.0, 0.6, 0.4));
+        } else if let Some(members) = line.strip_prefix("S: OK Group members: ") {
+            console.in_group = true;
+            history.add(ChatChannel::Group, format!("[Group] Membres : {}", members), Color::rgb(0.5, 0.85, 1.0));
+        } else if line == "S: OK No group" {
+            console.in_group = false;
+            if console.active_channel == ChatChannel::Group {
+                console.active_channel = ChatChannel::Room;
+            }
+        } else if let Some(target) = line.strip_prefix("S: OK you invited ") {
+            history.add(console.active_channel, format!("[Group] Invitation envoyée à {}", target), Color::rgb(1.0, 0.85, 0.4));
+        } else if line == "S: ERR chat_spam_forbidden" {
+            history.add(console.active_channel, "[System] Ralentissez ! Anti-spam actif (2s).".to_string(), Color::rgb(1.0, 0.4, 0.4));
+        } else if line == "S: ERR you_have_no_group" {
+            console.in_group = false;
+            if console.active_channel == ChatChannel::Group {
+                console.active_channel = ChatChannel::Room;
+            }
+            history.add(console.active_channel, "[System] Vous n'êtes pas dans un groupe.".to_string(), Color::rgb(1.0, 0.4, 0.4));
+        } else if line == "S: ERR player_not_found" {
+            history.add(console.active_channel, "[System] Joueur introuvable.".to_string(), Color::rgb(1.0, 0.4, 0.4));
+        } else if line == "S: ERR player_already_in_group" {
+            history.add(console.active_channel, "[System] Ce joueur est déjà dans un groupe.".to_string(), Color::rgb(1.0, 0.4, 0.4));
+        } else if line == "S: ERR cannot_invite_yourself" {
+            history.add(console.active_channel, "[System] Impossible de vous inviter vous-même.".to_string(), Color::rgb(1.0, 0.4, 0.4));
+        } else if line == "S: ERR you_already_have_a_group" {
+            history.add(console.active_channel, "[System] Vous avez déjà un groupe.".to_string(), Color::rgb(1.0, 0.4, 0.4));
+        } else if line == "S: ERR no_pending_invite" {
+            history.add(console.active_channel, "[System] Aucune invitation en attente.".to_string(), Color::rgb(1.0, 0.4, 0.4));
+        } else if line == "S: ERR group_no_longer_exists" {
+            history.add(console.active_channel, "[System] Le groupe n'existe plus.".to_string(), Color::rgb(1.0, 0.4, 0.4));
         }
     }
 }
 
-fn display_messages(mut events: EventReader<ServerMessageEvent>, mut query: Query<&mut Text, With<ChatText>>) {
-    for ev in events.read() {
-        for mut text in query.iter_mut() {
-            text.sections[0].value.push_str(&format!("{}\n", ev.0));
-
-            let lines: Vec<&str> = text.sections[0].value.lines().collect();
-            if lines.len() > MAX_CHAT_LINES {
-                text.sections[0].value = lines[lines.len() - MAX_CHAT_LINES..].join("\n") + "\n";
-            }
+fn update_chat_container_style(
+    console: Res<ChatConsole>,
+    mut query: Query<(&mut BackgroundColor, &mut BorderColor), With<ChatUiRoot>>,
+) {
+    if !console.is_changed() {
+        return;
+    }
+    if let Ok((mut bg, mut border)) = query.get_single_mut() {
+        if console.open {
+            *bg = Color::rgba(0.06, 0.07, 0.10, 0.92).into();
+            *border = Color::rgba(0.45, 0.45, 0.55, 0.85).into();
+        } else {
+            *bg = Color::rgba(0.04, 0.05, 0.07, 0.65).into();
+            *border = Color::rgba(0.25, 0.25, 0.35, 0.45).into();
         }
     }
+}
+
+fn update_chat_tabs_ui(
+    console: Res<ChatConsole>,
+    mut tab_buttons: Query<(&ChatTabButton, &mut BackgroundColor, &mut BorderColor, &mut Style)>,
+    mut tab_texts: Query<(&ChatTabText, &mut Text)>,
+) {
+    for (btn, mut bg, mut border, mut style) in &mut tab_buttons {
+        if btn.0 == ChatChannel::Group {
+            style.display = if console.in_group { Display::Flex } else { Display::None };
+        }
+
+        if btn.0 == console.active_channel {
+            *bg = Color::rgba(0.20, 0.22, 0.30, 0.95).into();
+            *border = btn.0.color().into();
+        } else {
+            *bg = Color::rgba(0.08, 0.08, 0.12, 0.60).into();
+            *border = Color::rgba(0.20, 0.20, 0.28, 0.40).into();
+        }
+    }
+
+    for (tab_text, mut text) in &mut tab_texts {
+        let is_active = tab_text.0 == console.active_channel;
+        let unread = match tab_text.0 {
+            ChatChannel::Global => console.unread_global,
+            ChatChannel::Room => console.unread_room,
+            ChatChannel::Group => console.unread_group,
+        };
+
+        if is_active {
+            text.sections[0].value = tab_text.0.name().to_string();
+            text.sections[0].style.color = tab_text.0.color();
+        } else if unread > 0 {
+            text.sections[0].value = format!("{} (*)", tab_text.0.name());
+            text.sections[0].style.color = tab_text.0.color();
+        } else {
+            text.sections[0].value = tab_text.0.name().to_string();
+            text.sections[0].style.color = Color::rgba(0.60, 0.60, 0.65, 0.75);
+        }
+    }
+}
+
+fn update_chat_input_ui(
+    time: Res<Time>,
+    mut console: ResMut<ChatConsole>,
+    mut prompt_q: Query<&mut Text, (With<ChatInputPrompt>, Without<ChatInputText>)>,
+    mut input_text_q: Query<&mut Text, (With<ChatInputText>, Without<ChatInputPrompt>)>,
+    mut container_q: Query<(&mut BackgroundColor, &mut BorderColor), With<ChatInputContainer>>,
+) {
+    console.cursor_timer.tick(time.delta());
+    if console.cursor_timer.just_finished() {
+        console.cursor_visible = !console.cursor_visible;
+    }
+
+    let channel_color = console.active_channel.color();
+
+    if let Ok(mut prompt) = prompt_q.get_single_mut() {
+        prompt.sections[0].value = if console.open {
+            format!("[{}] > ", console.active_channel.name())
+        } else {
+            format!("[{}] ", console.active_channel.name())
+        };
+        prompt.sections[0].style.color = if console.open {
+            channel_color
+        } else {
+            channel_color.with_a(0.65)
+        };
+    }
+
+    if let Ok(mut text) = input_text_q.get_single_mut() {
+        if console.open {
+            let cursor = if console.cursor_visible { "_" } else { " " };
+            text.sections[0].value = format!("{}{}", console.input_buffer, cursor);
+            text.sections[0].style.color = Color::WHITE;
+            text.sections[0].style.font_size = 14.0;
+        } else {
+            text.sections[0].value = "Appuyez sur 'T' pour parler...".to_string();
+            text.sections[0].style.color = Color::rgba(0.55, 0.55, 0.60, 0.7);
+            text.sections[0].style.font_size = 13.0;
+        }
+    }
+
+    if let Ok((mut bg, mut border)) = container_q.get_single_mut() {
+        if console.open {
+            *bg = Color::rgba(0.08, 0.09, 0.13, 0.95).into();
+            *border = channel_color.into();
+        } else {
+            *bg = Color::rgba(0.04, 0.05, 0.08, 0.70).into();
+            *border = Color::rgba(0.25, 0.25, 0.35, 0.50).into();
+        }
+    }
+}
+
+fn update_chat_messages_ui(
+    console: Res<ChatConsole>,
+    history: Res<ChatHistory>,
+    mut query: Query<&mut Text, With<ChatText>>,
+) {
+    if !history.is_changed() && !console.is_changed() {
+        return;
+    }
+
+    let Ok(mut text) = query.get_single_mut() else {
+        return;
+    };
+
+    let relevant: Vec<&ChatMessage> = history
+        .messages
+        .iter()
+        .filter(|m| m.channel == console.active_channel)
+        .rev()
+        .take(MAX_CHAT_LINES)
+        .collect();
+
+    let mut sections = Vec::new();
+    if relevant.is_empty() {
+        sections.push(TextSection::new(
+            format!("(Aucun message dans le canal {})\n", console.active_channel.name()),
+            TextStyle {
+                font_size: 14.0,
+                color: Color::rgba(0.5, 0.5, 0.55, 0.7),
+                ..default()
+            },
+        ));
+    } else {
+        for msg in relevant.into_iter().rev() {
+            sections.push(TextSection::new(
+                format!("{}\n", msg.text),
+                TextStyle {
+                    font_size: 14.0,
+                    color: msg.color,
+                    ..default()
+                },
+            ));
+        }
+    }
+    text.sections = sections;
 }
 
 #[derive(Component)]
@@ -1351,7 +2307,7 @@ fn toggle_quest_ui(
     inventory: Res<InventoryState>,
     sender: Res<crate::net::NetworkSender>,
 ) {
-    if !console.open && !inventory.open && keys.just_pressed(KeyCode::KeyU) {
+    if !console.open && !console.terminal_open && !inventory.open && keys.just_pressed(KeyCode::KeyU) {
         state.open = !state.open;
         if state.open {
             let _ = sender.0.send("QUESTS\n".to_string());

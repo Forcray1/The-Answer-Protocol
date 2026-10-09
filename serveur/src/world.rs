@@ -52,12 +52,27 @@ pub struct Npc {
     pub drops: Vec<DropChance>,
     #[serde(default)]
     pub respawn_time: Option<u64>,
-    #[serde(default)]
+    #[serde(default, alias = "map_sprite")]
     pub sprite: Option<String>,
+    #[serde(default, alias = "battle_sprite")]
+    pub combat_sprite: Option<String>,
     #[serde(default)]
     pub spawn_pos: Option<[f32; 2]>,
     #[serde(default)]
     pub scale: Option<f32>,
+}
+
+impl Npc {
+    pub fn map_sprite(&self) -> &str {
+        self.sprite.as_deref().unwrap_or("default")
+    }
+
+    pub fn combat_sprite(&self) -> &str {
+        self.combat_sprite
+            .as_deref()
+            .or(self.sprite.as_deref())
+            .unwrap_or("default")
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]

@@ -74,7 +74,7 @@ fn toggle_minimap(
     console: Res<crate::ui::ChatConsole>,
     mut query: Query<&mut Visibility, With<MinimapOverlay>>,
 ) {
-    if console.open || !keys.just_pressed(MINIMAP_KEY) {
+    if console.open || console.terminal_open || !keys.just_pressed(MINIMAP_KEY) {
         return;
     }
 

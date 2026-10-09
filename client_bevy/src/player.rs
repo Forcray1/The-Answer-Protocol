@@ -72,7 +72,7 @@ struct PlayerAnimation {
 }
 
 #[derive(Resource, Default)]
-struct LocalPlayerName(Option<String>);
+pub struct LocalPlayerName(pub Option<String>);
 
 #[derive(Resource)]
 struct PosSendTimer(Timer);
@@ -248,7 +248,7 @@ fn update_local_player(
         return;
     }
 
-    if console.open {
+    if console.open || console.terminal_open {
         held.0.clear();
     } else {
         for d in MOVE_KEYS {
@@ -386,7 +386,7 @@ fn handle_presence_events(
                     continue; // jamais soi-même
                 }
                 match p[5] {
-                    "ENTER" if p.len() >= 10 => {
+                    "ENTER" | "ROSTER" if p.len() >= 10 => {
                         let skin = p[7];
                         let pos = Vec2::new(p[8].parse().unwrap_or(0.0), p[9].parse().unwrap_or(0.0));
                         if remotes.iter().any(|(_, r)| r.name == name) {

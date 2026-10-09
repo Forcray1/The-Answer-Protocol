@@ -36,9 +36,8 @@ world:
       drops:                         # optional — loot table dropped on death
         - item_id: "example_item"    #   item id to drop
           chance: 50                 #   drop chance in percent (0..100)
-      # NOTE: a `sprite:` line is currently IGNORED by the server (unknown field).
-      #       To actually render NPC sprites we'd add `sprite` to the `Npc` struct
-      #       and draw it client-side (same idea as player skins).
+      sprite: "IdleSqueleton"        # optional (or map_sprite) — sprite shown on the exploration map (sprites/mob/<name>.png)
+      combat_sprite: "Squelette"     # optional (or battle_sprite) — sprite shown during battle mode
 
   # =====================================================================
   # ITEMS — the CATALOG. Put instances on the ground via

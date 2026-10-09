@@ -145,14 +145,14 @@ fn room_mob_roster(room: &RoomId, state: &ServerState, world: &WorldData) -> Str
     if let Some(npc_ids) = state.room_npcs.get(room) {
         for npc_id in npc_ids {
             if let Some(npc) = world.world.npcs.iter().find(|n| &n.id == npc_id) {
-                let sprite = npc.sprite.as_deref().unwrap_or("default");
+                let sprite = npc.map_sprite();
                 let (x, y) = npc.spawn_pos.map(|p| (p[0] as i64, p[1] as i64)).unwrap_or((0, 0));
                 let hp = state.npc_hps.get(npc_id).copied().unwrap_or(npc.hp);
                 let max_hp = npc.hp;
                 let scale = npc.scale.unwrap_or(1.0);
                 out.push_str(&format!(
-                    "S: EVT ROOM {} MOB_SPAWN {} {} {} {} {} {} {}\n",
-                    room, npc_id, sprite, x, y, hp, max_hp, scale
+                    "S: EVT ROOM {} MOB_SPAWN {} {} {} {} {} {} {} {}\n",
+                    room, npc_id, sprite, x, y, hp, max_hp, scale, npc.name.replace(" ", "_")
                 ));
             }
         }
@@ -362,7 +362,7 @@ fn room_presence_roster(addr: SocketAddr, state: &ServerState, room: &RoomId) ->
     for (other_addr, p) in &state.players {
         if *other_addr != addr && &p.current_room == room {
             out.push_str(&format!(
-                "S: EVT ROOM {} PRESENCE ENTER {} {} {} {}\n",
+                "S: EVT ROOM {} PRESENCE ROSTER {} {} {} {}\n",
                 room, p.username, p.skin, p.pos_x as i64, p.pos_y as i64
             ));
         }
@@ -822,15 +822,15 @@ fn handle_chat(addr: SocketAddr, channel: String, message: String, state: &mut S
 
         match channel.as_str() {
             "GLOBAL" => {
-                let _ = tx.send(GlobalEvent { sender_addr: Some(addr), message: format!("S: EVT GLOBAL CHAT {} {}\n", username, message), target_room: None, target_group: None, target_player: None });
+                let _ = tx.send(GlobalEvent { sender_addr: None, message: format!("S: EVT GLOBAL CHAT {} {}\n", username, message), target_room: None, target_group: None, target_player: None });
                 "S: OK\n".to_string()
             }
             "ROOM" => {
-                let _ = tx.send(GlobalEvent { sender_addr: Some(addr), message: format!("S: EVT ROOM {} CHAT {} {}\n", current_room, username, message), target_room: Some(RoomId::from(current_room.as_str())), target_group: None, target_player: None });
+                let _ = tx.send(GlobalEvent { sender_addr: None, message: format!("S: EVT ROOM {} CHAT {} {}\n", current_room, username, message), target_room: Some(RoomId::from(current_room.as_str())), target_group: None, target_player: None });
                 "S: OK\n".to_string()
             }
             "GROUP" => {
-                let _ = tx.send(GlobalEvent { sender_addr: Some(addr), message: format!("S: EVT GROUP CHAT {} {}\n", username, message), target_room: None, target_group: group_id_opt, target_player: None });
+                let _ = tx.send(GlobalEvent { sender_addr: None, message: format!("S: EVT GROUP CHAT {} {}\n", username, message), target_room: None, target_group: group_id_opt, target_player: None });
                 "S: OK\n".to_string()
             }
             _ => "S: ERR unknown_channel\n".to_string(),
