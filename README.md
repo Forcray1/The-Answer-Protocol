@@ -405,14 +405,14 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 	mlorenzo:
 		- Change the debug format for a more explicit display
 		- Did layers files for all the maps except dungeons
+10/10/2026:
+	mlorenzo:
+		- Finished the mandatory exit point to not be stuck
+		- Finished all of the perspectives
 ````
 
 TODO:
-	- Add the collisions and interactions
+	- Add the collisions [DONE] and interactions
 	- finish the world.yaml with all the informations
 	- Make all of the combat system
 	- Logs not working for bevy client (ah ouais ?)
-
-PS: Toujours le problème de perspective a corriger mais pour le reste on devrais être bon. On a pas encore la map de cave je vais l'implémenter des que je les recois
-
-Faire une sortie spécifique pour les map du temple pour revenir en haut de l'escalier

@@ -215,12 +215,21 @@ fn default_arrival(dir: &str) -> Vec2 {
 const C_TO_W6: Vec2 = Vec2::new(-950.0, 225.0);
 const C_TO_C: Vec2 = Vec2::new(-1255.0, 70.0);
 const T_TO_C: Vec2 = Vec2::new(1255.0, 60.0);
+const T4_TO_T3: Vec2 = Vec2::new(1255.0, 427.0);
+const T3_TO_T2: Vec2 = Vec2::new(1255.0, 427.0);
+const T2_TO_T1: Vec2 = Vec2::new(1255.0, 427.0);
+const T1_TO_T: Vec2 = Vec2::new(1255.0, 106.0);
+
 
 fn arrival_point(from_room: &str, dir: &str) -> Vec2 {
     match (from_room, dir) {
         ("Cave1", "east") => C_TO_W6,
 		("City", "east") => C_TO_C,
 		("Castle", "west") => T_TO_C,
+		("Temple4", "west") => T4_TO_T3,
+		("Temple3", "west") => T3_TO_T2,
+		("Temple2", "west") => T2_TO_T1,
+		("Temple1", "west") => T1_TO_T,
         _ => default_arrival(dir),
     }
 }
