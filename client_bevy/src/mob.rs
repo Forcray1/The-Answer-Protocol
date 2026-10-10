@@ -221,7 +221,15 @@ fn interaction_system(
     mob_q: Query<(&Transform, &Mob)>,
     mut prompt_q: Query<(&mut Visibility, &mut Transform), (With<InteractionPrompt>, Without<LocalPlayer>, Without<Mob>)>,
     mut interactable: ResMut<InteractableTarget>,
+    combat: Res<crate::combat::CombatResource>,
 ) {
+    if combat.in_combat {
+        if let Ok((mut vis, _)) = prompt_q.get_single_mut() {
+            *vis = Visibility::Hidden;
+        }
+        interactable.0 = None;
+        return;
+    }
     let Ok(player_transform) = player_q.get_single() else { return; };
     let mut closest_dist = f32::MAX;
     let mut closest_npc = None;
@@ -252,8 +260,12 @@ fn interaction_system(
 fn handle_interaction_input(
     input: Res<ButtonInput<KeyCode>>,
     interactable: Res<InteractableTarget>,
-    mut sender: ResMut<crate::net::NetworkSender>,
+    combat: Res<crate::combat::CombatResource>,
+    sender: Res<crate::net::NetworkSender>,
 ) {
+    if combat.in_combat {
+        return;
+    }
     if input.just_pressed(KeyCode::KeyE) {
         if let Some(ref npc_id) = interactable.0 {
             let _ = sender.0.send(format!("INTERACT {}\n", npc_id));

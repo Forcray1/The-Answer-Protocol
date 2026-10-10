@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::combat::CombatResource;
 use crate::net::{NetworkSender, ServerMessageEvent};
 use crate::player::LocalPlayerName;
 use crate::AppState;
@@ -801,6 +802,7 @@ impl Plugin for ConsolePlugin {
                     update_chat_messages_ui,
                     spawn_chat_bubbles,
                     tick_chat_bubbles,
+                    update_chat_combat_visibility,
                 ).run_if(in_state(AppState::InGame)),
             );
     }
@@ -1234,9 +1236,11 @@ fn setup_chat_ui(mut commands: Commands) {
 fn on_enter_ingame(
     mut chat_root_q: Query<&mut Visibility, (With<ChatUiRoot>, Without<TerminalUiRoot>)>,
     sender: Res<NetworkSender>,
+    combat: Option<Res<CombatResource>>,
 ) {
+    let in_combat = combat.as_ref().map_or(false, |c| c.in_combat);
     if let Ok(mut vis) = chat_root_q.get_single_mut() {
-        *vis = Visibility::Inherited;
+        *vis = if in_combat { Visibility::Hidden } else { Visibility::Inherited };
     }
     let _ = sender.0.send("GROUP\n".to_string());
 }
@@ -1260,7 +1264,13 @@ fn on_exit_ingame(
 fn toggle_chat(
     keys: Res<ButtonInput<KeyCode>>,
     mut console: ResMut<ChatConsole>,
+    combat: Option<Res<CombatResource>>,
 ) {
+    if let Some(ref combat) = combat {
+        if combat.in_combat {
+            return;
+        }
+    }
     if console.terminal_open {
         return;
     }
@@ -1287,7 +1297,13 @@ fn toggle_terminal(
     keys: Res<ButtonInput<KeyCode>>,
     mut console: ResMut<ChatConsole>,
     mut query: Query<&mut Visibility, With<TerminalUiRoot>>,
+    combat: Option<Res<CombatResource>>,
 ) {
+    if let Some(ref combat) = combat {
+        if combat.in_combat {
+            return;
+        }
+    }
     let toggle_pressed = keys.just_pressed(KeyCode::F1)
         || keys.just_pressed(KeyCode::Backquote)
         || keys.just_pressed(KeyCode::F2);
@@ -1312,7 +1328,13 @@ fn toggle_terminal(
 fn handle_tab_clicks(
     interaction_q: Query<(&Interaction, &ChatTabButton), (Changed<Interaction>, With<Button>)>,
     mut console: ResMut<ChatConsole>,
+    combat: Option<Res<CombatResource>>,
 ) {
+    if let Some(ref combat) = combat {
+        if combat.in_combat {
+            return;
+        }
+    }
     for (interaction, btn) in &interaction_q {
         if *interaction == Interaction::Pressed {
             console.active_channel = btn.0;
@@ -1324,7 +1346,13 @@ fn handle_tab_clicks(
 fn handle_input_clicks(
     interaction_q: Query<&Interaction, (Changed<Interaction>, With<ChatInputContainer>)>,
     mut console: ResMut<ChatConsole>,
+    combat: Option<Res<CombatResource>>,
 ) {
+    if let Some(ref combat) = combat {
+        if combat.in_combat {
+            return;
+        }
+    }
     for interaction in &interaction_q {
         if *interaction == Interaction::Pressed {
             console.open = true;
@@ -1339,7 +1367,13 @@ fn handle_terminal_inputs(
     mut console: ResMut<ChatConsole>,
     mut input_query: Query<&mut Text, (With<TerminalInputText>, Without<TerminalLogText>)>,
     mut log_query: Query<&mut Text, (With<TerminalLogText>, Without<TerminalInputText>)>,
+    combat: Option<Res<CombatResource>>,
 ) {
+    if let Some(ref combat) = combat {
+        if combat.in_combat {
+            return;
+        }
+    }
     if !console.terminal_open {
         return;
     }
@@ -1401,7 +1435,13 @@ fn handle_inputs(
     mut console: ResMut<ChatConsole>,
     mut history: ResMut<ChatHistory>,
     local_name: Res<LocalPlayerName>,
+    combat: Option<Res<CombatResource>>,
 ) {
+    if let Some(ref combat) = combat {
+        if combat.in_combat {
+            return;
+        }
+    }
     if !console.open || console.terminal_open {
         return;
     }
@@ -1744,6 +1784,32 @@ fn process_chat_events(
             history.add(console.active_channel, "[System] Aucune invitation en attente.".to_string(), Color::rgb(1.0, 0.4, 0.4));
         } else if line == "S: ERR group_no_longer_exists" {
             history.add(console.active_channel, "[System] Le groupe n'existe plus.".to_string(), Color::rgb(1.0, 0.4, 0.4));
+        }
+    }
+}
+
+fn update_chat_combat_visibility(
+    combat: Option<Res<CombatResource>>,
+    mut chat_root_q: Query<&mut Visibility, (With<ChatUiRoot>, Without<TerminalUiRoot>)>,
+    mut term_root_q: Query<&mut Visibility, (With<TerminalUiRoot>, Without<ChatUiRoot>)>,
+    mut console: ResMut<ChatConsole>,
+) {
+    let Some(combat) = combat else { return };
+    if combat.is_changed() {
+        if combat.in_combat {
+            if let Ok(mut vis) = chat_root_q.get_single_mut() {
+                *vis = Visibility::Hidden;
+            }
+            if let Ok(mut vis) = term_root_q.get_single_mut() {
+                *vis = Visibility::Hidden;
+            }
+            console.open = false;
+            console.terminal_open = false;
+            console.input_buffer.clear();
+        } else {
+            if let Ok(mut vis) = chat_root_q.get_single_mut() {
+                *vis = Visibility::Inherited;
+            }
         }
     }
 }
@@ -2447,7 +2513,13 @@ impl Plugin for HudPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlayerStats>()
             .add_systems(Startup, setup_hud_ui)
-            .add_systems(Update, handle_player_stats.run_if(in_state(AppState::InGame)))
+            .add_systems(
+                Update,
+                (
+                    handle_player_stats,
+                    update_hud_combat_visibility,
+                ).run_if(in_state(AppState::InGame)),
+            )
             .add_systems(OnEnter(AppState::InGame), show_hud)
             .add_systems(OnExit(AppState::InGame), hide_hud);
     }
@@ -2599,15 +2671,35 @@ fn setup_hud_ui(mut commands: Commands) {
         });
 }
 
-fn show_hud(mut q: Query<&mut Visibility, With<HudUiRoot>>) {
+fn show_hud(
+    mut q: Query<&mut Visibility, With<HudUiRoot>>,
+    combat: Option<Res<CombatResource>>,
+) {
+    let in_combat = combat.as_ref().map_or(false, |c| c.in_combat);
     for mut vis in q.iter_mut() {
-        *vis = Visibility::Inherited;
+        *vis = if in_combat { Visibility::Hidden } else { Visibility::Inherited };
     }
 }
 
 fn hide_hud(mut q: Query<&mut Visibility, With<HudUiRoot>>) {
     for mut vis in q.iter_mut() {
         *vis = Visibility::Hidden;
+    }
+}
+
+fn update_hud_combat_visibility(
+    combat: Option<Res<CombatResource>>,
+    mut q: Query<&mut Visibility, With<HudUiRoot>>,
+) {
+    let Some(combat) = combat else { return };
+    if combat.is_changed() {
+        for mut vis in q.iter_mut() {
+            *vis = if combat.in_combat {
+                Visibility::Hidden
+            } else {
+                Visibility::Inherited
+            };
+        }
     }
 }
 

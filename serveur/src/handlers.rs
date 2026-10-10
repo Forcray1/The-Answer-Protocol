@@ -6,11 +6,11 @@ use rand::Rng;
 use serde_json::json;
 use tokio::sync::broadcast::Sender;
 
-use domain::{xp_required_for_level, Armor, Direction, Equipement, Group, GroupId, ItemBucket, ItemId, PlayerId, RoomId, Weapon, WeaponType};
+use domain::{xp_required_for_level, Armor, CombatState, Direction, Equipement, Group, GroupId, ItemBucket, ItemId, PlayerId, RoomId, Weapon, WeaponType};
 
 use crate::commands::GameCommand;
-use crate::state::{Player, ServerState, START_ROOM};
-use crate::world::{Item as CatalogItem, WorldData};
+use crate::state::{CombatInstance, CombatPhase, Player, ServerState, START_ROOM};
+use crate::world::{Item as CatalogItem, Npc, WorldData};
 use crate::{log_event, DbPool, GlobalEvent};
 
 fn ci_eq(a: &str, b: &str) -> bool {
@@ -89,6 +89,7 @@ pub async fn process_command(
         GameCommand::GroupLeave     => (handle_group_leave(addr, state, tx), false),
         GameCommand::GroupInfo      => (handle_group_info(addr, state), false),
         GameCommand::Quests         => (handle_quests(addr, state, world), false),
+        GameCommand::Flee           => (handle_flee(addr, state), false),
         GameCommand::Quit           => ("S: OK goodbye\n".to_string(), true),
         GameCommand::Unknown        => ("S: ERR malformed_command\n".to_string(), false),
         _                           => ("S: OK command received but not implemented yet\n".to_string(), false),
@@ -612,7 +613,6 @@ fn handle_talk(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
     let mut npc_trouve = None;
     let mut quete_validee = false;
     let mut quest_msg = String::new();
-    let mut npc_name = String::new();
     let mut salle_actuelle = RoomId::from("");
 
     if let Some(player) = state.players.get_mut(&addr) {
@@ -627,7 +627,6 @@ fn handle_talk(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
             }
         }
         if let Some(npc) = &npc_trouve {
-            npc_name = npc.name.clone();
             for q in &world.world.quests {
                 if let crate::world::QuestObjective::DeliverItem { .. } = &q.objective {
                     if q.giver_id.as_ref() == Some(&npc.id) && player.inventory.contains(&q.target_id) && !player.completed_quests.contains(&q.id) {
@@ -662,8 +661,61 @@ fn handle_talk(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
     } else { "S: ERR There is nobody by that name here.\n".to_string() }
 }
 
+fn get_combat_bg_for_room(room: &RoomId) -> u32 {
+    let r = room.as_str().to_lowercase();
+    if r.contains("cave") {
+        3
+    } else if r.contains("temple") {
+        4
+    } else if r.contains("castle") || r.contains("city") {
+        5
+    } else if r.contains("oasis") {
+        2
+    } else {
+        1
+    }
+}
+
+pub fn handle_flee(addr: SocketAddr, state: &mut ServerState) -> String {
+    if let Some(player) = state.players.get_mut(&addr) {
+        player.combat = CombatState::Idle;
+    }
+    state.active_combats.remove(&addr);
+    "S: EVT COMBAT END flee\nS: OK You fled from combat.\n".to_string()
+}
+
+fn start_combat(addr: SocketAddr, npc: &Npc, state: &mut ServerState) -> String {
+    let player = match state.players.get_mut(&addr) {
+        Some(p) => p,
+        None => return "S: ERR utilize_connect_first\n".to_string(),
+    };
+
+    let room = player.current_room.clone();
+    player.combat = CombatState::InCombat { target: npc.id.clone() };
+    state.active_combats.insert(addr, CombatInstance {
+        npc_id: npc.id.clone(),
+        phase: CombatPhase::WaitingForPlayerAction,
+        turn_number: 1,
+    });
+
+    let current_hp = state.npc_hps.get(&npc.id).copied().unwrap_or(npc.hp);
+    let bg_index = get_combat_bg_for_room(&room);
+    let combat_sprite = npc.combat_sprite();
+
+    format!(
+        "S: EVT COMBAT START {} {} {} {} {} {}\n",
+        npc.id,
+        combat_sprite,
+        current_hp,
+        npc.hp,
+        bg_index,
+        npc.name.replace(" ", "_")
+    )
+}
+
 fn handle_interact(addr: SocketAddr, cible: String, state: &mut ServerState, world: &WorldData, tx: &Sender<GlobalEvent>) -> String {
     let mut role = String::new();
+    let mut found_npc = None;
     if let Some(player) = state.players.get(&addr) {
         let salle_actuelle = player.current_room.clone();
         if let Some(npcs_ici) = state.room_npcs.get(&salle_actuelle) {
@@ -671,6 +723,7 @@ fn handle_interact(addr: SocketAddr, cible: String, state: &mut ServerState, wor
                 if let Some(npc) = world.world.npcs.iter().find(|n| &n.id == npc_id) {
                     if ci_eq(npc.id.as_str(), &cible) || ci_eq(&npc.name, &cible) {
                         role = npc.role.clone();
+                        found_npc = Some(npc.clone());
                         break;
                     }
                 }
@@ -679,7 +732,19 @@ fn handle_interact(addr: SocketAddr, cible: String, state: &mut ServerState, wor
     }
 
     if role == "enemy" {
-        handle_attack(addr, cible, state, world, tx)
+        if let Some(npc) = found_npc {
+            let in_combat = state.players.get(&addr).map_or(false, |p| match &p.combat {
+                CombatState::InCombat { target } => target == &npc.id,
+                _ => false,
+            });
+            if in_combat {
+                handle_attack(addr, cible, state, world, tx)
+            } else {
+                start_combat(addr, &npc, state)
+            }
+        } else {
+            "S: ERR There is nobody by that name here.\n".to_string()
+        }
     } else if !role.is_empty() {
         handle_talk(addr, cible, state, world, tx)
     } else {
@@ -688,16 +753,17 @@ fn handle_interact(addr: SocketAddr, cible: String, state: &mut ServerState, wor
 }
 
 fn handle_attack(addr: SocketAddr, cible: String, state: &mut ServerState, world: &WorldData, tx: &Sender<GlobalEvent>) -> String {
-    let mut salle_actuelle = RoomId(String::new());
+    let salle_actuelle;
     let mut degats_joueur = 10;
     let mut armure_joueur = 0;
     let mut monstre_id_trouve = None;
     let mut monstre_nom = String::new();
-    let mut joueur_nom = String::new();
+    let joueur_nom;
     let mut degats_monstre = 5;
     let mut defense_monstre = 0;
     let mut exp_gagnee = 0;
     let mut drops_monstre = Vec::new();
+    let mut max_hp_monstre = 1;
     let mut en_cooldown = false;
 
     if let Some(player) = state.players.get(&addr) {
@@ -724,6 +790,7 @@ fn handle_attack(addr: SocketAddr, cible: String, state: &mut ServerState, world
                     defense_monstre = npc.defense.unwrap_or(0);
                     exp_gagnee = npc.exp_reward.unwrap_or(0);
                     drops_monstre = npc.drops.clone();
+                    max_hp_monstre = npc.hp;
                     break;
                 }
             }
@@ -740,6 +807,11 @@ fn handle_attack(addr: SocketAddr, cible: String, state: &mut ServerState, world
             if *hp <= 0 { monstre_mort = true; }
         }
         if monstre_mort {
+            if let Some(player) = state.players.get_mut(&addr) {
+                player.combat = CombatState::Idle;
+            }
+            state.active_combats.remove(&addr);
+
             if let Some(npcs_dans_salle) = state.room_npcs.get_mut(&salle_actuelle) {
                 npcs_dans_salle.retain(|id| id != &m_id);
             }
@@ -771,7 +843,7 @@ fn handle_attack(addr: SocketAddr, cible: String, state: &mut ServerState, world
                 target_group: None,
                 target_player: None,
             });
-            let mut msg = format!("S: OK You dealt {} damage. {} collapses! (+{} EXP)\n", degats_finaux, monstre_nom, exp_gagnee);
+            let mut msg = format!("S: EVT COMBAT END victory\nS: OK You dealt {} damage. {} collapses! (+{} EXP)\n", degats_finaux, monstre_nom, exp_gagnee);
             if !noms_drops.is_empty() { msg.push_str(&format!("You obtain: {}\n", noms_drops.join(", "))); }
             msg.push_str(&stat_str);
             msg
@@ -787,15 +859,17 @@ fn handle_attack(addr: SocketAddr, cible: String, state: &mut ServerState, world
                     joueur_mort = true;
                     player.hp = player.max_hp;
                     player.current_room = RoomId::from(START_ROOM);
+                    player.combat = CombatState::Idle;
                 }
                 stat_str = format!("S: EVT PLAYER_STATS {} {} {} {} {}\n", player.hp, player.max_hp, player.xp_bar.current, player.xp_bar.requiered, player.level);
             }
             if joueur_mort {
+                state.active_combats.remove(&addr);
                 let _ = tx.send(GlobalEvent { sender_addr: Some(addr), message: format!("S: EVT GLOBAL CHAT Server A player was killed by {}!\n", monstre_nom), target_room: None, target_group: None, target_player: None });
                 log_event("DEATH", &joueur_nom, json!({"killer": monstre_nom}));
-                format!("S: OK You deal {} damage, but {} finishes you off. You are DEAD! You wake up at the oasis.\n{}", degats_finaux, monstre_nom, stat_str)
+                format!("S: EVT COMBAT END defeat\nS: OK You deal {} damage, but {} finishes you off. You are DEAD! You wake up at the oasis.\n{}", degats_finaux, monstre_nom, stat_str)
             } else {
-                format!("S: OK You attack {} ({} HP left). It retaliates (-{} HP). (Your HP: {})\n{}", monstre_nom, pv_monstre_restants, degats_monstre_finaux, pv_joueur, stat_str)
+                format!("S: EVT COMBAT HIT {} {} {} {}\nS: OK You attack {} ({} HP left). It retaliates (-{} HP). (Your HP: {})\n{}", pv_monstre_restants, max_hp_monstre, degats_finaux, degats_monstre_finaux, monstre_nom, pv_monstre_restants, degats_monstre_finaux, pv_joueur, stat_str)
             }
         }
     } else { "S: ERR You can't attack that.\n".to_string() }

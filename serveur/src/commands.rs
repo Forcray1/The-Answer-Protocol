@@ -27,6 +27,7 @@ pub enum GameCommand {
     GroupLeave,
     GroupInfo,
     Quit,
+    Flee,
     Unknown,
 }
 
@@ -73,6 +74,7 @@ impl GameCommand {
             },
 
             "QUIT" => GameCommand::Quit,
+            "FLEE" | "ESCAPE" | "FUIR" => GameCommand::Flee,
             
             "CHAT" if parts.len() > 2 => {
                 let channel = parts[1].to_uppercase();

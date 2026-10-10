@@ -13,6 +13,7 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<HeldDirections>()
             .init_resource::<LocalPlayerName>()
+            .init_resource::<LocalPlayerSkin>()
             .insert_resource(PosSendTimer(Timer::from_seconds(POS_SEND_INTERVAL, TimerMode::Repeating)))
             .add_systems(Update, spawn_local_player_on_connect)
             .add_systems(
@@ -73,6 +74,9 @@ struct PlayerAnimation {
 
 #[derive(Resource, Default)]
 pub struct LocalPlayerName(pub Option<String>);
+
+#[derive(Resource, Default)]
+pub struct LocalPlayerSkin(pub String);
 
 #[derive(Resource)]
 struct PosSendTimer(Timer);
@@ -143,6 +147,7 @@ fn spawn_local_player_on_connect(
         }
 
         local_name.0 = Some(name.to_string());
+        commands.insert_resource(LocalPlayerSkin(skin.to_string()));
         let entity = spawn_player_visual(&mut commands, &asset_server, skin, name, spawn);
         commands.entity(entity).insert(LocalPlayer);
         println!("[PLAYER] Avatar local '{}' (skin '{}').", name, skin);
@@ -237,6 +242,7 @@ fn arrival_point(from_room: &str, dir: &str) -> Vec2 {
 fn update_local_player(
     keys: Res<ButtonInput<KeyCode>>,
     console: Res<crate::ui::ChatConsole>,
+    combat: Res<crate::combat::CombatResource>,
     time: Res<Time>,
     game_state: Res<crate::game::GameState>,
     transition: Res<RoomTransition>,
@@ -250,8 +256,8 @@ fn update_local_player(
         return;
     };
 
-    // Freeze player during transitions.
-    if transition.is_active() {
+    // Freeze player during transitions or combat.
+    if transition.is_active() || combat.in_combat {
         held.0.clear();
         animate(&mut anim, &mut texture, time.delta(), false, Vec2::ZERO);
         return;
@@ -350,9 +356,13 @@ fn send_local_position(
     time: Res<Time>,
     mut timer: ResMut<PosSendTimer>,
     sender: Res<NetworkSender>,
+    combat: Res<crate::combat::CombatResource>,
     query: Query<&Transform, With<LocalPlayer>>,
     mut last_sent: Local<Option<Vec2>>,
 ) {
+    if combat.in_combat {
+        return;
+    }
     timer.0.tick(time.delta());
     if !timer.0.just_finished() {
         return;

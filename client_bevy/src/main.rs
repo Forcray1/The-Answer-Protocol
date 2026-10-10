@@ -12,6 +12,7 @@ mod parse_layers;
 mod player;
 mod ui;
 mod minimap;
+mod combat;
 
 #[derive(States, Default, Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
@@ -45,6 +46,7 @@ fn main() {
             collision::CollisionPlugin,
             player::PlayerPlugin,
             mob::MobPlugin,
+            combat::CombatPlugin,
             debug::DebugPlugin,
 			minimap::MinimapPlugin,
         ))
