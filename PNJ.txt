@@ -79,5 +79,5 @@ Wild VII:
 	- Mercenary:
 		- Remy:
 			- Quest giver
-			- Dialogue: "I've been stuck looking for diamond, Could you help to get some emeralds, I definitely need to grind to not be stuck here forever. Some sand monster from here drop them."
-			- Give XP boost for 4 emeralds
+			- Dialogue: "I've been stuck looking for diamond, Could you help me to get some , I definitely need to grind to not be stuck here forever. Some sand monster from here drop them."
+			- Give XP boost for 4 diamonds
