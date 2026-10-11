@@ -14,14 +14,25 @@ world:
       exp_reward: 65
       respawn_time: 10
       dialogue: ["Grahhhh !"]
-    - id: "Chef_oasis1"
-      name: ""
-      role: "quest_giver"
-      sprite: "" # to complete and implement
+    - id: "Guard1"
+      name: "guard"
+      role: "None"
+      sprite: "../skin/Guard"
       hp: 50
       dialogue:
-        - ""
-        - ""
+        - "If you go through this gate you will enter the city"
+      spawn_pos: [-150.0, 595.0]
+      scale: 0.6
+    - id: "Guard2"
+      name: "guard"
+      role: "None"
+      sprite: "../skin/Guard"
+      hp: 50
+      dialogue:
+        - "If you go through this gate you will enter the city"
+      spawn_pos: [150.0, 595.0]
+      scale: 0.6
+      
   items: 
     - id: "Excalibur"
       name: "Excalibur"
@@ -96,7 +107,7 @@ world:
         east: "Wild5"
         south: "Oasis2"
         west: "Start_oasis"
-      npcs: []
+      npcs: ["Guard1", "Guard2"]
       items: []
     Wild5:
       name: "Wild5"

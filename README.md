@@ -411,7 +411,9 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 		- Finished all of the perspectives
 11/10/2026:
 	mlorenzo:
-		- Started writing the characters
+		- write the characters
+		- Made some sprites
+		- Improved the interactions and talk with pnj
 ````
 
 TODO:

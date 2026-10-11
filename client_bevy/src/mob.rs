@@ -29,6 +29,8 @@ pub struct InteractableTarget(pub Option<String>);
 pub struct InteractionPrompt;
 
 const MOB_FOLDER: &str = "mob";
+const INTERACTION_PROMPT_PNJ_SPRITE: &str = "Interaction/interact_pnj.png";
+const INTERACTION_PROMPT_MOB_SPRITE: &str = "Interaction/interact_mob.png";
 const MOB_RENDER_SIZE: f32 = 230.0;
 const IDLE_FRAME_TIME: f32 = 0.18;
 
@@ -40,6 +42,7 @@ const IDLE_FRAME_COUNT: usize = SHEET_COLS * SHEET_ROWS;
 #[derive(Component)]
 pub struct Mob {
     pub npc_id: String,
+    pub is_enemy: bool,
 }
 
 #[derive(Component)]
@@ -59,7 +62,7 @@ fn handle_mob_events(
     for ev in events.read() {
         let parts: Vec<&str> = ev.0.split_whitespace().collect();
 
-        // S: EVT ROOM <room> MOB_SPAWN <npc_id> <sprite> <x> <y> <hp> <max_hp>
+        // S: EVT ROOM <room> MOB_SPAWN <npc_id> <sprite> <x> <y> <hp> <max_hp> <scale> <name> [role]
         if parts.len() >= 10
             && parts[0] == "S:"
             && parts[1] == "EVT"
@@ -72,6 +75,7 @@ fn handle_mob_events(
             let y: f32 = parts[8].parse().unwrap_or(0.0);
             let scale: f32 = parts.get(11).and_then(|s| s.parse().ok()).unwrap_or(1.0);
             let npc_name = parts.get(12).map(|s| s.replace("_", " ")).unwrap_or_else(|| npc_id.to_string());
+            let is_enemy = parts.get(13).map(|s| *s == "enemy").unwrap_or(false);
 
             // Don't duplicate if already spawned
             if mobs.iter().any(|(_, m)| m.npc_id == npc_id) {
@@ -100,6 +104,7 @@ fn handle_mob_events(
                 },
                 Mob {
                     npc_id: npc_id.to_string(),
+                    is_enemy,
                 },
                 PlayerName(npc_name.clone()),
                 MobAnimation {
@@ -197,17 +202,24 @@ fn cleanup_mobs_on_room_change(
     }
 }
 
-fn setup_interaction_ui(mut commands: Commands) {
+fn setup_interaction_ui(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+) {
+    let pnj_texture = asset_server.load(INTERACTION_PROMPT_PNJ_SPRITE);
+    let mob_texture = asset_server.load(INTERACTION_PROMPT_MOB_SPRITE);
+    commands.insert_resource(InteractionPromptSprites {
+        pnj_texture: pnj_texture.clone(),
+        mob_texture,
+    });
+
     commands.spawn((
-        Text2dBundle {
-            text: Text::from_section(
-                "Interagir - E -",
-                TextStyle {
-                    font_size: 40.0,
-                    color: Color::WHITE,
-                    ..default()
-                },
-            ).with_justify(JustifyText::Center),
+        SpriteBundle {
+            texture: pnj_texture,
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(126.0, 126.0)),
+                ..default()
+            },
             transform: Transform::from_xyz(0.0, 0.0, 900.0),
             visibility: Visibility::Hidden,
             ..default()
@@ -216,15 +228,23 @@ fn setup_interaction_ui(mut commands: Commands) {
     ));
 }
 
+#[derive(Resource, Clone)]
+struct InteractionPromptSprites {
+    pnj_texture: Handle<Image>,
+    mob_texture: Handle<Image>,
+}
+
 fn interaction_system(
     player_q: Query<&Transform, With<LocalPlayer>>,
     mob_q: Query<(&Transform, &Mob)>,
-    mut prompt_q: Query<(&mut Visibility, &mut Transform), (With<InteractionPrompt>, Without<LocalPlayer>, Without<Mob>)>,
+    mut prompt_q: Query<(&mut Visibility, &mut Transform, &mut Handle<Image>), (With<InteractionPrompt>, Without<LocalPlayer>, Without<Mob>)>,
     mut interactable: ResMut<InteractableTarget>,
     combat: Res<crate::combat::CombatResource>,
+    dialogue: Res<crate::interaction::DialogueState>,
+    prompt_sprites: Res<InteractionPromptSprites>,
 ) {
-    if combat.in_combat {
-        if let Ok((mut vis, _)) = prompt_q.get_single_mut() {
+    if combat.in_combat || dialogue.is_active() {
+        if let Ok((mut vis, _, _)) = prompt_q.get_single_mut() {
             *vis = Visibility::Hidden;
         }
         interactable.0 = None;
@@ -234,6 +254,7 @@ fn interaction_system(
     let mut closest_dist = f32::MAX;
     let mut closest_npc = None;
     let mut closest_pos = Vec3::ZERO;
+    let mut closest_is_enemy = false;
 
     for (mob_transform, mob) in &mob_q {
         let dist = player_transform.translation.distance(mob_transform.translation);
@@ -241,14 +262,20 @@ fn interaction_system(
             closest_dist = dist;
             closest_npc = Some(mob.npc_id.clone());
             closest_pos = mob_transform.translation;
+            closest_is_enemy = mob.is_enemy;
         }
     }
 
     interactable.0 = closest_npc;
 
-    if let Ok((mut vis, mut prompt_transform)) = prompt_q.get_single_mut() {
+    if let Ok((mut vis, mut prompt_transform, mut prompt_texture)) = prompt_q.get_single_mut() {
         if interactable.0.is_some() {
             *vis = Visibility::Visible;
+            *prompt_texture = if closest_is_enemy {
+                prompt_sprites.mob_texture.clone()
+            } else {
+                prompt_sprites.pnj_texture.clone()
+            };
             // Float above the mob
             prompt_transform.translation = closest_pos + Vec3::new(0.0, 100.0, 900.0);
         } else {
@@ -261,9 +288,10 @@ fn handle_interaction_input(
     input: Res<ButtonInput<KeyCode>>,
     interactable: Res<InteractableTarget>,
     combat: Res<crate::combat::CombatResource>,
+    dialogue: Res<crate::interaction::DialogueState>,
     sender: Res<crate::net::NetworkSender>,
 ) {
-    if combat.in_combat {
+    if combat.in_combat || dialogue.is_active() {
         return;
     }
     if input.just_pressed(KeyCode::KeyE) {

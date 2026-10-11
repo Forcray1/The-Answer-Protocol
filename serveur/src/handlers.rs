@@ -152,8 +152,8 @@ fn room_mob_roster(room: &RoomId, state: &ServerState, world: &WorldData) -> Str
                 let max_hp = npc.hp;
                 let scale = npc.scale.unwrap_or(1.0);
                 out.push_str(&format!(
-                    "S: EVT ROOM {} MOB_SPAWN {} {} {} {} {} {} {} {}\n",
-                    room, npc_id, sprite, x, y, hp, max_hp, scale, npc.name.replace(" ", "_")
+                    "S: EVT ROOM {} MOB_SPAWN {} {} {} {} {} {} {} {} {}\n",
+                    room, npc_id, sprite, x, y, hp, max_hp, scale, npc.name.replace(" ", "_"), npc.role
                 ));
             }
         }
@@ -648,15 +648,16 @@ fn handle_talk(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
     if let Some(npc) = npc_trouve {
         if quete_validee { format!("S: OK {} takes the item. {}\n", npc.name, quest_msg) }
         else {
-            let dialog = npc.dialogue.join(" ");
+            let dialog_pages = npc.dialogue.join("|");
+            let npc_key = npc.name.replace(" ", "_");
             let _ = tx.send(GlobalEvent {
-                sender_addr: None, // NPCs talk to everyone in the room
-                message: format!("S: EVT ROOM {} CHAT {} {}\n", salle_actuelle, npc.name.replace(" ", "_"), dialog),
-                target_room: Some(salle_actuelle.clone()),
+                sender_addr: None,
+                message: format!("S: EVT DIALOGUE {} {}\n", npc_key, dialog_pages),
+                target_room: None,
                 target_group: None,
-                target_player: None,
+                target_player: Some(addr),
             });
-            format!("S: OK {} says: \"{}\"\n", npc.name, dialog)
+            "S: OK interaction_started\n".to_string()
         }
     } else { "S: ERR There is nobody by that name here.\n".to_string() }
 }

@@ -7,6 +7,7 @@ mod loading;
 mod map;
 mod menu;
 mod mob;
+mod interaction;
 mod net;
 mod parse_layers;
 mod player;
@@ -50,5 +51,6 @@ fn main() {
             debug::DebugPlugin,
 			minimap::MinimapPlugin,
         ))
+        .add_plugins(interaction::InteractionPlugin)
         .run();
 }

@@ -243,6 +243,7 @@ fn update_local_player(
     keys: Res<ButtonInput<KeyCode>>,
     console: Res<crate::ui::ChatConsole>,
     combat: Res<crate::combat::CombatResource>,
+    dialogue: Res<crate::interaction::DialogueState>,
     time: Res<Time>,
     game_state: Res<crate::game::GameState>,
     transition: Res<RoomTransition>,
@@ -257,7 +258,7 @@ fn update_local_player(
     };
 
     // Freeze player during transitions or combat.
-    if transition.is_active() || combat.in_combat {
+    if transition.is_active() || combat.in_combat || dialogue.is_active() {
         held.0.clear();
         animate(&mut anim, &mut texture, time.delta(), false, Vec2::ZERO);
         return;

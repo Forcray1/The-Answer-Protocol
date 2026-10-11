@@ -142,7 +142,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             let scale = npc.scale.unwrap_or(1.0);
                                             let _ = tx.send(GlobalEvent {
                                                 sender_addr: None, // Serveur envoie, personne n'est exclu
-                                                message: format!("S: EVT ROOM {} MOB_SPAWN {} {} {} {} {} {} {} {}\n", room_id, npc_id, sprite, x, y, hp, npc.hp, scale, npc.name.replace(" ", "_")),
+                                                message: format!("S: EVT ROOM {} MOB_SPAWN {} {} {} {} {} {} {} {} {}\n", room_id, npc_id, sprite, x, y, hp, npc.hp, scale, npc.name.replace(" ", "_"), npc.role),
                                                 target_room: Some(room_id.clone()),
                                                 target_group: None,
                                                 target_player: None,
