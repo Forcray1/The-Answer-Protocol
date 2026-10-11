@@ -409,6 +409,9 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 	mlorenzo:
 		- Finished the mandatory exit point to not be stuck
 		- Finished all of the perspectives
+11/10/2026:
+	mlorenzo:
+		- Started writing the characters
 ````
 
 TODO:
@@ -416,3 +419,11 @@ TODO:
 	- finish the world.yaml with all the informations
 	- Make all of the combat system
 	- Logs not working for bevy client (ah ouais ?)
+
+- Combat system
+- Inventory
+- PNJ (quest giver, dialogue, item giver)
+- Quests and boardquest
+- Statistics windows
+- Quick lore
+- Items

@@ -1,0 +1,83 @@
+City:
+	- Guards :
+		- No use
+		- Dialogue: "Did you have an audience with the queen ? ; I'll let you pass go on"
+	- Chungus :
+		- Dory :
+			- Item giver
+			- Dialogue: " Did you know I made this city ? ; If you go check poiscapute on instagram I'll give you an item... " If yes : " thank you so much ! here you go it's for you" else "You little selfish peasant, nothing for you then..."
+			- Give magical strength medaillon
+		- Oguzhan :
+			- No use
+			- Dialogue: "The temple can't be accessed because it's been taken by some monster. ; I'll go free it easily but I still have work to do..."
+		- Soufiane : 
+			- Quest giver
+			- Dialogue: "Do you know about Pocket monsters ? They are famous in my country. ; There is new merch, a sword have been released in the oasis of the south, if you go get it for me I'll give you something"
+						"  Thank you so much, here you go I bought it from a strange merchant a long time ago you may have a better use for it than me"
+			- Give strenght medaillon in exchange of the PM Sword of the Oasis II
+	- Queen :
+		- Main quest giver
+		- Dialogue: "You're the one Sir Gragas sent to help ? ; I'm glad that you are here, we need your help, before taking down the temple, you need to go look for our treasure, it has been stolen and taken to the cave
+					in the south west. There might be some henchman of [Name of main enemy]. Be aware and good luck" ; "You succed to retrieve it ? Thank you you're stronger that what Sir gragas was telling us. Here is a 
+					pass to the temple, Be aware there is a lot of monsters, and [] is really strong. ; here is something that will help you ; Good luck" ; "Y-You did it ! Thank you so much I don't know how to repay you
+					if you ever need anything don't hesitate we will be forever in your debt"
+		- Give the cimeter of urbosa and the pass for the temple after retrieving the treasure from the basilic
+Oasis I:
+	- Chief :
+		- Sir gragas
+		- Quest giver
+		- Dialogue: " Hey [name of the player], I have something for you to do. ; There is trouble in the city and the queen is asking for someone strong so I recommended you. The temple has been taken by some kind of monster.
+					Most of the informations are confidential but you need to hurry to the city. It's at the north east So go to the east first from here. Good luck and come back safe" ; "So that's what they want you to do ?
+					Their hopes are high I hope you can do it. Here you go, you should go the the Oasis in the south, it's at the south of the city, there's a shop there so you can get some equipment, good luck" ; "You can go train
+					north from here there is some monsters you could defeat"
+		- Give 200 golds 
+	Chungus :
+		- Jamato:
+			- Quest giver
+			- Dialogue: "Don't tell anyone but I found a way to make armor, If you bring me 10 bones from the squeletton in the wild, I'll make on for you" ; "Well played here's for you. Don't tell anyone I don't want to
+						get to much attention..."
+			- Give a bone armor in exchange for 10 bones
+		- Fatih:
+			- no use
+			- Dialogue: "Did you know there's been massive leaks from the archives of the 42 country ? That's the height of irony they're known for forming security guards."
+Wild IV:
+	- Guards:
+		- No use
+		- Dialogue: "If you go through this gate you will enter the city"
+Wild V:
+	Adventurer:
+		- Zek
+		- Item giver
+		- Dialogue: "This region is dangerous, take those healing potion I will feel guilty if you die" ; "Be aware monsters here are strong"
+		- Give 3 health potion
+Wild IV:
+	- Mage
+	- No use
+	- Dialogue: "This cave has become really dangerous stay on your guards in there"
+Oasis II:
+	-Chief:
+		- Anwar
+		- No use
+		- Dialogue: "Hi, I rule this Oasis, I've made good friends with influent people of the city so they gave me this land. ; There is a forge that sell goods here you should go check it out"
+	- Forgeon:
+		- Shop
+		- Dialogue: "Welcome to our shop, take your time to look if something interest you"
+		- Sell:
+			- PMsword -> 50 golds
+			- Steel sword -> 100golds
+			- Healing potions -> 20golds
+			- Leather armor -> 100golds
+			- Steel armor -> 200golds
+	- Chungus:
+		- Axel
+			- No use
+			- Dialogue: "Did you know our borders extend way further than this ? If you come back later you may be able to explore it, but only if the devs works harder for transcendance"
+		- Elyesa:
+			- No use
+			- Dialogue: "I'm working on some projects for the neighbouring city, if they accept my proposition I may be creating Somenthing way bigger ; (Devs com: yes we're talking about transcendance)"
+Wild VII:
+	- Mercenary:
+		- Remy:
+			- Quest giver
+			- Dialogue: "I've been stuck looking for diamond, Could you help to get some emeralds, I definitely need to grind to not be stuck here forever. Some sand monster from here drop them."
+			- Give XP boost for 4 emeralds
