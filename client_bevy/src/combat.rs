@@ -287,7 +287,7 @@ fn spawn_combat_arena(
                 custom_size: Some(Vec2::splat(250.0)),
                 ..default()
             },
-            transform: Transform::from_xyz(-520.0, -140.0, COMBAT_Z_ENTITIES),
+            transform: Transform::from_xyz(-520.0, -300.0, COMBAT_Z_ENTITIES),
             ..default()
         },
         CombatEntity,
@@ -377,7 +377,7 @@ fn spawn_combat_arena(
                 flip_x: false, // Face left towards the player
                 ..default()
             },
-            transform: Transform::from_xyz(520.0, -140.0, COMBAT_Z_ENTITIES),
+            transform: Transform::from_xyz(520.0, -310.0, COMBAT_Z_ENTITIES),
             ..default()
         },
         CombatEnemyVisual {
