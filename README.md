@@ -405,15 +405,22 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 	mlorenzo:
 		- Change the debug format for a more explicit display
 		- Did layers files for all the maps except dungeons
+	avauclai:
+		- Added the UI chatbox
 10/10/2026:
 	mlorenzo:
 		- Finished the mandatory exit point to not be stuck
 		- Finished all of the perspectives
+	avauclai:
+		- Added the combat system
 11/10/2026:
 	mlorenzo:
 		- write the characters
 		- Made some sprites
 		- Improved the interactions and talk with pnj
+12/10/2026:
+	avauclai:
+		- Adjusted the position of NPCs in the combat system page
 ````
 
 TODO:
@@ -421,6 +428,7 @@ TODO:
 	- finish the world.yaml with all the informations
 	- Make all of the combat system
 	- Logs not working for bevy client (ah ouais ?)
+	- Upgrade the UI (chatbox disapear after 5s), Create Group UI and main menu UI with leave option.
 
 - Combat system
 - Inventory
