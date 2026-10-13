@@ -421,6 +421,10 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 12/10/2026:
 	avauclai:
 		- Adjusted the position of NPCs in the combat system page
+13/10/2026:
+	mlorenzo:
+		- Finished the implementation of the map with the shadows
+		- edited the PNJ a bit
 ````
 
 TODO:
@@ -436,5 +440,4 @@ TODO:
 - PNJ (quest giver, dialogue, item giver)
 - Quests and boardquest
 - Statistics windows
-- Quick lore
 - Items

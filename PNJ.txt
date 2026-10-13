@@ -5,7 +5,8 @@ City:
 	- Chungus :
 		- Dory :
 			- Item giver
-			- Dialogue: " Did you know I made this city ? ; If you go check poiscapute on instagram I'll give you an item... " If yes : " thank you so much ! here you go it's for you" else "You little selfish peasant, nothing for you then..."
+			- Dialogue: " Did you know I made this city ? ; If you go check poiscapute on instagram I'll give you an item... " If yes : " thank you so much ! here you go it's for you"
+						else "You little selfish peasant, nothing for you then..."
 			- Give magical strength medaillon
 		- Oguzhan :
 			- No use

@@ -1,6 +1,6 @@
 world:
   name: "The Answer Protocol"
-  npcs: 
+  npcs:
     - id: "SandMonster"
       name: "SandMonster"
       role: "enemy"
@@ -32,8 +32,7 @@ world:
         - "If you go through this gate you will enter the city"
       spawn_pos: [150.0, 595.0]
       scale: 0.6
-      
-  items: 
+  items:
     - id: "Excalibur"
       name: "Excalibur"
       damage: 999
