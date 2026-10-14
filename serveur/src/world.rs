@@ -150,6 +150,8 @@ pub enum QuestObjective {
     FetchItem { item: ItemId },
     DefeatNpc { npc: NpcId },
     DeliverItem { item: ItemId, to: NpcId },
+    DeliverItems { items: Vec<ItemId>, to: NpcId },
+    TalkToNpc { npc: NpcId },
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -158,7 +160,8 @@ pub struct Quest {
     pub name: String,
     pub description: String,
     pub objective: QuestObjective,
-    pub target_id: ItemId,
+    #[serde(default)]
+    pub target_id: Option<ItemId>,
     #[serde(default)]
     pub giver_id: Option<NpcId>,
     pub reward_exp: Option<i32>,

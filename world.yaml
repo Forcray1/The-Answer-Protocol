@@ -32,6 +32,27 @@ world:
         - "If you go through this gate you will enter the city"
       spawn_pos: [150.0, 595.0]
       scale: 0.6
+      - id: "Gragas"
+      name: "Sir Gragas"
+      role: "Quest_giver"
+      quest: ""
+      sprite: "../skin/Chief1"
+      hp: 50
+      dialogue:
+        - "Hey [name], I have something for you to do. ; There is trouble in the city and the queen is asking for someone strong so I recommended you. The temple has been taken by some kind of monster. Most of the informations are confidential but you need to hurry to the city. It's at the north east So go to the east first from here. Good luck and come back safe"
+        - "So that's what they want you to do ? Their hopes are high I hope you can do it. Here you go, you should go the the Oasis in the south, it's at the south of the city, there's a shop there so you can get some equipment, good luck"
+        - "You can go train north from here there is some monsters you could defeat"
+      spawn_pos: []
+      scale: 0.6
+      - id: ""
+      name: ""
+      role: "None"
+      sprite: "../skin/.."
+      hp: 50
+      dialogue:
+        - ""
+      spawn_pos: []
+      scale: 0.6
   items:
     - id: "Excalibur"
       name: "Excalibur"

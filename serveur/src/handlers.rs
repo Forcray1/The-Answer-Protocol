@@ -17,6 +17,36 @@ fn ci_eq(a: &str, b: &str) -> bool {
     a.eq_ignore_ascii_case(b)
 }
 
+fn reward_quest(player: &mut Player, q: &crate::world::Quest, world: &WorldData) -> String {
+    player.completed_quests.push(q.id.clone());
+
+    let mut msg = format!("[QUEST COMPLETE] {}!", q.name);
+    if let Some(ref reward_id) = q.reward_item {
+        let bucket = world
+            .world
+            .items
+            .iter()
+            .find(|i| &i.id == reward_id)
+            .map(|i| i.bucket())
+            .unwrap_or(ItemBucket::Item);
+        player.inventory.add(reward_id.clone(), bucket);
+        let item_name = world
+            .world
+            .items
+            .iter()
+            .find(|i| &i.id == reward_id)
+            .map(|i| i.name.clone())
+            .unwrap_or_else(|| reward_id.to_string());
+        msg.push_str(&format!(" You receive: {}.", item_name));
+    }
+    if let Some(xp) = q.reward_exp {
+        player.add_xp(xp);
+        msg.push_str(&format!(" (+{} EXP)", xp));
+    }
+
+    msg
+}
+
 fn make_weapon(item: &CatalogItem) -> Weapon {
     Weapon {
         id: item.id.clone(),
@@ -611,8 +641,7 @@ fn handle_drop(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
 
 fn handle_talk(addr: SocketAddr, cible: String, state: &mut ServerState, world: &WorldData, tx: &Sender<GlobalEvent>) -> String {
     let mut npc_trouve = None;
-    let mut quete_validee = false;
-    let mut quest_msg = String::new();
+    let mut quest_msgs: Vec<String> = Vec::new();
     let mut salle_actuelle = RoomId::from("");
 
     if let Some(player) = state.players.get_mut(&addr) {
@@ -628,25 +657,67 @@ fn handle_talk(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
         }
         if let Some(npc) = &npc_trouve {
             for q in &world.world.quests {
-                if let crate::world::QuestObjective::DeliverItem { .. } = &q.objective {
-                    if q.giver_id.as_ref() == Some(&npc.id) && player.inventory.contains(&q.target_id) && !player.completed_quests.contains(&q.id) {
-                        player.completed_quests.push(q.id.clone());
-                        player.inventory.remove_one(&q.target_id);
-                        if let Some(ref reward_id) = q.reward_item {
-                            let bucket = world.world.items.iter().find(|i| &i.id == reward_id).map(|i| i.bucket()).unwrap_or(ItemBucket::Item);
-                            player.inventory.add(reward_id.clone(), bucket);
-                            let item_name = world.world.items.iter().find(|i| &i.id == reward_id).map(|i| i.name.clone()).unwrap_or_else(|| reward_id.to_string());
-                            quest_msg = format!("\n[QUEST COMPLETE] {}! You receive: {}.", q.name, item_name);
+                if player.completed_quests.contains(&q.id) {
+                    continue;
+                }
+
+                match &q.objective {
+                    crate::world::QuestObjective::DeliverItem { item, to } => {
+                        if &npc.id == to && player.inventory.contains(item) {
+                            player.inventory.remove_one(item);
+                            quest_msgs.push(reward_quest(player, q, world));
                         }
-                        if let Some(xp) = q.reward_exp { player.add_xp(xp); quest_msg.push_str(&format!(" (+{} EXP)", xp)); }
-                        quete_validee = true; break;
+                    }
+                    crate::world::QuestObjective::DeliverItems { items, to } => {
+                        if &npc.id != to {
+                            continue;
+                        }
+
+                        let mut required_counts: HashMap<domain::ItemId, u32> = HashMap::new();
+                        for id in items {
+                            *required_counts.entry(id.clone()).or_insert(0) += 1;
+                        }
+
+                        let can_complete = required_counts
+                            .iter()
+                            .all(|(id, needed)| player.inventory.count(id) >= *needed);
+                        if can_complete {
+                            for (id, needed) in required_counts {
+                                for _ in 0..needed {
+                                    player.inventory.remove_one(&id);
+                                }
+                            }
+                            quest_msgs.push(reward_quest(player, q, world));
+                        }
+                    }
+                    crate::world::QuestObjective::TalkToNpc { npc: target_npc } => {
+                        if &npc.id == target_npc {
+                            quest_msgs.push(reward_quest(player, q, world));
+                        }
+                    }
+                    crate::world::QuestObjective::FetchItem { .. }
+                    | crate::world::QuestObjective::DefeatNpc { .. } => {
+                        if let Some(legacy_target) = &q.target_id {
+                            if q.giver_id.as_ref() == Some(&npc.id)
+                                && player.inventory.contains(legacy_target)
+                            {
+                                player.inventory.remove_one(legacy_target);
+                                quest_msgs.push(reward_quest(player, q, world));
+                            }
+                        }
                     }
                 }
             }
         }
     }
     if let Some(npc) = npc_trouve {
-        if quete_validee { format!("S: OK {} takes the item. {}\n", npc.name, quest_msg) }
+        if !quest_msgs.is_empty() {
+            format!(
+                "S: OK {} {}\n",
+                npc.name,
+                quest_msgs.join(" ")
+            )
+        }
         else {
             let dialog_pages = npc.dialogue.join("|");
             let npc_key = npc.name.replace(" ", "_");
@@ -1135,6 +1206,8 @@ fn handle_quests(addr: SocketAddr, state: &ServerState, world: &WorldData) -> St
                 crate::world::QuestObjective::FetchItem { item } => format!("Recuperer {}", item),
                 crate::world::QuestObjective::DefeatNpc { npc } => format!("Vaincre {}", npc),
                 crate::world::QuestObjective::DeliverItem { item, to } => format!("Livrer {} a {}", item, to),
+                crate::world::QuestObjective::DeliverItems { items, to } => format!("Livrer [{}] a {}", items.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(", "), to),
+                crate::world::QuestObjective::TalkToNpc { npc } => format!("Parler a {}", npc),
             };
             parts.push(format!("{}:{}:{}:{}", q.id, q.name, q.description, objective_str));
         }
