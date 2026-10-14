@@ -302,3 +302,5 @@
 {"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"b","timestamp":"2026-10-09T16:32:28"}
 {"details":{"ip":"127.0.0.1:63498","type":"returning"},"event":"CONNECT","player":"b","timestamp":"2026-10-09T16:36:13"}
 {"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"b","timestamp":"2026-10-09T16:36:25"}
+{"details":{"ip":"127.0.0.1:51327","type":"returning"},"event":"CONNECT","player":"b","timestamp":"2026-10-10T17:07:02"}
+{"details":{"reason":"connection_lost"},"event":"DISCONNECT","player":"b","timestamp":"2026-10-11T19:56:54"}

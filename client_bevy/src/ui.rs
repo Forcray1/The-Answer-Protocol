@@ -782,6 +782,7 @@ impl Plugin for ConsolePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ChatConsole>()
             .init_resource::<ChatHistory>()
+            .init_resource::<ChatFadeState>()
             .add_systems(Startup, setup_chat_ui)
             .add_systems(OnEnter(AppState::InGame), on_enter_ingame)
             .add_systems(OnExit(AppState::InGame), on_exit_ingame)
@@ -796,10 +797,11 @@ impl Plugin for ConsolePlugin {
                     handle_input_clicks,
                     process_chat_events,
                     display_terminal_messages,
-                    update_chat_container_style,
-                    update_chat_tabs_ui,
-                    update_chat_input_ui,
-                    update_chat_messages_ui,
+                    tick_chat_fade.after(process_chat_events),
+                    update_chat_container_style.after(tick_chat_fade),
+                    update_chat_tabs_ui.after(tick_chat_fade),
+                    update_chat_input_ui.after(tick_chat_fade),
+                    update_chat_messages_ui.after(tick_chat_fade),
                     spawn_chat_bubbles,
                     tick_chat_bubbles,
                     update_chat_combat_visibility,
@@ -919,9 +921,41 @@ impl ChatHistory {
     }
 }
 
+// ── Chatbox Fade Configuration & State ──
+pub const CHAT_INACTIVITY_TIMEOUT: f32 = 3.5;
+pub const CHAT_FADE_DURATION: f32 = 0.8;
+
+#[derive(Resource)]
+pub struct ChatFadeState {
+    pub activity_timer: f32,
+    pub alpha: f32,
+}
+
+impl Default for ChatFadeState {
+    fn default() -> Self {
+        Self {
+            activity_timer: CHAT_INACTIVITY_TIMEOUT,
+            alpha: 1.0,
+        }
+    }
+}
+
+impl ChatFadeState {
+    pub fn reset(&mut self) {
+        self.activity_timer = CHAT_INACTIVITY_TIMEOUT;
+        self.alpha = 1.0;
+    }
+}
+
 // ── Chatbox Components ──
 #[derive(Component)]
 pub struct ChatUiRoot;
+
+#[derive(Component)]
+pub struct ChatMessagesArea;
+
+#[derive(Component)]
+pub struct ChatShortcutHelpText;
 
 #[derive(Component)]
 pub struct ChatText;
@@ -977,6 +1011,7 @@ fn setup_chat_ui(mut commands: Commands) {
                 ..default()
             },
             ChatUiRoot,
+            Interaction::default(),
         ))
         .with_children(|root| {
             // ── Tabs row ──
@@ -1084,26 +1119,32 @@ fn setup_chat_ui(mut commands: Commands) {
                         });
                     });
 
-                tabs_row.spawn(TextBundle::from_section(
-                    "[Tab] Canal  [T] Parler  [F1] Console Dev",
-                    TextStyle { font_size: 11.0, color: Color::rgba(0.55, 0.55, 0.62, 0.7), ..default() },
+                tabs_row.spawn((
+                    TextBundle::from_section(
+                        "[Tab] Canal  [T] Parler  [F1] Console Dev",
+                        TextStyle { font_size: 11.0, color: Color::rgba(0.55, 0.55, 0.62, 0.7), ..default() },
+                    ),
+                    ChatShortcutHelpText,
                 ));
             });
 
             // ── Messages Area ──
-            root.spawn(NodeBundle {
-                style: Style {
-                    width: Val::Percent(100.0),
-                    flex_grow: 1.0,
-                    margin: UiRect { top: Val::Px(2.0), bottom: Val::Px(4.0), ..default() },
-                    padding: UiRect::all(Val::Px(6.0)),
-                    flex_direction: FlexDirection::ColumnReverse,
-                    overflow: Overflow::clip(),
+            root.spawn((
+                NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        flex_grow: 1.0,
+                        margin: UiRect { top: Val::Px(2.0), bottom: Val::Px(4.0), ..default() },
+                        padding: UiRect::all(Val::Px(6.0)),
+                        flex_direction: FlexDirection::ColumnReverse,
+                        overflow: Overflow::clip(),
+                        ..default()
+                    },
+                    background_color: Color::rgba(0.02, 0.03, 0.05, 0.50).into(),
                     ..default()
                 },
-                background_color: Color::rgba(0.02, 0.03, 0.05, 0.50).into(),
-                ..default()
-            })
+                ChatMessagesArea,
+            ))
             .with_children(|msg_area| {
                 msg_area.spawn((
                     TextBundle::from_section(
@@ -1237,11 +1278,13 @@ fn on_enter_ingame(
     mut chat_root_q: Query<&mut Visibility, (With<ChatUiRoot>, Without<TerminalUiRoot>)>,
     sender: Res<NetworkSender>,
     combat: Option<Res<CombatResource>>,
+    mut fade_state: ResMut<ChatFadeState>,
 ) {
     let in_combat = combat.as_ref().map_or(false, |c| c.in_combat);
     if let Ok(mut vis) = chat_root_q.get_single_mut() {
         *vis = if in_combat { Visibility::Hidden } else { Visibility::Inherited };
     }
+    fade_state.reset();
     let _ = sender.0.send("GROUP\n".to_string());
 }
 
@@ -1249,6 +1292,7 @@ fn on_exit_ingame(
     mut chat_root_q: Query<&mut Visibility, (With<ChatUiRoot>, Without<TerminalUiRoot>)>,
     mut term_root_q: Query<&mut Visibility, (With<TerminalUiRoot>, Without<ChatUiRoot>)>,
     mut console: ResMut<ChatConsole>,
+    mut fade_state: ResMut<ChatFadeState>,
 ) {
     if let Ok(mut vis) = chat_root_q.get_single_mut() {
         *vis = Visibility::Hidden;
@@ -1259,11 +1303,13 @@ fn on_exit_ingame(
     console.open = false;
     console.terminal_open = false;
     console.input_buffer.clear();
+    fade_state.reset();
 }
 
 fn toggle_chat(
     keys: Res<ButtonInput<KeyCode>>,
     mut console: ResMut<ChatConsole>,
+    mut fade_state: ResMut<ChatFadeState>,
     combat: Option<Res<CombatResource>>,
 ) {
     if let Some(ref combat) = combat {
@@ -1278,10 +1324,12 @@ fn toggle_chat(
         if keys.just_pressed(KeyCode::KeyT) || keys.just_pressed(KeyCode::Enter) {
             console.open = true;
             console.just_opened = true;
+            fade_state.reset();
         } else if keys.just_pressed(KeyCode::Slash) {
             console.open = true;
             console.just_opened = true;
             console.input_buffer = "/".to_string();
+            fade_state.reset();
         }
     } else {
         if keys.just_pressed(KeyCode::Escape) {
@@ -1289,6 +1337,7 @@ fn toggle_chat(
             console.input_buffer.clear();
         } else if keys.just_pressed(KeyCode::Tab) {
             console.cycle_channel();
+            fade_state.reset();
         }
     }
 }
@@ -1328,6 +1377,7 @@ fn toggle_terminal(
 fn handle_tab_clicks(
     interaction_q: Query<(&Interaction, &ChatTabButton), (Changed<Interaction>, With<Button>)>,
     mut console: ResMut<ChatConsole>,
+    mut fade_state: ResMut<ChatFadeState>,
     combat: Option<Res<CombatResource>>,
 ) {
     if let Some(ref combat) = combat {
@@ -1339,6 +1389,7 @@ fn handle_tab_clicks(
         if *interaction == Interaction::Pressed {
             console.active_channel = btn.0;
             console.clear_unread_for_active();
+            fade_state.reset();
         }
     }
 }
@@ -1346,6 +1397,7 @@ fn handle_tab_clicks(
 fn handle_input_clicks(
     interaction_q: Query<&Interaction, (Changed<Interaction>, With<ChatInputContainer>)>,
     mut console: ResMut<ChatConsole>,
+    mut fade_state: ResMut<ChatFadeState>,
     combat: Option<Res<CombatResource>>,
 ) {
     if let Some(ref combat) = combat {
@@ -1356,6 +1408,7 @@ fn handle_input_clicks(
     for interaction in &interaction_q {
         if *interaction == Interaction::Pressed {
             console.open = true;
+            fade_state.reset();
         }
     }
 }
@@ -1788,11 +1841,66 @@ fn process_chat_events(
     }
 }
 
+fn tick_chat_fade(
+    time: Res<Time>,
+    console: Res<ChatConsole>,
+    history: Res<ChatHistory>,
+    mut fade_state: ResMut<ChatFadeState>,
+    mut chat_root_q: Query<(&mut Visibility, Option<&Interaction>), With<ChatUiRoot>>,
+    combat: Option<Res<CombatResource>>,
+) {
+    if combat.as_ref().map_or(false, |c| c.in_combat) {
+        return;
+    }
+
+    // New messages in history wake up the chat and reset the inactivity timer
+    if history.is_changed() {
+        fade_state.reset();
+    }
+
+    // Hovering over the visible chatbox keeps it alive
+    if fade_state.alpha > 0.0 {
+        if let Ok((_, Some(interaction))) = chat_root_q.get_single() {
+            if *interaction == Interaction::Hovered {
+                fade_state.bypass_change_detection().activity_timer = CHAT_INACTIVITY_TIMEOUT;
+            }
+        }
+    }
+
+    // While typing, stay completely visible
+    if console.open {
+        if fade_state.alpha != 1.0 {
+            fade_state.alpha = 1.0;
+        }
+        fade_state.bypass_change_detection().activity_timer = CHAT_INACTIVITY_TIMEOUT;
+    } else {
+        let dt = time.delta_seconds();
+        if fade_state.activity_timer > 0.0 {
+            fade_state.bypass_change_detection().activity_timer = (fade_state.activity_timer - dt).max(0.0);
+        } else if fade_state.alpha > 0.0 {
+            let new_alpha = (fade_state.alpha - dt / CHAT_FADE_DURATION).max(0.0);
+            fade_state.alpha = new_alpha;
+        }
+    }
+
+    // Manage visibility of the root container
+    if let Ok((mut vis, _)) = chat_root_q.get_single_mut() {
+        if fade_state.alpha <= 0.0 {
+            if *vis != Visibility::Hidden {
+                *vis = Visibility::Hidden;
+            }
+        } else if *vis != Visibility::Inherited {
+            *vis = Visibility::Inherited;
+        }
+    }
+}
+
 fn update_chat_combat_visibility(
     combat: Option<Res<CombatResource>>,
     mut chat_root_q: Query<&mut Visibility, (With<ChatUiRoot>, Without<TerminalUiRoot>)>,
     mut term_root_q: Query<&mut Visibility, (With<TerminalUiRoot>, Without<ChatUiRoot>)>,
     mut console: ResMut<ChatConsole>,
+    mut fade_state: ResMut<ChatFadeState>,
 ) {
     let Some(combat) = combat else { return };
     if combat.is_changed() {
@@ -1806,7 +1914,10 @@ fn update_chat_combat_visibility(
             console.open = false;
             console.terminal_open = false;
             console.input_buffer.clear();
+            fade_state.alpha = 0.0;
+            fade_state.activity_timer = 0.0;
         } else {
+            fade_state.reset();
             if let Ok(mut vis) = chat_root_q.get_single_mut() {
                 *vis = Visibility::Inherited;
             }
@@ -1816,38 +1927,46 @@ fn update_chat_combat_visibility(
 
 fn update_chat_container_style(
     console: Res<ChatConsole>,
+    fade_state: Res<ChatFadeState>,
     mut query: Query<(&mut BackgroundColor, &mut BorderColor), With<ChatUiRoot>>,
 ) {
-    if !console.is_changed() {
+    if !console.is_changed() && !fade_state.is_changed() {
         return;
     }
+    let alpha = fade_state.alpha;
     if let Ok((mut bg, mut border)) = query.get_single_mut() {
         if console.open {
-            *bg = Color::rgba(0.06, 0.07, 0.10, 0.92).into();
-            *border = Color::rgba(0.45, 0.45, 0.55, 0.85).into();
+            *bg = Color::rgba(0.06, 0.07, 0.10, 0.92 * alpha).into();
+            *border = Color::rgba(0.45, 0.45, 0.55, 0.85 * alpha).into();
         } else {
-            *bg = Color::rgba(0.04, 0.05, 0.07, 0.65).into();
-            *border = Color::rgba(0.25, 0.25, 0.35, 0.45).into();
+            *bg = Color::rgba(0.04, 0.05, 0.07, 0.65 * alpha).into();
+            *border = Color::rgba(0.25, 0.25, 0.35, 0.45 * alpha).into();
         }
     }
 }
 
 fn update_chat_tabs_ui(
     console: Res<ChatConsole>,
+    fade_state: Res<ChatFadeState>,
     mut tab_buttons: Query<(&ChatTabButton, &mut BackgroundColor, &mut BorderColor, &mut Style)>,
-    mut tab_texts: Query<(&ChatTabText, &mut Text)>,
+    mut tab_texts: Query<(&ChatTabText, &mut Text), Without<ChatShortcutHelpText>>,
+    mut help_texts: Query<&mut Text, With<ChatShortcutHelpText>>,
 ) {
+    if !console.is_changed() && !fade_state.is_changed() {
+        return;
+    }
+    let alpha = fade_state.alpha;
     for (btn, mut bg, mut border, mut style) in &mut tab_buttons {
         if btn.0 == ChatChannel::Group {
             style.display = if console.in_group { Display::Flex } else { Display::None };
         }
 
         if btn.0 == console.active_channel {
-            *bg = Color::rgba(0.20, 0.22, 0.30, 0.95).into();
-            *border = btn.0.color().into();
+            *bg = Color::rgba(0.20, 0.22, 0.30, 0.95 * alpha).into();
+            *border = btn.0.color().with_a(alpha).into();
         } else {
-            *bg = Color::rgba(0.08, 0.08, 0.12, 0.60).into();
-            *border = Color::rgba(0.20, 0.20, 0.28, 0.40).into();
+            *bg = Color::rgba(0.08, 0.08, 0.12, 0.60 * alpha).into();
+            *border = Color::rgba(0.20, 0.20, 0.28, 0.40 * alpha).into();
         }
     }
 
@@ -1861,29 +1980,37 @@ fn update_chat_tabs_ui(
 
         if is_active {
             text.sections[0].value = tab_text.0.name().to_string();
-            text.sections[0].style.color = tab_text.0.color();
+            text.sections[0].style.color = tab_text.0.color().with_a(alpha);
         } else if unread > 0 {
             text.sections[0].value = format!("{} (*)", tab_text.0.name());
-            text.sections[0].style.color = tab_text.0.color();
+            text.sections[0].style.color = tab_text.0.color().with_a(alpha);
         } else {
             text.sections[0].value = tab_text.0.name().to_string();
-            text.sections[0].style.color = Color::rgba(0.60, 0.60, 0.65, 0.75);
+            text.sections[0].style.color = Color::rgba(0.60, 0.60, 0.65, 0.75 * alpha);
         }
+    }
+
+    for mut text in &mut help_texts {
+        text.sections[0].style.color = Color::rgba(0.55, 0.55, 0.62, 0.70 * alpha);
     }
 }
 
 fn update_chat_input_ui(
     time: Res<Time>,
     mut console: ResMut<ChatConsole>,
+    fade_state: Res<ChatFadeState>,
     mut prompt_q: Query<&mut Text, (With<ChatInputPrompt>, Without<ChatInputText>)>,
     mut input_text_q: Query<&mut Text, (With<ChatInputText>, Without<ChatInputPrompt>)>,
     mut container_q: Query<(&mut BackgroundColor, &mut BorderColor), With<ChatInputContainer>>,
 ) {
-    console.cursor_timer.tick(time.delta());
-    if console.cursor_timer.just_finished() {
-        console.cursor_visible = !console.cursor_visible;
+    if console.open {
+        console.cursor_timer.tick(time.delta());
+        if console.cursor_timer.just_finished() {
+            console.cursor_visible = !console.cursor_visible;
+        }
     }
 
+    let alpha = fade_state.alpha;
     let channel_color = console.active_channel.color();
 
     if let Ok(mut prompt) = prompt_q.get_single_mut() {
@@ -1893,9 +2020,9 @@ fn update_chat_input_ui(
             format!("[{}] ", console.active_channel.name())
         };
         prompt.sections[0].style.color = if console.open {
-            channel_color
+            channel_color.with_a(alpha)
         } else {
-            channel_color.with_a(0.65)
+            channel_color.with_a(0.65 * alpha)
         };
     }
 
@@ -1903,33 +2030,41 @@ fn update_chat_input_ui(
         if console.open {
             let cursor = if console.cursor_visible { "_" } else { " " };
             text.sections[0].value = format!("{}{}", console.input_buffer, cursor);
-            text.sections[0].style.color = Color::WHITE;
+            text.sections[0].style.color = Color::rgba(1.0, 1.0, 1.0, alpha);
             text.sections[0].style.font_size = 14.0;
         } else {
             text.sections[0].value = "Appuyez sur 'T' pour parler...".to_string();
-            text.sections[0].style.color = Color::rgba(0.55, 0.55, 0.60, 0.7);
+            text.sections[0].style.color = Color::rgba(0.55, 0.55, 0.60, 0.70 * alpha);
             text.sections[0].style.font_size = 13.0;
         }
     }
 
     if let Ok((mut bg, mut border)) = container_q.get_single_mut() {
         if console.open {
-            *bg = Color::rgba(0.08, 0.09, 0.13, 0.95).into();
-            *border = channel_color.into();
+            *bg = Color::rgba(0.08, 0.09, 0.13, 0.95 * alpha).into();
+            *border = channel_color.with_a(alpha).into();
         } else {
-            *bg = Color::rgba(0.04, 0.05, 0.08, 0.70).into();
-            *border = Color::rgba(0.25, 0.25, 0.35, 0.50).into();
+            *bg = Color::rgba(0.04, 0.05, 0.08, 0.70 * alpha).into();
+            *border = Color::rgba(0.25, 0.25, 0.35, 0.50 * alpha).into();
         }
     }
 }
 
 fn update_chat_messages_ui(
     console: Res<ChatConsole>,
+    fade_state: Res<ChatFadeState>,
     history: Res<ChatHistory>,
     mut query: Query<&mut Text, With<ChatText>>,
+    mut msg_area_q: Query<&mut BackgroundColor, With<ChatMessagesArea>>,
 ) {
-    if !history.is_changed() && !console.is_changed() {
+    if !history.is_changed() && !console.is_changed() && !fade_state.is_changed() {
         return;
+    }
+
+    let alpha = fade_state.alpha;
+
+    for mut bg in &mut msg_area_q {
+        *bg = Color::rgba(0.02, 0.03, 0.05, 0.50 * alpha).into();
     }
 
     let Ok(mut text) = query.get_single_mut() else {
@@ -1950,7 +2085,7 @@ fn update_chat_messages_ui(
             format!("(Aucun message dans le canal {})\n", console.active_channel.name()),
             TextStyle {
                 font_size: 14.0,
-                color: Color::rgba(0.5, 0.5, 0.55, 0.7),
+                color: Color::rgba(0.5, 0.5, 0.55, 0.70 * alpha),
                 ..default()
             },
         ));
@@ -1960,7 +2095,7 @@ fn update_chat_messages_ui(
                 format!("{}\n", msg.text),
                 TextStyle {
                     font_size: 14.0,
-                    color: msg.color,
+                    color: msg.color.with_a(alpha),
                     ..default()
                 },
             ));
