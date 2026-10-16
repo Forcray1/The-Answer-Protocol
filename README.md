@@ -434,6 +434,8 @@ TODO:
 	- Logs not working for bevy client (ah ouais ?)
 	- Upgrade the UI (chatbox disapear after 5s), Create Group UI and main menu UI with leave option.
 	- Fix bug respawn mob system, they respawn only if the players moves
+	- Help Command
+	- Stats Point system
 
 - Combat system
 - Inventory
