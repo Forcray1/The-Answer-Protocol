@@ -14,6 +14,7 @@ world:
       exp_reward: 65
       respawn_time: 10
       dialogue: ["Grahhhh !"]
+
     - id: "Guard1"
       name: "guard"
       role: "None"
@@ -23,6 +24,7 @@ world:
         - "If you go through this gate you will enter the city"
       spawn_pos: [-150.0, 595.0]
       scale: 0.6
+
     - id: "Guard2"
       name: "guard"
       role: "None"
@@ -32,10 +34,32 @@ world:
         - "If you go through this gate you will enter the city"
       spawn_pos: [150.0, 595.0]
       scale: 0.6
+
+    - id: "Guard3"
+      name: "guard"
+      role: "None"
+      sprite: "../skin/Guard"
+      hp: 50
+      dialogue:
+        - "Did you have an audience with the queen ?"
+        - "I'll let you pass go on"
+      spawn_pos: [-39.0, 339.0]
+      scale: 0.6
+
+    - id: "Guard4"
+      name: "guard"
+      role: "None"
+      sprite: "../skin/Guard"
+      hp: 50
+      dialogue:
+        - "Did you have an audience with the queen ?"
+        - "I'll let you pass go on"
+      spawn_pos: [139.0, 339.0]
+      scale: 0.6
+
     - id: "Gragas"
       name: "Sir Gragas"
       role: "Quest_giver"
-      quest: ""
       sprite: "../skin/Chief1"
       hp: 50
       dialogue:
@@ -44,15 +68,150 @@ world:
         - "You can go train north from here there is some monsters you could defeat"
       spawn_pos: [0.0, 0.0]
       scale: 0.6
-    - id: ""
-      name: ""
-      role: "None"
-      sprite: "../skin/.."
+
+    - id: "Queen"
+      name: "The Queen"
+      role: "Quest_giver"
+      sprite: "../skin/Queen"
+      hp: 60
+      dialogue:
+        - "You're the one Sir Gragas sent to help ?"
+        - "I'm glad that you are here, we need your help. Before taking down the temple, you need to go look for our treasure, it has been stolen and taken to the cave in the south west."
+        - "You succeeded to retrieve it ? Thank you, you're stronger than what Sir Gragas was telling us. Here is a pass to the temple. Be aware, there is a lot of monsters and our enemy is truly strong."
+        - "Y-You did it ! Thank you so much. I don't know how to repay you."
+      spawn_pos: [46.0, 406.0]
+      scale: 0.6
+
+    - id: "Dory"
+      name: "Dory"
+      role: "Quest_giver"
+      sprite: "../skin/Dory"
       hp: 50
       dialogue:
-        - ""
+        - "Did you know I made this city ?"
+        - "If you go check poiscapute on instagram I'll give you an item..."
+        - "Thank you so much ! Here you go, it's for you."
+        - "You little selfish peasant, nothing for you then..."
       spawn_pos: [0.0, 0.0]
       scale: 0.6
+
+    - id: "Oguzhan"
+      name: "Oguzhan"
+      role: "None"
+      sprite: "../skin/Oguzhan"
+      hp: 50
+      dialogue:
+        - "The temple can't be accessed because it's been taken by some monster."
+        - "I'll go free it easily but I still have work to do..."
+      spawn_pos: [0.0, 0.0]
+      scale: 0.6
+
+    - id: "Soufiane"
+      name: "Soufiane"
+      role: "Quest_giver"
+      sprite: "../skin/Soufiane"
+      hp: 50
+      dialogue:
+        - "Do you know about Pocket monsters ? They are famous in my country."
+        - "There is new merch, a sword has been released in the oasis of the south, if you go get it for me I'll give you something"
+        - "Thank you so much, here you go. I bought it from a strange merchant a long time ago, you may have a better use for it than me."
+      spawn_pos: [0.0, 0.0]
+      scale: 0.6
+
+    - id: "Jamato"
+      name: "Jamato"
+      role: "Quest_giver"
+      sprite: "../skin/Jamato"
+      hp: 50
+      dialogue:
+        - "Don't tell anyone but I found a way to make armor. If you bring me 10 bones from the skeleton in the wild, I'll make one for you."
+        - "Well played, here's for you. Don't tell anyone, I don't want to get too much attention..."
+      spawn_pos: [0.0, 0.0]
+      scale: 0.6
+
+    - id: "Fatih"
+      name: "Fatih"
+      role: "None"
+      sprite: "../skin/Fatih"
+      hp: 50
+      dialogue:
+        - "Did you know there's been massive leaks from the archives of the 42 country ? That's the height of irony, they're known for forming security guards."
+      spawn_pos: [0.0, 0.0]
+      scale: 0.6
+
+    - id: "Zek"
+      name: "Zek"
+      role: "Quest_giver"
+      sprite: "../skin/Zek"
+      hp: 50
+      dialogue:
+        - "This region is dangerous, take those healing potions. I will feel guilty if you die."
+        - "Be aware, monsters here are strong."
+      spawn_pos: [0.0, 0.0]
+      scale: 0.6
+
+    - id: "Mage"
+      name: "Mage"
+      role: "None"
+      sprite: "../skin/Mage"
+      hp: 50
+      dialogue:
+        - "This cave has become really dangerous, stay on your guard in there."
+      spawn_pos: [0.0, 0.0]
+      scale: 0.6
+
+    - id: "Anwar"
+      name: "Anwar"
+      role: "None"
+      sprite: "../skin/Anwar"
+      hp: 50
+      dialogue:
+        - "Hi, I rule this Oasis. I've made good friends with influent people of the city so they gave me this land."
+        - "There is a forge that sells goods here, you should go check it out."
+      spawn_pos: [0.0, 0.0]
+      scale: 0.6
+
+    - id: "Forgeon"
+      name: "Forgeon"
+      role: "None"
+      sprite: "../skin/Forgeon"
+      hp: 50
+      dialogue:
+        - "Welcome to our shop, take your time to look if something interests you."
+      spawn_pos: [0.0, 0.0]
+      scale: 0.6
+
+    - id: "Axel"
+      name: "Axel"
+      role: "None"
+      sprite: "../skin/Axel"
+      hp: 50
+      dialogue:
+        - "Did you know our borders extend way further than this ? If you come back later you may be able to explore it, but only if the devs work harder for transcendence."
+      spawn_pos: [0.0, 0.0]
+      scale: 0.6
+
+    - id: "Elyesa"
+      name: "Elyesa"
+      role: "None"
+      sprite: "../skin/Elyesa"
+      hp: 50
+      dialogue:
+        - "I'm working on some projects for the neighbouring city. If they accept my proposition, I may be creating something way bigger."
+      spawn_pos: [0.0, 0.0]
+      scale: 0.6
+
+    - id: "Remy"
+      name: "Remy"
+      role: "Quest_giver"
+      sprite: "../skin/Remy"
+      hp: 50
+      dialogue:
+        - "I've been stuck looking for diamond. Could you help me to get some ? I definitely need to grind to not be stuck here forever."
+        - "Some sand monsters from here drop them."
+      spawn_pos: [0.0, 0.0]
+      scale: 0.6
+
   items:
     - id: "Excalibur"
       name: "Excalibur"
@@ -91,7 +250,7 @@ world:
       exits:
         south: "Wild4"
         east: "Castle"
-      npcs: []
+      npcs: ["Guard3", "Guard4", "Dory", "Oguzhan", "Soufiane", "Queen", "Chungus"]
       items: []
     Castle:
       name: "Castle"
@@ -117,7 +276,7 @@ world:
         east: "Wild4"
         south: "Wild6"
         west: "Wild3"
-      npcs: []
+      npcs: ["Gragas", "Jamato", "Fatih"]
       items: ["Excalibur", "Dague"]
     Wild4:
       name: "Wild4"
@@ -134,7 +293,7 @@ world:
       description: ""
       exits:
         west: "Wild4"
-      npcs: []
+      npcs: ["Zek"]
       items: []
     Wild6:
       name: "Wild6"
@@ -142,7 +301,7 @@ world:
       exits:
         west: "Cave1"
         north: "Start_oasis"
-      npcs: []
+      npcs: ["Mage"]
       items: []
     Oasis2:
       name: "Oasis2"
@@ -150,14 +309,14 @@ world:
       exits:
         north: "Wild4"
         east: "Wild7"
-      npcs: []
+      npcs: ["Anwar", "Forgeon", "Axel", "Elyesa"]
       items: []
     Wild7:
       name: "Wild7"
       description: ""
       exits:
         west: "Oasis2"
-      npcs: []
+      npcs: ["Remy"]
       items: []
     Cave1:
       name: "Cave1"

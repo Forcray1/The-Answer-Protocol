@@ -4,7 +4,7 @@ use std::thread;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
 
-const SERVER_ADDR: &str = "10.13.3.10:4243";
+const SERVER_ADDR: &str = "127.0.0.1:4243";
 
 #[derive(Event)]
 pub struct ServerMessageEvent(pub String);
