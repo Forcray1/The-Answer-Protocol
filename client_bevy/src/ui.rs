@@ -481,7 +481,22 @@ fn toggle_inventory(
     console: Res<ChatConsole>,
     quest_state: Res<QuestState>,
     sender: Res<crate::net::NetworkSender>,
+    combat: Option<Res<CombatResource>>,
 ) {
+    if let Some(ref combat) = combat {
+        if combat.in_combat && state.open {
+            state.open = false;
+        }
+        if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None {
+            if state.is_changed() {
+                if let Ok(mut visibility) = query.get_single_mut() {
+                    *visibility = Visibility::Hidden;
+                }
+            }
+            return;
+        }
+    }
+
     if !console.open && !console.terminal_open && !quest_state.open && keys.just_pressed(KeyCode::KeyI) {
         state.open = !state.open;
         if state.open {
@@ -1313,7 +1328,7 @@ fn toggle_chat(
     combat: Option<Res<CombatResource>>,
 ) {
     if let Some(ref combat) = combat {
-        if combat.in_combat {
+        if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None {
             return;
         }
     }
@@ -1349,7 +1364,7 @@ fn toggle_terminal(
     combat: Option<Res<CombatResource>>,
 ) {
     if let Some(ref combat) = combat {
-        if combat.in_combat {
+        if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None {
             return;
         }
     }
@@ -1381,7 +1396,7 @@ fn handle_tab_clicks(
     combat: Option<Res<CombatResource>>,
 ) {
     if let Some(ref combat) = combat {
-        if combat.in_combat {
+        if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None {
             return;
         }
     }
@@ -1401,7 +1416,7 @@ fn handle_input_clicks(
     combat: Option<Res<CombatResource>>,
 ) {
     if let Some(ref combat) = combat {
-        if combat.in_combat {
+        if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None {
             return;
         }
     }
@@ -1423,7 +1438,7 @@ fn handle_terminal_inputs(
     combat: Option<Res<CombatResource>>,
 ) {
     if let Some(ref combat) = combat {
-        if combat.in_combat {
+        if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None {
             return;
         }
     }
@@ -1491,7 +1506,7 @@ fn handle_inputs(
     combat: Option<Res<CombatResource>>,
 ) {
     if let Some(ref combat) = combat {
-        if combat.in_combat {
+        if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None {
             return;
         }
     }
@@ -2507,7 +2522,22 @@ fn toggle_quest_ui(
     console: Res<ChatConsole>,
     inventory: Res<InventoryState>,
     sender: Res<crate::net::NetworkSender>,
+    combat: Option<Res<CombatResource>>,
 ) {
+    if let Some(ref combat) = combat {
+        if combat.in_combat && state.open {
+            state.open = false;
+        }
+        if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None {
+            if state.is_changed() {
+                if let Ok(mut visibility) = query.get_single_mut() {
+                    *visibility = Visibility::Hidden;
+                }
+            }
+            return;
+        }
+    }
+
     if !console.open && !console.terminal_open && !inventory.open && keys.just_pressed(KeyCode::KeyU) {
         state.open = !state.open;
         if state.open {

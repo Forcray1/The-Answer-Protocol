@@ -291,7 +291,7 @@ fn handle_interaction_input(
     dialogue: Res<crate::interaction::DialogueState>,
     sender: Res<crate::net::NetworkSender>,
 ) {
-    if combat.in_combat || dialogue.is_active() {
+    if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None || dialogue.is_active() {
         return;
     }
     if input.just_pressed(KeyCode::KeyE) {

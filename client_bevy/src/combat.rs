@@ -18,6 +18,7 @@ impl Plugin for CombatPlugin {
                     handle_combat_inputs,
                     animate_combat_entities,
                     update_combat_hp_bars,
+                    update_combat_menu_selection,
                 ).run_if(in_state(AppState::InGame)),
             );
     }
@@ -25,8 +26,8 @@ impl Plugin for CombatPlugin {
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-const COMBAT_Z_BG: f32 = 500.0;
-const COMBAT_Z_ENTITIES: f32 = 510.0;
+const COMBAT_Z_BG: f32 = 2000.0;
+const COMBAT_Z_ENTITIES: f32 = 2010.0;
 const FADE_SPEED: f32 = 1.0;
 
 // ── Resource ───────────────────────────────────────────────────────────────
@@ -45,6 +46,7 @@ pub struct CombatResource {
     pub combat_message: String,
     pub message_timer: f32,
     pub bg_textures: Vec<Handle<Image>>,
+    pub selected_action: usize, // 0: Attaquer, 1: Objet, 2: Fuir
 }
 
 #[derive(Default, PartialEq, Eq, Clone, Copy)]
@@ -87,6 +89,18 @@ struct PlayerHpText;
 #[derive(Component)]
 struct CombatMessageText;
 
+#[derive(Component)]
+struct CombatButtonVisual {
+    index: usize,
+    current_width: f32,
+    current_height: f32,
+}
+
+#[derive(Component)]
+struct CombatCursorVisual {
+    current_top: f32,
+}
+
 // ── Systems ────────────────────────────────────────────────────────────────
 
 fn setup_combat_overlay(
@@ -98,6 +112,11 @@ fn setup_combat_overlay(
     for i in 1..=5 {
         combat.bg_textures.push(asset_server.load(format!("maps/FightMap/FightBackground{}.webp", i)));
     }
+    // Préchargement des boutons de combat et du curseur
+    let _ = asset_server.load::<Image>("CombatUI_Attaquer.png");
+    let _ = asset_server.load::<Image>("CombatUI_Objet.png");
+    let _ = asset_server.load::<Image>("CombatUI_Fuir.png");
+    let _ = asset_server.load::<Image>("curseur.png");
 
     // Overlay plein écran UI à Z=9999 : couvre à la fois le monde 2D ET toute l'interface UI
     commands.spawn((
@@ -132,7 +151,9 @@ fn listen_combat_events(
         if let Some(rest) = line.strip_prefix("S: EVT COMBAT START ") {
             let parts: Vec<&str> = rest.split_whitespace().collect();
             if parts.len() >= 6 {
-                combat.in_combat = true;
+                // combat.in_combat sera activé à true uniquement lorsque l'écran sera à 100% noir (fade_alpha >= 1.0)
+                // pour que les éléments de jeu (UI, joueurs, NPC) restent visibles sous le fondu et disparaissent naturellement.
+                combat.selected_action = 0;
                 combat.enemy_id = parts[0].to_string();
                 combat.combat_sprite = parts[1].strip_suffix(".png").unwrap_or(parts[1]).to_string();
                 // Précharge le sprite du monstre immédiatement pour qu'il soit prêt
@@ -146,7 +167,7 @@ fn listen_combat_events(
                 combat.fade_alpha = 0.0;
                 combat.phase = CombatTransitionPhase::FadingToBlack;
                 println!(
-                    "[COMBAT] Début du combat contre '{}' (sprite '{}', bg {})",
+                    "[COMBAT] Transition vers le combat contre '{}' (sprite '{}', bg {})",
                     combat.enemy_name, combat.combat_sprite, combat.bg_index
                 );
             }
@@ -200,6 +221,9 @@ fn handle_combat_transition(
             combat.fade_alpha += FADE_SPEED * dt;
             if combat.fade_alpha >= 1.0 {
                 combat.fade_alpha = 1.0;
+                // Écran 100% noir : on bascule in_combat = true pour masquer les éléments de la carte
+                // et faire apparaître l'arène de combat avant le fondu d'ouverture
+                combat.in_combat = true;
                 spawn_combat_arena(
                     &mut commands,
                     &asset_server,
@@ -465,24 +489,107 @@ fn spawn_combat_arena(
         ));
     });
 
-    // 4. Combat Banner (Actions + Notifications at bottom)
+    // 4. Combat Actions Menu (LEFT side towards middle of screen)
+    let btn_textures: [Handle<Image>; 3] = [
+        asset_server.load("CombatUI_Attaquer.png"),
+        asset_server.load("CombatUI_Objet.png"),
+        asset_server.load("CombatUI_Fuir.png"),
+    ];
+
     commands.spawn((
         NodeBundle {
             style: Style {
                 position_type: PositionType::Absolute,
-                bottom: Val::Percent(8.0),
-                left: Val::Percent(20.0),
-                right: Val::Percent(20.0),
-                height: Val::Px(85.0),
+                left: Val::Percent(6.0),
+                top: Val::Percent(38.0),
                 flex_direction: FlexDirection::Column,
+                align_items: AlignItems::FlexStart,
+                row_gap: Val::Px(6.0),
+                ..default()
+            },
+            ..default()
+        },
+        CombatEntity,
+    )).with_children(|menu| {
+        for (i, texture) in btn_textures.into_iter().enumerate() {
+            let is_selected = combat.selected_action == i;
+            let initial_w = if is_selected { 210.0 } else { 195.0 };
+            let initial_h = if is_selected { 72.0 } else { 66.8 };
+
+            menu.spawn(NodeBundle {
+                style: Style {
+                    width: Val::Px(240.0),
+                    height: Val::Px(74.0),
+                    justify_content: JustifyContent::FlexStart,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                ..default()
+            }).with_children(|slot| {
+                slot.spawn((
+                    ImageBundle {
+                        image: UiImage::new(texture),
+                        style: Style {
+                            width: Val::Px(initial_w),
+                            height: Val::Px(initial_h),
+                            ..default()
+                        },
+                        ..default()
+                    },
+                    CombatButtonVisual {
+                        index: i,
+                        current_width: initial_w,
+                        current_height: initial_h,
+                    },
+                ));
+            });
+        }
+
+        // Curseur flèche dorée animé à gauche du bouton sélectionné
+        let cursor_texture: Handle<Image> = asset_server.load("curseur.png");
+        let initial_cursor_top = match combat.selected_action {
+            0 => 20.0,
+            1 => 100.0,
+            _ => 180.0,
+        };
+
+        menu.spawn((
+            ImageBundle {
+                image: UiImage::new(cursor_texture),
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    left: Val::Px(-44.0),
+                    top: Val::Px(initial_cursor_top),
+                    width: Val::Px(34.0),
+                    height: Val::Px(34.0),
+                    ..default()
+                },
+                ..default()
+            },
+            CombatCursorVisual {
+                current_top: initial_cursor_top,
+            },
+        ));
+    });
+
+    // 5. Combat Log Banner (Status / Feedback au bas de l'écran)
+    commands.spawn((
+        NodeBundle {
+            style: Style {
+                position_type: PositionType::Absolute,
+                bottom: Val::Percent(6.0),
+                left: Val::Percent(22.0),
+                right: Val::Percent(22.0),
+                height: Val::Px(48.0),
+                flex_direction: FlexDirection::Row,
                 align_items: AlignItems::Center,
                 justify_content: JustifyContent::Center,
-                padding: UiRect::all(Val::Px(10.0)),
+                padding: UiRect::axes(Val::Px(20.0), Val::Px(6.0)),
                 border: UiRect::all(Val::Px(2.0)),
                 ..default()
             },
-            background_color: Color::rgba(0.05, 0.05, 0.08, 0.90).into(),
-            border_color: Color::rgb(0.8, 0.7, 0.3).into(),
+            background_color: Color::rgba(0.04, 0.04, 0.08, 0.92).into(),
+            border_color: Color::rgba(0.85, 0.75, 0.35, 0.85).into(),
             ..default()
         },
         CombatEntity,
@@ -493,43 +600,111 @@ fn spawn_combat_arena(
                 &combat.combat_message,
                 TextStyle {
                     font_size: 18.0,
-                    color: Color::rgb(1.0, 0.9, 0.5),
+                    color: Color::rgb(1.0, 0.92, 0.65),
                     ..default()
                 },
-            ),
+            ).with_text_justify(JustifyText::Center),
             CombatMessageText,
         ));
-
-        // Action Hints
-        parent.spawn(TextBundle::from_section(
-            "[E]  Attaquer        •        [Echap]  Fuir le combat",
-            TextStyle {
-                font_size: 17.0,
-                color: Color::rgb(0.7, 0.9, 1.0),
-                ..default()
-            },
-        ).with_style(Style {
-            margin: UiRect::top(Val::Px(8.0)),
-            ..default()
-        }));
     });
 }
 
 fn handle_combat_inputs(
     input: Res<ButtonInput<KeyCode>>,
-    combat: Res<CombatResource>,
+    mut combat: ResMut<CombatResource>,
     sender: Res<NetworkSender>,
+    console: Option<Res<crate::ui::ChatConsole>>,
 ) {
     if !combat.in_combat || combat.phase != CombatTransitionPhase::None {
         return;
     }
+    if let Some(ref c) = console {
+        if c.open || c.terminal_open {
+            return;
+        }
+    }
 
-    if input.just_pressed(KeyCode::KeyE) {
-        if !combat.enemy_id.is_empty() {
-            let _ = sender.0.send(format!("ATTACK {}\n", combat.enemy_id));
+    // Navigation STRICTEMENT avec les flèches entre les 3 boutons
+    if input.just_pressed(KeyCode::ArrowUp) || input.just_pressed(KeyCode::ArrowLeft) {
+        if combat.selected_action == 0 {
+            combat.selected_action = 2; // Boucle vers FUIR
+        } else {
+            combat.selected_action -= 1;
+        }
+    } else if input.just_pressed(KeyCode::ArrowDown) || input.just_pressed(KeyCode::ArrowRight) {
+        if combat.selected_action >= 2 {
+            combat.selected_action = 0; // Boucle vers ATTAQUER
+        } else {
+            combat.selected_action += 1;
+        }
+    }
+
+    // Validation de l'action sélectionnée
+    let validate = input.just_pressed(KeyCode::Enter)
+        || input.just_pressed(KeyCode::NumpadEnter)
+        || input.just_pressed(KeyCode::Space)
+        || input.just_pressed(KeyCode::KeyE);
+
+    if validate {
+        match combat.selected_action {
+            0 => {
+                // ATTAQUER
+                if !combat.enemy_id.is_empty() {
+                    let _ = sender.0.send(format!("ATTACK {}\n", combat.enemy_id));
+                }
+            }
+            1 => {
+                // OBJET
+                combat.combat_message = "Objets : aucun objet utilisable en combat pour le moment !".to_string();
+                combat.message_timer = 2.5;
+            }
+            2 => {
+                // FUIR
+                let _ = sender.0.send("FLEE\n".to_string());
+            }
+            _ => {}
         }
     } else if input.just_pressed(KeyCode::Escape) {
         let _ = sender.0.send("FLEE\n".to_string());
+    }
+}
+
+fn update_combat_menu_selection(
+    time: Res<Time>,
+    combat: Res<CombatResource>,
+    mut button_q: Query<(&mut Style, &mut CombatButtonVisual), Without<CombatCursorVisual>>,
+    mut cursor_q: Query<(&mut Style, &mut CombatCursorVisual), Without<CombatButtonVisual>>,
+) {
+    if !combat.in_combat {
+        return;
+    }
+    let dt = time.delta_seconds();
+    let t = time.elapsed_seconds();
+
+    // 1. Boutons (grossissement doux et modéré)
+    for (mut style, mut btn) in &mut button_q {
+        let is_selected = btn.index == combat.selected_action;
+        let target_w = if is_selected { 210.0 } else { 195.0 };
+        let target_h = if is_selected { 72.0 } else { 66.8 };
+
+        btn.current_width += (target_w - btn.current_width) * (20.0 * dt).min(1.0);
+        btn.current_height += (target_h - btn.current_height) * (20.0 * dt).min(1.0);
+
+        style.width = Val::Px(btn.current_width);
+        style.height = Val::Px(btn.current_height);
+    }
+
+    // 2. Curseur (glissement fluide et oscillation rétro)
+    let target_top = match combat.selected_action {
+        0 => 20.0,
+        1 => 100.0,
+        _ => 180.0,
+    };
+    let bob = (t * 6.0).sin() * 3.5;
+    for (mut style, mut cursor) in &mut cursor_q {
+        cursor.current_top += (target_top - cursor.current_top) * (22.0 * dt).min(1.0);
+        style.top = Val::Px(cursor.current_top);
+        style.left = Val::Px(-44.0 + bob);
     }
 }
 

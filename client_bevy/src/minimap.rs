@@ -73,7 +73,22 @@ fn toggle_minimap(
     keys: Res<ButtonInput<KeyCode>>,
     console: Res<crate::ui::ChatConsole>,
     mut query: Query<&mut Visibility, With<MinimapOverlay>>,
+    combat: Option<Res<crate::combat::CombatResource>>,
 ) {
+    if let Some(ref combat) = combat {
+        if combat.in_combat {
+            for mut visibility in &mut query {
+                if *visibility != Visibility::Hidden {
+                    *visibility = Visibility::Hidden;
+                }
+            }
+            return;
+        }
+        if combat.phase != crate::combat::CombatTransitionPhase::None {
+            return;
+        }
+    }
+
     if console.open || console.terminal_open || !keys.just_pressed(MINIMAP_KEY) {
         return;
     }

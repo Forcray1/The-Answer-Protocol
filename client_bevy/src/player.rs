@@ -23,6 +23,7 @@ impl Plugin for PlayerPlugin {
                     send_local_position,
                     handle_presence_events,
                     update_remote_players,
+                    update_player_combat_visibility,
                 ).run_if(in_state(AppState::InGame)),
             );
     }
@@ -258,7 +259,7 @@ fn update_local_player(
     };
 
     // Freeze player during transitions or combat.
-    if transition.is_active() || combat.in_combat || dialogue.is_active() {
+    if transition.is_active() || combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None || dialogue.is_active() {
         held.0.clear();
         animate(&mut anim, &mut texture, time.delta(), false, Vec2::ZERO);
         return;
@@ -361,7 +362,7 @@ fn send_local_position(
     query: Query<&Transform, With<LocalPlayer>>,
     mut last_sent: Local<Option<Vec2>>,
 ) {
-    if combat.in_combat {
+    if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None {
         return;
     }
     timer.0.tick(time.delta());
@@ -505,5 +506,25 @@ fn facing_index(dir: Vec2) -> usize {
         1
     } else {
         0
+    }
+}
+
+fn update_player_combat_visibility(
+    combat: Res<crate::combat::CombatResource>,
+    mut players: Query<(&mut Visibility, Ref<PlayerName>)>,
+) {
+    let combat_changed = combat.is_changed();
+    if combat_changed || combat.in_combat {
+        for (mut vis, name_ref) in &mut players {
+            if combat_changed {
+                *vis = if combat.in_combat {
+                    Visibility::Hidden
+                } else {
+                    Visibility::Inherited
+                };
+            } else if combat.in_combat && name_ref.is_added() {
+                *vis = Visibility::Hidden;
+            }
+        }
     }
 }

@@ -183,7 +183,26 @@ fn handle_dialogue_advance_input(
     mut popup_q: Query<&mut Visibility, (With<NpcDialoguePopupRoot>, Without<NpcDialoguePortrait>)>,
     mut portrait_q: Query<&mut Visibility, With<NpcDialoguePortrait>>,
     mut text_q: Query<&mut Text, With<NpcDialogueText>>,
+    combat: Option<Res<crate::combat::CombatResource>>,
 ) {
+    if let Some(ref combat) = combat {
+        if combat.in_combat && dialogue_state.active {
+            dialogue_state.active = false;
+            dialogue_state.current_index = 0;
+            dialogue_state.lines.clear();
+            if let Ok(mut popup_visibility) = popup_q.get_single_mut() {
+                *popup_visibility = Visibility::Hidden;
+            }
+            if let Ok(mut portrait_visibility) = portrait_q.get_single_mut() {
+                *portrait_visibility = Visibility::Hidden;
+            }
+            if let Ok(mut dialogue_text) = text_q.get_single_mut() {
+                dialogue_text.sections[0].value.clear();
+            }
+            return;
+        }
+    }
+
     // E key is used only to advance/close while a dialogue is active.
     if !dialogue_state.active || !input.just_pressed(KeyCode::KeyE) {
         return;
