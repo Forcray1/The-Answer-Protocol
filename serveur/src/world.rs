@@ -1,19 +1,74 @@
 // serveur/src/world.rs
 //
-// Le CATALOGUE statique : world.yaml -> structs Rust. C'est la "définition" des
-// choses (ce qu'EST un objet/pnj/lieu), par opposition à leur "placement" runtime
+// Static CATALOG: world.yaml -> Rust structs. This is the "definition" of
+// things (what an item/npc/location IS), as opposed to their runtime "placement"
 // (serveur/src/state.rs).
 //
-// Depuis l'adoption du modèle de `domain`, le catalogue n'utilise plus de `String`
-// brutes pour les identifiants : il réutilise les newtypes (ItemId, NpcId, RoomId,
-// QuestId) et l'énum `Direction`. Les clés du YAML restent des chaînes — les
-// newtypes se désérialisent de façon transparente depuis une chaîne, donc
-// world.yaml n'a pas besoin de changer.
+// Since adopting the `domain` model, the catalog no longer uses raw `String`
+// identifiers: it reuses newtypes (ItemId, NpcId, RoomId,
+// QuestId) and the `Direction` enum. YAML keys remain strings —
+// newtypes deserialize transparently from a string, so
+// world.yaml doesn't need to change.
 
 use serde::Deserialize;
 use std::collections::HashMap;
 
 use domain::{Direction, ItemBucket, ItemId, NpcId, QuestId, RoomId};
+
+// ── PNJ ──────────────────────────────────────────────────────────────────
+
+/// A selectable answer option in a multiple-choice dialogue.
+#[derive(Debug, Deserialize, Clone)]
+pub struct DialogueChoice {
+    /// Text displayed to the player in the UI.
+    pub text: String,
+    /// Value sent back to the server via `ANSWER <npc_id> <answer>`.
+    pub answer: String,
+}
+
+/// NPC dialogue block conditioned on a quest + stage.
+/// `stage` is 0 for NotStarted (before acceptance),
+/// 1..N for `Stage(n)`, and 255 for `Completed`.
+#[derive(Debug, Deserialize, Clone)]
+pub struct QuestDialogue {
+    pub quest_id: QuestId,
+    /// 0 = NotStarted, 1+ = Stage(n), 255 = Completed.
+    pub stage: u32,
+    pub lines: Vec<String>,
+    #[serde(default)]
+    pub choices: Vec<DialogueChoice>,
+}
+
+// ── QUÊTE ─────────────────────────────────────────────────────────────────
+
+/// Objective associated with a specific quest stage (world.yaml).
+/// Re-exports the domain type so world.rs can use it directly.
+pub use domain::StageObjective as StagedObjective;
+
+/// Behaviour when the player gives a wrong answer to an `AnswerDialogue`.
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct OnWrongAnswer {
+    /// Dialogue lines to send to the player after a rejection.
+    #[serde(default)]
+    pub dialogue: Vec<String>,
+    /// If `true`, quest progress is removed (reset to NotStarted).
+    /// The player can restart the conversation from scratch.
+    #[serde(default)]
+    pub reset: bool,
+}
+
+/// Definition of a quest stage in the YAML.
+#[derive(Debug, Deserialize, Clone)]
+pub struct QuestStageDef {
+    /// Stage number (1-based).
+    pub stage: u32,
+    /// Objective to fulfill to advance to the next stage (or `null`).
+    #[serde(default)]
+    pub objective: Option<StagedObjective>,
+    /// Behaviour on wrong answer (only for `AnswerDialogue`).
+    #[serde(default)]
+    pub on_wrong_answer: Option<OnWrongAnswer>,
+}
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct WorldData {
@@ -60,6 +115,9 @@ pub struct Npc {
     pub spawn_pos: Option<[f32; 2]>,
     #[serde(default)]
     pub scale: Option<f32>,
+    /// Dialogue blocks conditional on quest state.
+    #[serde(default)]
+    pub quest_dialogues: Vec<QuestDialogue>,
 }
 
 impl Npc {
@@ -111,10 +169,10 @@ pub struct Item {
 }
 
 impl Item {
-    /// Dans quel sac d'inventaire ranger cet objet quand on le ramasse.
-    /// Les armes (slot "weapon") vont avec les armes ; les objets de quête sans
-    /// emplacement sont des objets-clés ; le reste (y compris les armures) va
-    /// dans le sac générique.
+    /// Which inventory bag to put this item in when picked up.
+    /// Weapons (slot "weapon") go in the weapon bag; quest items without
+    /// a slot are key items; the rest (including armor) go
+    /// in the generic bag.
     pub fn bucket(&self) -> ItemBucket {
         if self.slot.as_deref() == Some("weapon") {
             ItemBucket::Weapon
@@ -127,7 +185,7 @@ impl Item {
         }
     }
 
-    /// Cet objet est-il une arme équipable ?
+    /// Is this item an equippable weapon?
     pub fn is_weapon(&self) -> bool {
         self.slot.as_deref() == Some("weapon")
     }
@@ -159,6 +217,7 @@ pub struct Quest {
     pub id: QuestId,
     pub name: String,
     pub description: String,
+    /// Single objective (legacy format, compatible with existing YAMLs).
     pub objective: QuestObjective,
     #[serde(default)]
     pub target_id: Option<ItemId>,
@@ -166,6 +225,10 @@ pub struct Quest {
     pub giver_id: Option<NpcId>,
     pub reward_exp: Option<i32>,
     pub reward_item: Option<ItemId>,
+    /// Stage definitions (new multi-step format).
+    /// If empty, the quest has a single implicit stage (Stage 1).
+    #[serde(default)]
+    pub stages: Vec<QuestStageDef>,
 }
 
 impl WorldData {

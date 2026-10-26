@@ -34,13 +34,62 @@ impl Plugin for InventoryPlugin {
                 handle_slot_interactions,
                 handle_action_btn,
                 handle_char_stats,
+                handle_tab_click,
+                update_silhouette,
             ).run_if(in_state(AppState::InGame)));
     }
 }
 
+// ── Category tab ──────────────────────────────────────────────────────────
+
+#[derive(Default, Clone, PartialEq, Eq)]
+pub enum InventoryTab {
+    #[default]
+    All,
+    Weapons,
+    Armor,
+    KeyItems,
+}
+
+impl InventoryTab {
+    fn label(&self) -> &'static str {
+        match self {
+            InventoryTab::All      => "All",
+            InventoryTab::Weapons  => "Weapons",
+            InventoryTab::Armor    => "Armor",
+            InventoryTab::KeyItems => "Key Items",
+        }
+    }
+    fn matches(&self, slot: &str) -> bool {
+        match self {
+            InventoryTab::All      => true,
+            InventoryTab::Weapons  => slot == "weapon",
+            InventoryTab::Armor    => matches!(slot, "head" | "chest" | "legs" | "boot"),
+            InventoryTab::KeyItems => slot == "none",
+        }
+    }
+}
+
+// ── Cached raw item (so tabs can re-filter without a new server request) ─
+
+#[derive(Clone, Default)]
+pub struct RawInvItem {
+    pub id: String,
+    pub count: u32,
+    pub slot: String,
+    pub name: String,
+    pub damage: u32,
+    pub sprite: String,
+    pub is_equipped: bool,
+}
+
+// ── Resources ─────────────────────────────────────────────────────────────
+
 #[derive(Resource, Default)]
 pub struct InventoryState {
     pub open: bool,
+    pub active_tab: InventoryTab,
+    pub cached_items: Vec<RawInvItem>,
 }
 
 #[derive(Component)]
@@ -67,6 +116,18 @@ pub struct StatValueText(pub usize);
 #[derive(Component)]
 pub struct CloseButton(pub String);
 
+/// Marks the center silhouette image in the equipment panel.
+#[derive(Component)]
+pub struct PlayerSilhouette;
+
+/// Marks a tab button.
+#[derive(Component)]
+struct InventoryTabBtn(InventoryTab);
+
+/// Marks the active-tab highlight bar.
+#[derive(Component)]
+struct ActiveTabUnderline;
+
 #[derive(Resource, Default)]
 pub struct SelectedItem {
     pub id: Option<String>,
@@ -74,22 +135,76 @@ pub struct SelectedItem {
     pub is_equipped: bool,
 }
 
-fn setup_inventory_ui(mut commands: Commands, _asset_server: Res<AssetServer>) {
-    // ── Color palette inspired by InventoryUI.png ──
-    let bg_dark: Color = Color::rgba(0.12, 0.09, 0.07, 0.97);        // Dark brown/chocolate
-    let bg_panel: Color = Color::rgba(0.18, 0.14, 0.10, 0.95);       // Slightly lighter brown
-    let border_gold: Color = Color::rgba(0.72, 0.58, 0.30, 1.0);     // Gold/tan border
-    let border_inner: Color = Color::rgba(0.40, 0.32, 0.20, 0.8);    // Darker gold for inner borders
-    let slot_bg: Color = Color::rgba(0.22, 0.18, 0.14, 1.0);         // Equipment slot background
-    let slot_border: Color = Color::rgba(0.50, 0.42, 0.28, 0.7);     // Slot border color
-    let title_color: Color = Color::rgba(0.90, 0.80, 0.55, 1.0);     // Gold title text
-    let text_light: Color = Color::rgba(0.85, 0.82, 0.75, 1.0);      // Light parchment text
-    let text_dim: Color = Color::rgba(0.55, 0.50, 0.42, 1.0);        // Dimmed placeholder text
-    let stat_green: Color = Color::rgba(0.40, 0.80, 0.35, 1.0);      // Green for stat values
-    let stat_red: Color = Color::rgba(0.85, 0.30, 0.25, 1.0);        // Red for damage
-    let btn_bg: Color = Color::rgba(0.35, 0.28, 0.18, 1.0);          // Button background
-    let btn_border: Color = Color::rgba(0.60, 0.50, 0.30, 1.0);      // Button border
+// ── Color palette ──────────────────────────────────────────────────────────
+const BG_DARK:       Color = Color::rgba(0.12, 0.09, 0.07, 0.97);
+const BG_PANEL:      Color = Color::rgba(0.18, 0.14, 0.10, 0.95);
+const BORDER_GOLD:   Color = Color::rgba(0.72, 0.58, 0.30, 1.0);
+const BORDER_INNER:  Color = Color::rgba(0.40, 0.32, 0.20, 0.8);
+const SLOT_BG:       Color = Color::rgba(0.22, 0.18, 0.14, 1.0);
+const SLOT_BORDER:   Color = Color::rgba(0.50, 0.42, 0.28, 0.7);
+const TITLE_COLOR:   Color = Color::rgba(0.90, 0.80, 0.55, 1.0);
+const TEXT_LIGHT:    Color = Color::rgba(0.85, 0.82, 0.75, 1.0);
+const TEXT_DIM:      Color = Color::rgba(0.55, 0.50, 0.42, 1.0);
+const STAT_GREEN:    Color = Color::rgba(0.40, 0.80, 0.35, 1.0);
+const STAT_RED:      Color = Color::rgba(0.85, 0.30, 0.25, 1.0);
+const BTN_BG:        Color = Color::rgba(0.35, 0.28, 0.18, 1.0);
+const BTN_BORDER:    Color = Color::rgba(0.60, 0.50, 0.30, 1.0);
+const TAB_ACTIVE_BG: Color = Color::rgba(0.45, 0.36, 0.20, 1.0);
+const TAB_IDLE_BG:   Color = Color::rgba(0.22, 0.18, 0.14, 0.0);
 
+// ── Helper: spawn one equipment slot ──────────────────────────────────────
+
+fn spawn_equip_slot(parent: &mut ChildBuilder, slot: &str, label: &str) {
+    parent.spawn((
+        ButtonBundle {
+            style: Style {
+                width: Val::Px(70.0),
+                height: Val::Px(70.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                border: UiRect::all(Val::Px(2.0)),
+                ..default()
+            },
+            background_color: SLOT_BG.into(),
+            border_color: SLOT_BORDER.into(),
+            ..default()
+        },
+        EquipmentSlot(slot.to_string()),
+    )).with_children(|btn| {
+        btn.spawn(TextBundle::from_section(
+            label,
+            TextStyle { font_size: 11.0, color: TEXT_DIM, ..default() },
+        ));
+    });
+}
+
+// ── Helper: spawn one tab button ──────────────────────────────────────────
+
+fn spawn_tab_btn(parent: &mut ChildBuilder, tab: InventoryTab, active: bool) {
+    let bg: Color = if active { TAB_ACTIVE_BG } else { TAB_IDLE_BG };
+    parent.spawn((
+        ButtonBundle {
+            style: Style {
+                padding: UiRect::axes(Val::Px(14.0), Val::Px(6.0)),
+                border: UiRect::bottom(Val::Px(2.0)),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            background_color: bg.into(),
+            border_color: if active { BORDER_GOLD } else { Color::NONE }.into(),
+            ..default()
+        },
+        InventoryTabBtn(tab.clone()),
+    )).with_children(|btn| {
+        btn.spawn(TextBundle::from_section(
+            tab.label(),
+            TextStyle { font_size: 15.0, color: if active { TITLE_COLOR } else { TEXT_DIM }, ..default() },
+        ));
+    });
+}
+
+fn setup_inventory_ui(mut commands: Commands) {
     commands
         .spawn((
             NodeBundle {
@@ -107,21 +222,22 @@ fn setup_inventory_ui(mut commands: Commands, _asset_server: Res<AssetServer>) {
             },
             InventoryUiRoot,
         ))
-        .with_children(|parent| {
-            // ── Outer frame with gold border ──
-            parent.spawn(NodeBundle {
+        .with_children(|root| {
+            // ── Outer frame ──────────────────────────────────────────────
+            root.spawn(NodeBundle {
                 style: Style {
-                    width: Val::Px(900.0),
-                    height: Val::Px(580.0),
+                    width: Val::Px(960.0),
+                    height: Val::Px(600.0),
                     flex_direction: FlexDirection::Column,
                     border: UiRect::all(Val::Px(3.0)),
                     ..default()
                 },
-                background_color: bg_dark.into(),
-                border_color: border_gold.into(),
+                background_color: BG_DARK.into(),
+                border_color: BORDER_GOLD.into(),
                 ..default()
             }).with_children(|frame| {
-                // ── Title bar ──
+
+                // ── Title bar ─────────────────────────────────────────────
                 frame.spawn(NodeBundle {
                     style: Style {
                         width: Val::Percent(100.0),
@@ -129,23 +245,22 @@ fn setup_inventory_ui(mut commands: Commands, _asset_server: Res<AssetServer>) {
                         justify_content: JustifyContent::SpaceBetween,
                         align_items: AlignItems::Center,
                         border: UiRect::bottom(Val::Px(2.0)),
-                        padding: UiRect::horizontal(Val::Px(15.0)),
+                        padding: UiRect::horizontal(Val::Px(16.0)),
                         ..default()
                     },
                     background_color: Color::rgba(0.15, 0.12, 0.08, 1.0).into(),
-                    border_color: border_gold.into(),
+                    border_color: BORDER_GOLD.into(),
                     ..default()
-                }).with_children(|title_bar| {
-                    title_bar.spawn(NodeBundle { style: Style { width: Val::Px(24.0), ..default() }, ..default() });
-                    title_bar.spawn(TextBundle::from_section(
-                        "PERSONNAGE",
-                        TextStyle { font_size: 26.0, color: title_color, ..default() },
+                }).with_children(|tb| {
+                    tb.spawn(NodeBundle { style: Style { width: Val::Px(24.0), ..default() }, ..default() });
+                    tb.spawn(TextBundle::from_section(
+                        "CHARACTER",
+                        TextStyle { font_size: 26.0, color: TITLE_COLOR, ..default() },
                     ));
-                    title_bar.spawn((
+                    tb.spawn((
                         ButtonBundle {
                             style: Style {
-                                width: Val::Px(24.0),
-                                height: Val::Px(24.0),
+                                width: Val::Px(24.0), height: Val::Px(24.0),
                                 justify_content: JustifyContent::Center,
                                 align_items: AlignItems::Center,
                                 ..default()
@@ -154,187 +269,121 @@ fn setup_inventory_ui(mut commands: Commands, _asset_server: Res<AssetServer>) {
                             ..default()
                         },
                         CloseButton("inventory".to_string()),
-                    )).with_children(|btn| {
-                        btn.spawn(TextBundle::from_section("X", TextStyle { font_size: 20.0, color: title_color, ..default() }));
+                    )).with_children(|b| {
+                        b.spawn(TextBundle::from_section("X", TextStyle { font_size: 20.0, color: TITLE_COLOR, ..default() }));
                     });
                 });
 
-                // ── Main content area ──
+                // ── Main content ─────────────────────────────────────────
                 frame.spawn(NodeBundle {
                     style: Style {
-                        width: Val::Percent(100.0),
                         flex_grow: 1.0,
                         flex_direction: FlexDirection::Row,
-                        padding: UiRect::all(Val::Px(15.0)),
-                        column_gap: Val::Px(15.0),
+                        padding: UiRect::all(Val::Px(14.0)),
+                        column_gap: Val::Px(14.0),
                         ..default()
                     },
                     ..default()
                 }).with_children(|content| {
-                    // ════════════════════════════════════
-                    // LEFT PANEL: Equipment + Silhouette
-                    // ════════════════════════════════════
+
+                    // ════════════════════════════════════════════════════
+                    // LEFT PANEL — Silhouette + 3 equipment slots
+                    // ════════════════════════════════════════════════════
                     content.spawn(NodeBundle {
                         style: Style {
-                            width: Val::Px(420.0),
-                            height: Val::Percent(100.0),
+                            width: Val::Px(340.0),
                             flex_direction: FlexDirection::Column,
-                            padding: UiRect::all(Val::Px(10.0)),
                             border: UiRect::all(Val::Px(2.0)),
+                            padding: UiRect::all(Val::Px(10.0)),
+                            row_gap: Val::Px(8.0),
                             ..default()
                         },
-                        background_color: bg_panel.into(),
-                        border_color: border_inner.into(),
+                        background_color: BG_PANEL.into(),
+                        border_color: BORDER_INNER.into(),
                         ..default()
                     }).with_children(|left| {
-                        // Equipment area: left slots | center silhouette | right slots
+
+                        // ── Equipment area: slot | silhouette | slot ────
                         left.spawn(NodeBundle {
                             style: Style {
-                                width: Val::Percent(100.0),
                                 flex_grow: 1.0,
                                 flex_direction: FlexDirection::Row,
+                                align_items: AlignItems::Center,
+                                justify_content: JustifyContent::SpaceBetween,
                                 ..default()
                             },
                             ..default()
-                        }).with_children(|equip_area| {
-                            // Left column of equipment slots
-                            equip_area.spawn((
-                                NodeBundle {
-                                    style: Style {
-                                        width: Val::Px(75.0),
-                                        height: Val::Percent(100.0),
-                                        flex_direction: FlexDirection::Column,
-                                        justify_content: JustifyContent::SpaceEvenly,
-                                        align_items: AlignItems::Center,
-                                        ..default()
-                                    },
-                                    ..default()
-                                },
-                                EquipmentPanel,
-                            )).with_children(|col| {
-                                // Weapon slot
-                                col.spawn((
-                                    ButtonBundle {
-                                        style: Style {
-                                            width: Val::Px(65.0),
-                                            height: Val::Px(65.0),
-                                            justify_content: JustifyContent::Center,
-                                            align_items: AlignItems::Center,
-                                            border: UiRect::all(Val::Px(2.0)),
-                                            ..default()
-                                        },
-                                        background_color: slot_bg.into(),
-                                        border_color: slot_border.into(),
-                                        ..default()
-                                    },
-                                    EquipmentSlot("weapon".to_string()),
-                                )).with_children(|btn| {
-                                    btn.spawn(TextBundle::from_section(
-                                        "Arme",
-                                        TextStyle { font_size: 12.0, color: text_dim, ..default() },
-                                    ));
-                                });
-                                // Head slot
-                                col.spawn((
-                                    ButtonBundle {
-                                        style: Style {
-                                            width: Val::Px(65.0),
-                                            height: Val::Px(65.0),
-                                            justify_content: JustifyContent::Center,
-                                            align_items: AlignItems::Center,
-                                            border: UiRect::all(Val::Px(2.0)),
-                                            ..default()
-                                        },
-                                        background_color: slot_bg.into(),
-                                        border_color: slot_border.into(),
-                                        ..default()
-                                    },
-                                    EquipmentSlot("head".to_string()),
-                                )).with_children(|btn| {
-                                    btn.spawn(TextBundle::from_section(
-                                        "Tete",
-                                        TextStyle { font_size: 12.0, color: text_dim, ..default() },
-                                    ));
-                                });
-                            });
+                        }).with_children(|row| {
 
-                            // Center silhouette area
-                            equip_area.spawn(NodeBundle {
+                            // Left: Weapon slot
+                            row.spawn(NodeBundle {
                                 style: Style {
-                                    flex_grow: 1.0,
-                                    height: Val::Percent(100.0),
-                                    justify_content: JustifyContent::Center,
-                                    align_items: AlignItems::Center,
-                                    ..default()
-                                },
-                                ..default()
-                            }).with_children(|center| {
-                                center.spawn(TextBundle::from_section(
-                                    "[ Silhouette ]",
-                                    TextStyle { font_size: 14.0, color: text_dim, ..default() },
-                                ));
-                            });
-
-                            // Right column of equipment slots
-                            equip_area.spawn(NodeBundle {
-                                style: Style {
-                                    width: Val::Px(75.0),
-                                    height: Val::Percent(100.0),
                                     flex_direction: FlexDirection::Column,
-                                    justify_content: JustifyContent::SpaceEvenly,
                                     align_items: AlignItems::Center,
+                                    justify_content: JustifyContent::Center,
+                                    row_gap: Val::Px(8.0),
+                                    width: Val::Px(80.0),
                                     ..default()
                                 },
                                 ..default()
                             }).with_children(|col| {
-                                // Chest slot
-                                col.spawn((
-                                    ButtonBundle {
+                                col.spawn(TextBundle::from_section(
+                                    "Weapon",
+                                    TextStyle { font_size: 11.0, color: TEXT_DIM, ..default() },
+                                ));
+                                spawn_equip_slot(col, "weapon", "");
+                            });
+
+                            // Center: player silhouette
+                            row.spawn(NodeBundle {
+                                style: Style {
+                                    flex_grow: 1.0,
+                                    align_items: AlignItems::Center,
+                                    justify_content: JustifyContent::Center,
+                                    height: Val::Px(200.0),
+                                    ..default()
+                                },
+                                ..default()
+                            }).with_children(|center| {
+                                center.spawn((
+                                    ImageBundle {
                                         style: Style {
-                                            width: Val::Px(65.0),
-                                            height: Val::Px(65.0),
-                                            justify_content: JustifyContent::Center,
-                                            align_items: AlignItems::Center,
-                                            border: UiRect::all(Val::Px(2.0)),
+                                            width: Val::Px(128.0),
+                                            height: Val::Px(128.0),
                                             ..default()
                                         },
-                                        background_color: slot_bg.into(),
-                                        border_color: slot_border.into(),
                                         ..default()
                                     },
-                                    EquipmentSlot("chest".to_string()),
-                                )).with_children(|btn| {
-                                    btn.spawn(TextBundle::from_section(
-                                        "Torse",
-                                        TextStyle { font_size: 12.0, color: text_dim, ..default() },
-                                    ));
-                                });
-                                // Legs slot
-                                col.spawn((
-                                    ButtonBundle {
-                                        style: Style {
-                                            width: Val::Px(65.0),
-                                            height: Val::Px(65.0),
-                                            justify_content: JustifyContent::Center,
-                                            align_items: AlignItems::Center,
-                                            border: UiRect::all(Val::Px(2.0)),
-                                            ..default()
-                                        },
-                                        background_color: slot_bg.into(),
-                                        border_color: slot_border.into(),
-                                        ..default()
-                                    },
-                                    EquipmentSlot("legs".to_string()),
-                                )).with_children(|btn| {
-                                    btn.spawn(TextBundle::from_section(
-                                        "Jambes",
-                                        TextStyle { font_size: 12.0, color: text_dim, ..default() },
-                                    ));
-                                });
+                                    PlayerSilhouette,
+                                ));
+                            });
+
+                            // Right: Armor + Medaillon
+                            row.spawn(NodeBundle {
+                                style: Style {
+                                    flex_direction: FlexDirection::Column,
+                                    align_items: AlignItems::Center,
+                                    justify_content: JustifyContent::Center,
+                                    row_gap: Val::Px(12.0),
+                                    width: Val::Px(80.0),
+                                    ..default()
+                                },
+                                ..default()
+                            }).with_children(|col| {
+                                col.spawn(TextBundle::from_section(
+                                    "Armor",
+                                    TextStyle { font_size: 11.0, color: TEXT_DIM, ..default() },
+                                ));
+                                spawn_equip_slot(col, "chest", "");
+                                col.spawn(TextBundle::from_section(
+                                    "Medaillon",
+                                    TextStyle { font_size: 11.0, color: TEXT_DIM, ..default() },
+                                ));
+                                spawn_equip_slot(col, "medaillon", "");
                             });
                         });
 
-                        // ── Action bar at bottom of left panel ──
+                        // ── Action bar ────────────────────────────────────
                         left.spawn(NodeBundle {
                             style: Style {
                                 width: Val::Percent(100.0),
@@ -342,117 +391,119 @@ fn setup_inventory_ui(mut commands: Commands, _asset_server: Res<AssetServer>) {
                                 flex_direction: FlexDirection::Row,
                                 justify_content: JustifyContent::SpaceBetween,
                                 align_items: AlignItems::Center,
-                                margin: UiRect { top: Val::Px(10.0), ..default() },
-                                padding: UiRect::axes(Val::Px(10.0), Val::Px(0.0)),
+                                padding: UiRect::horizontal(Val::Px(6.0)),
+                                border: UiRect::top(Val::Px(1.0)),
                                 ..default()
                             },
+                            border_color: BORDER_INNER.into(),
                             ..default()
-                        }).with_children(|action_bar| {
-                            // Description text
-                            action_bar.spawn((
+                        }).with_children(|bar| {
+                            bar.spawn((
                                 TextBundle::from_section(
-                                    "Selectionnez un objet...",
-                                    TextStyle { font_size: 13.0, color: text_light, ..default() },
-                                ).with_style(Style {
-                                    max_width: Val::Px(250.0),
-                                    ..default()
-                                }),
+                                    "Select an item...",
+                                    TextStyle { font_size: 13.0, color: TEXT_LIGHT, ..default() },
+                                ).with_style(Style { max_width: Val::Px(180.0), ..default() }),
                                 InventoryDescriptionText,
                             ));
-
-                            // Equip/Unequip button
-                            action_bar.spawn((
+                            bar.spawn((
                                 ButtonBundle {
                                     style: Style {
-                                        width: Val::Px(120.0),
-                                        height: Val::Px(35.0),
+                                        width: Val::Px(110.0),
+                                        height: Val::Px(34.0),
                                         justify_content: JustifyContent::Center,
                                         align_items: AlignItems::Center,
                                         display: Display::None,
                                         border: UiRect::all(Val::Px(2.0)),
                                         ..default()
                                     },
-                                    background_color: btn_bg.into(),
-                                    border_color: btn_border.into(),
+                                    background_color: BTN_BG.into(),
+                                    border_color: BTN_BORDER.into(),
                                     ..default()
                                 },
                                 InventoryActionBtn,
-                            )).with_children(|btn| {
-                                btn.spawn((
-                                    TextBundle::from_section(
-                                        "Equiper",
-                                        TextStyle { font_size: 14.0, color: title_color, ..default() },
-                                    ),
+                            )).with_children(|b| {
+                                b.spawn((
+                                    TextBundle::from_section("Equip", TextStyle { font_size: 14.0, color: TITLE_COLOR, ..default() }),
                                     InventoryActionText,
                                 ));
                             });
                         });
-                    });
 
-                    // ════════════════════════════════════
-                    // RIGHT PANEL: Stats + Inventory Grid
-                    // ════════════════════════════════════
-                    content.spawn(NodeBundle {
-                        style: Style {
-                            flex_grow: 1.0,
-                            height: Val::Percent(100.0),
-                            flex_direction: FlexDirection::Column,
-                            padding: UiRect::all(Val::Px(10.0)),
-                            border: UiRect::all(Val::Px(2.0)),
-                            row_gap: Val::Px(10.0),
-                            ..default()
-                        },
-                        background_color: bg_panel.into(),
-                        border_color: border_inner.into(),
-                        ..default()
-                    }).with_children(|right| {
-                        // ── Stats section ──
-                        right.spawn(NodeBundle {
+                        // ── Stat block ────────────────────────────────────
+                        left.spawn(NodeBundle {
                             style: Style {
-                                width: Val::Percent(100.0),
                                 flex_direction: FlexDirection::Column,
-                                padding: UiRect::all(Val::Px(8.0)),
-                                row_gap: Val::Px(6.0),
-                                border: UiRect::bottom(Val::Px(1.0)),
+                                row_gap: Val::Px(4.0),
+                                padding: UiRect::horizontal(Val::Px(4.0)),
                                 ..default()
                             },
-                            border_color: border_inner.into(),
                             ..default()
-                        }).with_children(|stats_section| {
-                            // Stat rows with indexed markers
-                            let stat_rows: Vec<(&str, Color, usize)> = vec![
-                                ("Degats", stat_red, 0),
-                                ("Degats Spe.", stat_red, 1),
-                                ("Defense", stat_green, 2),
-                                ("Defense Spe.", stat_green, 3),
-                                ("Vie", stat_green, 4),
+                        }).with_children(|stats| {
+                            let rows: &[(&str, Color, usize)] = &[
+                                ("Damage",       STAT_RED,   0),
+                                ("Spe. Damage",  STAT_RED,   1),
+                                ("Defense",      STAT_GREEN, 2),
+                                ("Spe. Defense", STAT_GREEN, 3),
+                                ("Max HP",       STAT_GREEN, 4),
                             ];
-                            for (label, color, idx) in stat_rows {
-                                stats_section.spawn(NodeBundle {
+                            for (label, color, idx) in rows {
+                                stats.spawn(NodeBundle {
                                     style: Style {
-                                        width: Val::Percent(100.0),
                                         flex_direction: FlexDirection::Row,
                                         justify_content: JustifyContent::SpaceBetween,
+                                        width: Val::Percent(100.0),
                                         ..default()
                                     },
                                     ..default()
-                                }).with_children(|row| {
-                                    row.spawn(TextBundle::from_section(
+                                }).with_children(|r| {
+                                    r.spawn(TextBundle::from_section(
                                         format!("  {}", label),
-                                        TextStyle { font_size: 15.0, color: text_light, ..default() },
+                                        TextStyle { font_size: 14.0, color: TEXT_LIGHT, ..default() },
                                     ));
-                                    row.spawn((
-                                        TextBundle::from_section(
-                                            "0",
-                                            TextStyle { font_size: 15.0, color, ..default() },
-                                        ),
-                                        StatValueText(idx),
+                                    r.spawn((
+                                        TextBundle::from_section("0", TextStyle { font_size: 14.0, color: *color, ..default() }),
+                                        StatValueText(*idx),
                                     ));
                                 });
                             }
                         });
+                    });
 
-                        // ── Inventory grid ──
+                    // ════════════════════════════════════════════════════
+                    // RIGHT PANEL — Category tabs + item grid
+                    // ════════════════════════════════════════════════════
+                    content.spawn(NodeBundle {
+                        style: Style {
+                            flex_grow: 1.0,
+                            flex_direction: FlexDirection::Column,
+                            border: UiRect::all(Val::Px(2.0)),
+                            padding: UiRect::all(Val::Px(10.0)),
+                            row_gap: Val::Px(10.0),
+                            ..default()
+                        },
+                        background_color: BG_PANEL.into(),
+                        border_color: BORDER_INNER.into(),
+                        ..default()
+                    }).with_children(|right| {
+
+                        // ── Tab bar ───────────────────────────────────────
+                        right.spawn(NodeBundle {
+                            style: Style {
+                                flex_direction: FlexDirection::Row,
+                                column_gap: Val::Px(4.0),
+                                border: UiRect::bottom(Val::Px(1.0)),
+                                ..default()
+                            },
+                            border_color: BORDER_INNER.into(),
+                            ..default()
+                        }).with_children(|tabs| {
+                            spawn_tab_btn(tabs, InventoryTab::All,      true);
+                            spawn_tab_btn(tabs, InventoryTab::Weapons,  false);
+                            spawn_tab_btn(tabs, InventoryTab::Armor,    false);
+                            spawn_tab_btn(tabs, InventoryTab::KeyItems, false);
+                        });
+
+                        // ── Item grid (5 × 4) ─────────────────────────────
                         right.spawn((
                             NodeBundle {
                                 style: Style {
@@ -473,7 +524,6 @@ fn setup_inventory_ui(mut commands: Commands, _asset_server: Res<AssetServer>) {
             });
         });
 }
-
 fn toggle_inventory(
     keys: Res<ButtonInput<KeyCode>>,
     mut state: ResMut<InventoryState>,
@@ -518,99 +568,177 @@ fn toggle_inventory(
 #[derive(Component)]
 struct InventorySlot;
 
+// ── Helper: build a slot widget and attach it to the grid ─────────────────
+
+fn spawn_inv_slot(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    grid: Entity,
+    item: &RawInvItem,
+) {
+    let icon: Handle<Image> = if item.sprite != "none" && !item.sprite.is_empty() {
+        asset_server.load(format!("UI/{}.png", item.sprite))
+    } else if item.slot == "weapon" {
+        asset_server.load("UI/sword_icone.png")
+    } else {
+        asset_server.load("UI/QuestUI.png")
+    };
+
+    // Equipped medaillons get a gold border; others get the standard slot border.
+    let border_col: Color = if item.is_equipped { BORDER_GOLD } else { SLOT_BORDER };
+    let bg_col:     Color = if item.is_equipped { Color::rgba(0.35, 0.28, 0.12, 1.0) } else { SLOT_BG };
+
+    let slot_entity = commands.spawn((
+        ButtonBundle {
+            style: Style {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                border: UiRect::all(Val::Px(if item.is_equipped { 3.0 } else { 1.0 })),
+                ..default()
+            },
+            background_color: bg_col.into(),
+            border_color: border_col.into(),
+            ..default()
+        },
+        InventorySlot,
+        InventorySlotInfo {
+            id:          item.id.clone(),
+            name:        item.name.clone(),
+            damage:      item.damage,
+            slot:        item.slot.clone(),
+            is_equipped: item.is_equipped,
+        },
+    )).with_children(|slot| {
+        slot.spawn(ImageBundle {
+            style: Style { width: Val::Px(50.0), height: Val::Px(50.0), ..default() },
+            image: UiImage::new(icon),
+            ..default()
+        });
+        if item.count > 1 {
+            slot.spawn(TextBundle::from_section(
+                format!("x{}", item.count),
+                TextStyle { font_size: 16.0, color: TITLE_COLOR, ..default() },
+            ).with_style(Style {
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(2.0), right: Val::Px(5.0),
+                ..default()
+            }));
+        }
+        // Small "★" badge on equipped items
+        if item.is_equipped {
+            slot.spawn(TextBundle::from_section(
+                "★",
+                TextStyle { font_size: 14.0, color: BORDER_GOLD, ..default() },
+            ).with_style(Style {
+                position_type: PositionType::Absolute,
+                top: Val::Px(2.0), left: Val::Px(4.0),
+                ..default()
+            }));
+        }
+    }).id();
+    commands.entity(grid).add_child(slot_entity);
+}
+
+fn rebuild_grid(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    grid: Entity,
+    existing: &Query<Entity, With<InventorySlot>>,
+    items: &[RawInvItem],
+    tab: &InventoryTab,
+) {
+    for e in existing.iter() { commands.entity(e).despawn_recursive(); }
+    for item in items.iter().filter(|i| tab.matches(&i.slot)) {
+        spawn_inv_slot(commands, asset_server, grid, item);
+    }
+}
+
 fn handle_inventory_data(
     mut commands: Commands,
     mut events: EventReader<crate::net::ServerMessageEvent>,
     asset_server: Res<AssetServer>,
     grid_query: Query<Entity, With<InventoryGrid>>,
     existing_slots: Query<Entity, With<InventorySlot>>,
+    mut inv_state: ResMut<InventoryState>,
 ) {
     for ev in events.read() {
-        if let Some(data) = ev.0.strip_prefix("S: EVT INV_DATA ") {
-            let Ok(grid) = grid_query.get_single() else { continue };
+        let Some(data) = ev.0.strip_prefix("S: EVT INV_DATA ") else { continue };
+        let Ok(grid) = grid_query.get_single() else { continue };
 
-            // Remove old slots
-            for entity in existing_slots.iter() {
-                commands.entity(entity).despawn_recursive();
-            }
+        inv_state.cached_items.clear();
 
-            if data.trim() == "empty" {
-                continue;
-            }
-
+        if data.trim() != "empty" {
             for item in data.trim().split('|') {
                 let parts: Vec<&str> = item.split(':').collect();
                 if parts.len() >= 5 {
-                    let count: u32 = parts[1].parse().unwrap_or(1);
-                    let slot_type = parts[2];
-                    let item_name = parts[3].to_string();
-                    let damage: u32 = parts[4].parse().unwrap_or(0);
-                    let sprite_name = if parts.len() > 5 { parts[5] } else { "none" };
-                    
-                    let mut icon = None;
-                    if sprite_name != "none" && !sprite_name.is_empty() {
-                        icon = Some(asset_server.load(format!("UI/{}.png", sprite_name)));
-                    } else if slot_type == "weapon" {
-                        icon = Some(asset_server.load("UI/sword_icone.png"));
-                    }
-                    
-                    if let Some(texture) = icon {
-                        let slot_entity = commands.spawn((
-                            ButtonBundle {
-                                style: Style {
-                                    width: Val::Percent(100.0),
-                                    height: Val::Percent(100.0),
-                                    justify_content: JustifyContent::Center,
-                                    align_items: AlignItems::Center,
-                                    border: UiRect::all(Val::Px(1.0)),
-                                    ..default()
-                                },
-                                background_color: Color::rgba(0.22, 0.18, 0.14, 1.0).into(),
-                                border_color: Color::rgba(0.50, 0.42, 0.28, 0.7).into(),
-                                ..default()
-                            },
-                            InventorySlot,
-                            InventorySlotInfo {
-                                id: parts[0].to_string(),
-                                name: item_name,
-                                damage,
-                                slot: slot_type.to_string(),
-                                is_equipped: false,
-                            },
-                        )).with_children(|slot| {
-                            slot.spawn(ImageBundle {
-                                style: Style {
-                                    width: Val::Px(50.0),
-                                    height: Val::Px(50.0),
-                                    ..default()
-                                },
-                                image: UiImage::new(texture),
-                                ..default()
-                            });
-                            
-                            if count > 1 {
-                                slot.spawn(TextBundle::from_section(
-                                    format!("x{}", count),
-                                    TextStyle { font_size: 16.0, color: Color::rgba(0.90, 0.80, 0.55, 1.0), ..default() },
-                                ).with_style(Style {
-                                    position_type: PositionType::Absolute,
-                                    bottom: Val::Px(2.0),
-                                    right: Val::Px(5.0),
-                                    ..default()
-                                }));
-                            }
-                        }).id();
-                        commands.entity(grid).add_child(slot_entity);
-                    }
+                    inv_state.cached_items.push(RawInvItem {
+                        id:          parts[0].to_string(),
+                        count:       parts[1].parse().unwrap_or(1),
+                        slot:        parts[2].to_string(),
+                        name:        parts[3].to_string(),
+                        damage:      parts[4].parse().unwrap_or(0),
+                        sprite:      parts.get(5).copied().unwrap_or("none").to_string(),
+                        is_equipped: parts.get(6).copied().unwrap_or("0") == "1",
+                    });
                 }
             }
         }
+
+        let tab = inv_state.active_tab.clone();
+        rebuild_grid(&mut commands, &asset_server, grid, &existing_slots, &inv_state.cached_items, &tab);
     }
+}
+
+/// Switches the active tab and re-filters the cached item list.
+fn handle_tab_click(
+    mut tab_btns: Query<
+        (&Interaction, &InventoryTabBtn, &mut BackgroundColor, &mut BorderColor, &Children),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut text_q: Query<&mut Text>,
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    grid_query: Query<Entity, With<InventoryGrid>>,
+    existing_slots: Query<Entity, With<InventorySlot>>,
+    mut inv_state: ResMut<InventoryState>,
+) {
+    for (interaction, tab_btn, mut bg, mut border, children) in &mut tab_btns {
+        if *interaction != Interaction::Pressed { continue; }
+
+        inv_state.active_tab = tab_btn.0.clone();
+
+        // Update visual state of this button
+        *bg = TAB_ACTIVE_BG.into();
+        *border = BORDER_GOLD.into();
+        if let Some(&child) = children.first() {
+            if let Ok(mut txt) = text_q.get_mut(child) {
+                txt.sections[0].style.color = TITLE_COLOR;
+            }
+        }
+
+        let Ok(grid) = grid_query.get_single() else { continue };
+        let tab = inv_state.active_tab.clone();
+        rebuild_grid(&mut commands, &asset_server, grid, &existing_slots, &inv_state.cached_items, &tab);
+    }
+}
+
+/// Loads the player skin sprite and shows it in the silhouette slot.
+fn update_silhouette(
+    skin: Res<crate::player::LocalPlayerSkin>,
+    asset_server: Res<AssetServer>,
+    mut silhouette_q: Query<&mut UiImage, With<PlayerSilhouette>>,
+) {
+    if !skin.is_changed() || skin.0.is_empty() { return; }
+    let Ok(mut img) = silhouette_q.get_single_mut() else { return };
+    // Use the first forward-facing frame as a static portrait.
+    img.texture = asset_server.load(format!("skin/{}/forward/f1.png", skin.0));
 }
 
 fn handle_slot_interactions(
     mut interaction_query: Query<
-        (&Interaction, &InventorySlotInfo, &mut BackgroundColor),
+        (&Interaction, &InventorySlotInfo, &mut BackgroundColor, &mut BorderColor),
         (Changed<Interaction>, With<Button>),
     >,
     mut text_query: Query<&mut Text, With<InventoryDescriptionText>>,
@@ -618,24 +746,32 @@ fn handle_slot_interactions(
     mut action_txt_q: Query<&mut Text, (With<InventoryActionText>, Without<InventoryDescriptionText>)>,
     mut selected_item: ResMut<SelectedItem>,
 ) {
-    for (interaction, info, mut color) in &mut interaction_query {
+    for (interaction, info, mut color, mut border) in &mut interaction_query {
+        // Equipped items keep their gold border regardless of hover state.
+        let base_bg     = if info.is_equipped { Color::rgba(0.35, 0.28, 0.12, 1.0) } else { SLOT_BG };
+        let base_border = if info.is_equipped { BORDER_GOLD } else { SLOT_BORDER };
+
         match *interaction {
             Interaction::Pressed => {
-                *color = Color::rgba(0.40, 0.35, 0.25, 1.0).into(); // Gold highlight
+                // On click: update description + action button, but don't persist a
+                // color resets on the next Hovered/None frame — no persistent tint.
+                *color  = Color::rgba(0.40, 0.35, 0.20, 1.0).into();
+                *border = BORDER_GOLD.into();
+
                 if let Ok(mut text) = text_query.get_single_mut() {
-                    let dmg_str = if info.damage > 0 { format!(" | Degats: +{}", info.damage) } else { "".to_string() };
-                    text.sections[0].value = format!("{} {}", info.name, dmg_str);
+                    let dmg_str = if info.damage > 0 { format!(" | Damage: +{}", info.damage) } else { String::new() };
+                    text.sections[0].value = format!("{}{}", info.name, dmg_str);
                 }
-                
-                selected_item.id = Some(info.id.clone());
-                selected_item.name = Some(info.name.clone());
+                selected_item.id          = Some(info.id.clone());
+                selected_item.name        = Some(info.name.clone());
                 selected_item.is_equipped = info.is_equipped;
-                
+
                 if let Ok(mut style) = action_btn_q.get_single_mut() {
                     if info.slot != "none" {
                         style.display = Display::Flex;
                         if let Ok(mut btn_txt) = action_txt_q.get_single_mut() {
-                            btn_txt.sections[0].value = if info.is_equipped { "Desequiper".to_string() } else { "Equiper".to_string() };
+                            btn_txt.sections[0].value =
+                                if info.is_equipped { "Unequip".to_string() } else { "Equip".to_string() };
                         }
                     } else {
                         style.display = Display::None;
@@ -643,10 +779,13 @@ fn handle_slot_interactions(
                 }
             }
             Interaction::Hovered => {
-                *color = Color::rgba(0.30, 0.25, 0.18, 1.0).into(); // Warm brown hover
+                *color  = Color::rgba(0.32, 0.26, 0.16, 1.0).into();
+                *border = BORDER_GOLD.into();
             }
             Interaction::None => {
-                *color = Color::rgba(0.22, 0.18, 0.14, 1.0).into(); // Default slot color
+                // Fully restore to base — this also fires when the mouse leaves the window.
+                *color  = base_bg.into();
+                *border = base_border.into();
             }
         }
     }
@@ -751,15 +890,14 @@ fn handle_equip_data(
                                 commands.entity(entity).remove::<InventorySlotInfo>();
                                 commands.entity(entity).with_children(|p| {
                                     let label = match slot_name {
-                                        "head" => "Casque",
-                                        "chest" => "Torse",
-                                        "legs" => "Jambes",
-                                        "weapon" => "Arme",
-                                        _ => "Vide",
+                                        "weapon"    => "",
+                                        "chest"     => "",
+                                        "medaillon" => "",
+                                        _           => "",
                                     };
                                     p.spawn(TextBundle::from_section(
                                         label,
-                                        TextStyle { font_size: 12.0, color: Color::rgba(0.55, 0.50, 0.42, 1.0), ..default() },
+                                        TextStyle { font_size: 12.0, color: TEXT_DIM, ..default() },
                                     ));
                                 });
                             }
@@ -1002,7 +1140,7 @@ pub struct TerminalInputText;
 
 fn setup_chat_ui(mut commands: Commands) {
     // ══════════════════════════════════════════════════════════════════════════
-    // 1. CHATBOX JOUEUR (En bas à gauche)
+    // 1. PLAYER CHATBOX (bottom left)
     // ══════════════════════════════════════════════════════════════════════════
     commands
         .spawn((
@@ -1163,7 +1301,7 @@ fn setup_chat_ui(mut commands: Commands) {
             .with_children(|msg_area| {
                 msg_area.spawn((
                     TextBundle::from_section(
-                        "Bienvenue ! Écrivez directement pour discuter.\n",
+                        "Welcome! Type directly to chat.\n",
                         TextStyle { font_size: 14.0, color: Color::rgba(0.85, 0.85, 0.90, 1.0), ..default() },
                     ),
                     ChatText,
@@ -1198,7 +1336,7 @@ fn setup_chat_ui(mut commands: Commands) {
                 ));
                 input_box.spawn((
                     TextBundle::from_section(
-                        "Appuyez sur 'T' pour parler...",
+                        "Press 'T' to chat...",
                         TextStyle { font_size: 13.0, color: Color::rgba(0.55, 0.55, 0.60, 0.7), ..default() },
                     ),
                     ChatInputText,
@@ -1207,7 +1345,7 @@ fn setup_chat_ui(mut commands: Commands) {
         });
 
     // ══════════════════════════════════════════════════════════════════════════
-    // 2. TERMINAL DÉVELOPPEUR (Touche F1 ou Backquote `~`/`²`)
+    // 2. DEVELOPER TERMINAL (F1 or Backquote `~`/`²`)
     // ══════════════════════════════════════════════════════════════════════════
     commands
         .spawn((
@@ -1256,7 +1394,7 @@ fn setup_chat_ui(mut commands: Commands) {
             .with_children(|log_area| {
                 log_area.spawn((
                     TextBundle::from_section(
-                        "Connecté au serveur.\nTapez vos commandes ci-dessous.\n",
+                        "Connected to server.\nType your commands below.\n",
                         TextStyle { font_size: 14.0, color: Color::WHITE, ..default() },
                     ),
                     TerminalLogText,
@@ -1587,7 +1725,7 @@ fn handle_inputs(
                 };
                 let _ = sender.0.send(format!("CHAT {} {}\n", channel_cmd, msg));
 
-                // Ajout immédiat pour un affichage instantané et garanti
+                // Immediate insertion for guaranteed instant display
                 let (prefix, color) = match console.active_channel {
                     ChatChannel::Global => (format!("[Global] {}: {}", my_name, msg), Color::rgb(0.95, 0.90, 0.80)),
                     ChatChannel::Room => (format!("[Room] {}: {}", my_name, msg), Color::rgb(0.85, 1.0, 0.88)),
@@ -1841,9 +1979,9 @@ fn process_chat_events(
             }
             history.add(console.active_channel, "[System] Vous n'êtes pas dans un groupe.".to_string(), Color::rgb(1.0, 0.4, 0.4));
         } else if line == "S: ERR player_not_found" {
-            history.add(console.active_channel, "[System] Joueur introuvable.".to_string(), Color::rgb(1.0, 0.4, 0.4));
+            history.add(console.active_channel, "[System] Player not found.".to_string(), Color::rgb(1.0, 0.4, 0.4));
         } else if line == "S: ERR player_already_in_group" {
-            history.add(console.active_channel, "[System] Ce joueur est déjà dans un groupe.".to_string(), Color::rgb(1.0, 0.4, 0.4));
+            history.add(console.active_channel, "[System] That player is already in a group.".to_string(), Color::rgb(1.0, 0.4, 0.4));
         } else if line == "S: ERR cannot_invite_yourself" {
             history.add(console.active_channel, "[System] Impossible de vous inviter vous-même.".to_string(), Color::rgb(1.0, 0.4, 0.4));
         } else if line == "S: ERR you_already_have_a_group" {
@@ -2048,7 +2186,7 @@ fn update_chat_input_ui(
             text.sections[0].style.color = Color::rgba(1.0, 1.0, 1.0, alpha);
             text.sections[0].style.font_size = 14.0;
         } else {
-            text.sections[0].value = "Appuyez sur 'T' pour parler...".to_string();
+            text.sections[0].value = "Press 'T' to chat...".to_string();
             text.sections[0].style.color = Color::rgba(0.55, 0.55, 0.60, 0.70 * alpha);
             text.sections[0].style.font_size = 13.0;
         }
@@ -2286,7 +2424,7 @@ struct QuestEntry {
 #[derive(Component)]
 struct QuestEntrySlot;
 
-// Couleurs du thème "Quest Journal"
+// Quest Journal theme colours
 const QUEST_BG: Color          = Color::rgba(0.08, 0.07, 0.06, 0.96);
 const QUEST_BORDER: Color      = Color::rgba(0.55, 0.42, 0.18, 1.0);
 const QUEST_TITLE_COLOR: Color = Color::rgba(0.90, 0.75, 0.35, 1.0);
@@ -2351,7 +2489,7 @@ fn setup_quest_ui(mut commands: Commands) {
                 .with_children(|header| {
                     header.spawn(NodeBundle { style: Style { width: Val::Px(24.0), ..default() }, ..default() });
                     header.spawn(TextBundle::from_section(
-                        "Journal de Quetes",
+                        "Quest Journal",
                         TextStyle { font_size: 28.0, color: QUEST_TITLE_COLOR, ..default() },
                     ));
                     header.spawn((
@@ -2417,7 +2555,7 @@ fn setup_quest_ui(mut commands: Commands) {
                         // Empty state message
                         left.spawn((
                             TextBundle::from_section(
-                                "Aucune quete active",
+                                "No active quests",
                                 TextStyle { font_size: 18.0, color: Color::rgba(0.6, 0.55, 0.4, 0.7), ..default() },
                             ).with_style(Style {
                                 margin: UiRect::top(Val::Px(20.0)),
@@ -2447,7 +2585,7 @@ fn setup_quest_ui(mut commands: Commands) {
                         // Quest Title
                         right.spawn((
                             TextBundle::from_section(
-                                "Selectionnez une quete",
+                                "Select a quest",
                                 TextStyle { font_size: 24.0, color: QUEST_DETAIL_TITLE, ..default() },
                             ),
                             QuestDetailTitle,
@@ -2498,7 +2636,7 @@ fn setup_quest_ui(mut commands: Commands) {
                         })
                         .with_children(|obj_block| {
                             obj_block.spawn(TextBundle::from_section(
-                                "Objectif",
+                                "Objective",
                                 TextStyle { font_size: 16.0, color: Color::rgba(0.4, 0.35, 0.25, 0.8), ..default() },
                             ));
                             obj_block.spawn((
@@ -2573,7 +2711,7 @@ fn handle_quest_data(
             }
 
             if data.trim() == "empty" {
-                // Show "Aucune quête active"
+                // Show "No active quests"
                 if let Ok(mut style) = empty_text.get_single_mut() {
                     style.display = Display::Flex;
                 }
@@ -2812,7 +2950,7 @@ fn setup_hud_ui(mut commands: Commands) {
                 // Text overlay
                 bg.spawn((
                     TextBundle::from_section(
-                        "Niv 1  0/100",
+                        "Lvl 1  0/100",
                         TextStyle {
                             font_size: 16.0,
                             color: Color::WHITE,
@@ -2908,7 +3046,7 @@ fn handle_player_stats(
                         style.width = Val::Percent(xp_pct);
                     }
                     if let Ok(mut text) = xp_text_q.get_single_mut() {
-                        text.sections[0].value = format!("Niv {}  {}/{}", lvl, xp, max_xp);
+                        text.sections[0].value = format!("Lvl {}  {}/{}", lvl, xp, max_xp);
                     }
                 }
             }

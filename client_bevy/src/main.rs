@@ -11,6 +11,7 @@ mod interaction;
 mod net;
 mod parse_layers;
 mod player;
+mod quest;
 mod ui;
 mod minimap;
 mod combat;
@@ -52,5 +53,6 @@ fn main() {
 			minimap::MinimapPlugin,
         ))
         .add_plugins(interaction::InteractionPlugin)
+        .add_plugins(quest::QuestTrackerPlugin)
         .run();
 }

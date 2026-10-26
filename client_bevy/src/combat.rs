@@ -108,17 +108,17 @@ fn setup_combat_overlay(
     asset_server: Res<AssetServer>,
     mut combat: ResMut<CombatResource>,
 ) {
-    // Préchargement immédiat des 5 arrière-plans pour éliminer tout temps de chargement
+    // Preload all 5 backgrounds immediately to eliminate loading time
     for i in 1..=5 {
         combat.bg_textures.push(asset_server.load(format!("maps/FightMap/FightBackground{}.webp", i)));
     }
-    // Préchargement des boutons de combat et du curseur
+    // Preload combat buttons and cursor
     let _ = asset_server.load::<Image>("CombatUI_Attaquer.png");
     let _ = asset_server.load::<Image>("CombatUI_Objet.png");
     let _ = asset_server.load::<Image>("CombatUI_Fuir.png");
     let _ = asset_server.load::<Image>("curseur.png");
 
-    // Overlay plein écran UI à Z=9999 : couvre à la fois le monde 2D ET toute l'interface UI
+    // Fullscreen UI overlay at Z=9999: covers both the 2D world AND all UI
     commands.spawn((
         NodeBundle {
             style: Style {
@@ -151,12 +151,12 @@ fn listen_combat_events(
         if let Some(rest) = line.strip_prefix("S: EVT COMBAT START ") {
             let parts: Vec<&str> = rest.split_whitespace().collect();
             if parts.len() >= 6 {
-                // combat.in_combat sera activé à true uniquement lorsque l'écran sera à 100% noir (fade_alpha >= 1.0)
-                // pour que les éléments de jeu (UI, joueurs, NPC) restent visibles sous le fondu et disparaissent naturellement.
+                // combat.in_combat will be set to true only when the screen is 100% black (fade_alpha >= 1.0)
+                // so game elements (UI, players, NPCs) stay visible under the fade and disappear naturally.
                 combat.selected_action = 0;
                 combat.enemy_id = parts[0].to_string();
                 combat.combat_sprite = parts[1].strip_suffix(".png").unwrap_or(parts[1]).to_string();
-                // Précharge le sprite du monstre immédiatement pour qu'il soit prêt
+                // Preload the monster sprite immediately so it's ready
                 let _ = asset_server.load::<Image>(format!("mob/{}.png", combat.combat_sprite));
                 combat.enemy_hp = parts[2].parse().unwrap_or(50);
                 combat.enemy_max_hp = parts[3].parse().unwrap_or(50);
@@ -221,8 +221,8 @@ fn handle_combat_transition(
             combat.fade_alpha += FADE_SPEED * dt;
             if combat.fade_alpha >= 1.0 {
                 combat.fade_alpha = 1.0;
-                // Écran 100% noir : on bascule in_combat = true pour masquer les éléments de la carte
-                // et faire apparaître l'arène de combat avant le fondu d'ouverture
+                // Screen fully black: switch in_combat = true to hide map elements
+                // and show the combat arena before the opening fade
                 combat.in_combat = true;
                 spawn_combat_arena(
                     &mut commands,
@@ -318,7 +318,7 @@ fn spawn_combat_arena(
     ));
 
     // Player HUD (Name + HP Bar above player)
-    let p_name = local_name.0.as_deref().unwrap_or("Joueur");
+    let p_name = local_name.0.as_deref().unwrap_or("Player");
     commands.spawn((
         NodeBundle {
             style: Style {
@@ -545,7 +545,7 @@ fn spawn_combat_arena(
             });
         }
 
-        // Curseur flèche dorée animé à gauche du bouton sélectionné
+        // Animated golden arrow cursor on the left of the selected button
         let cursor_texture: Handle<Image> = asset_server.load("curseur.png");
         let initial_cursor_top = match combat.selected_action {
             0 => 20.0,
@@ -572,7 +572,7 @@ fn spawn_combat_arena(
         ));
     });
 
-    // 5. Combat Log Banner (Status / Feedback au bas de l'écran)
+    // 5. Combat Log Banner (status / feedback at the bottom of the screen)
     commands.spawn((
         NodeBundle {
             style: Style {
@@ -624,7 +624,7 @@ fn handle_combat_inputs(
         }
     }
 
-    // Navigation STRICTEMENT avec les flèches entre les 3 boutons
+    // Navigate STRICTLY with arrow keys between the 3 buttons
     if input.just_pressed(KeyCode::ArrowUp) || input.just_pressed(KeyCode::ArrowLeft) {
         if combat.selected_action == 0 {
             combat.selected_action = 2; // Boucle vers FUIR
@@ -639,7 +639,7 @@ fn handle_combat_inputs(
         }
     }
 
-    // Validation de l'action sélectionnée
+    // Confirm the selected action
     let validate = input.just_pressed(KeyCode::Enter)
         || input.just_pressed(KeyCode::NumpadEnter)
         || input.just_pressed(KeyCode::Space)
@@ -681,7 +681,7 @@ fn update_combat_menu_selection(
     let dt = time.delta_seconds();
     let t = time.elapsed_seconds();
 
-    // 1. Boutons (grossissement doux et modéré)
+    // 1. Buttons (smooth, moderate scale-up)
     for (mut style, mut btn) in &mut button_q {
         let is_selected = btn.index == combat.selected_action;
         let target_w = if is_selected { 210.0 } else { 195.0 };
@@ -694,7 +694,7 @@ fn update_combat_menu_selection(
         style.height = Val::Px(btn.current_height);
     }
 
-    // 2. Curseur (glissement fluide et oscillation rétro)
+    // 2. Cursor (smooth slide and retro oscillation)
     let target_top = match combat.selected_action {
         0 => 20.0,
         1 => 100.0,

@@ -54,11 +54,11 @@ pub struct CombatInstance {
     pub turn_number: u32,
 }
 
-/// Le joueur tel qu'il vit en mémoire pendant une session.
+/// The player as it lives in memory during a session.
 ///
-/// Les champs persistés (hp, xp, niveau, argent, salle, inventaire, équipement,
-/// quêtes) sont sauvegardés/rechargés via la crate `database`. Les champs
-/// purement runtime (`combat`, `group`, les horodatages anti-spam) ne le sont pas.
+/// Persisted fields (hp, xp, level, money, room, inventory, equipment,
+/// quests) are saved/loaded via the `database` crate. Purely runtime fields
+/// (`combat`, `group`, anti-spam timestamps) are not persisted.
 #[derive(Debug, Clone)]
 pub struct Player {
     pub id: PlayerId,
@@ -77,7 +77,10 @@ pub struct Player {
     pub inventory: Inventory,
     pub equipement: Equipement,
     pub completed_quests: Vec<domain::QuestId>,
-    pub active_quests: Vec<domain::QuestId>,
+    /// Active quests with their stage and progress counter.
+    pub quest_progress: Vec<domain::QuestProgress>,
+    /// Currently equipped medaillon (stays in inventory, just flagged).
+    pub equipped_medaillon_id: Option<domain::ItemId>,
     pub group: Option<GroupId>,
     pub pending_group_invite: Option<GroupId>,
     pub combat: CombatState,
@@ -87,7 +90,7 @@ pub struct Player {
 }
 
 impl Player {
-    /// Crée un joueur frais (nouveau compte) dans la salle de départ.
+    /// Creates a fresh player (new account) in the starting room.
     pub fn new(username: String, room: RoomId) -> Self {
         Player {
             id: PlayerId(username.clone()),
@@ -106,7 +109,8 @@ impl Player {
             inventory: Inventory::default(),
             equipement: Equipement::default(),
             completed_quests: Vec::new(),
-            active_quests: Vec::new(),
+            quest_progress: Vec::new(),
+            equipped_medaillon_id: None,
             group: None,
             pending_group_invite: None,
             combat: CombatState::Idle,
@@ -116,9 +120,8 @@ impl Player {
         }
     }
 
-    /// Ajoute de l'XP et fait monter de niveau autant de fois que nécessaire.
-    /// Renvoie le nombre de niveaux gagnés. (Version corrigée de classes.rs, qui
-    /// confondait `self.current`/`levels_gained` et ne compilait pas.)
+    /// Adds XP and levels up as many times as needed.
+    /// Returns the number of levels gained.
     pub fn add_xp(&mut self, amount: i32) -> i32 {
         self.xp_bar.current += amount;
         let mut levels_gained = 0;

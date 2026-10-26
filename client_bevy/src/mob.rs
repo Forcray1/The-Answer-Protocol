@@ -151,7 +151,7 @@ fn animate_mobs(
             let img_h = image.size().y as f32;
             anim.sheet_size = Vec2::new(img_w, img_h);
 
-            // Si le ratio correspond à une spritesheet 2x3 (ex: 120x180, 100x150)
+            // If ratio matches a 2x3 spritesheet (e.g. 120x180, 100x150)
             let is_2x3_sheet = (img_w * 3.0 - img_h * 2.0).abs() < 5.0 && img_w != img_h;
             if is_2x3_sheet {
                 let frame_w = img_w / SHEET_COLS as f32;

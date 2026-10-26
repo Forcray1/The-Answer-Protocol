@@ -28,6 +28,8 @@ pub enum GameCommand {
     GroupInfo,
     Quit,
     Flee,
+    /// Répondre à un dialogue à choix : `ANSWER <npc_id> <answer>`
+    Answer { npc: String, answer: String },
     Unknown,
 }
 
@@ -75,7 +77,11 @@ impl GameCommand {
 
             "QUIT" => GameCommand::Quit,
             "FLEE" | "ESCAPE" | "FUIR" => GameCommand::Flee,
-            
+            "ANSWER" if parts.len() > 2 => GameCommand::Answer {
+                npc: parts[1].to_string(),
+                answer: parts[2..].join(" ").to_lowercase(),
+            },
+
             "CHAT" if parts.len() > 2 => {
                 let channel = parts[1].to_uppercase();
                 let message = parts[2..].join(" ");

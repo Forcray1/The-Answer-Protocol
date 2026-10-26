@@ -418,7 +418,7 @@ fn handle_presence_events(
                             name: name.to_string(),
                             target: pos,
                         });
-                        println!("[PLAYER] Joueur distant '{}' apparu (skin '{}').", name, skin);
+                        println!("[PLAYER] Remote player '{}' appeared (skin '{}').", name, skin);
                     }
                     "LEAVE" => {
                         for (entity, r) in &remotes {

@@ -1,5 +1,8 @@
 #![allow(dead_code)]
 
+pub mod quest;
+pub use quest::{QuestProgress, QuestStage, StageObjective};
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -32,12 +35,12 @@ macro_rules! id_type {
     };
 }
 
-id_type!(PlayerId, "Identifiant d'un joueur (son pseudo).");
-id_type!(RoomId, "Identifiant d'une salle / d'un lieu.");
-id_type!(ItemId, "Identifiant d'un objet (item, arme ou objet-clé).");
-id_type!(NpcId, "Identifiant d'un PNJ.");
-id_type!(QuestId, "Identifiant d'une quête.");
-id_type!(GroupId, "Identifiant d'un groupe de joueurs.");
+id_type!(PlayerId, "Unique identifier for a player (their username).");
+id_type!(RoomId, "Unique identifier for a room / location.");
+id_type!(ItemId, "Unique identifier for an item (item, weapon or key item).");
+id_type!(NpcId, "Unique identifier for an NPC.");
+id_type!(QuestId, "Unique identifier for a quest.");
+id_type!(GroupId, "Unique identifier for a player group.");
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -323,28 +326,4 @@ pub struct Group {
     pub members: Vec<PlayerId>,
 }
 
-#[derive(Debug, Clone)]
-pub enum QuestObjective {
-    FetchItem { item: ItemId },
-    DefeatNpc { npc: NpcId },
-    DeliverItem { item: ItemId, to: NpcId },
-}
 
-#[derive(Debug, Clone)]
-pub struct Reward {
-    pub items: Vec<ItemId>,
-    pub hp: i32,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum QuestStatus {
-    NotStarted,
-    InProgress,
-    Completed,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct QuestProgress {
-    pub quest: QuestId,
-    pub status: QuestStatus,
-}

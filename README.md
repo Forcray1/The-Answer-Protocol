@@ -425,6 +425,12 @@ Si vous continuez sans vous soigner et que vos PV atteignent `0`, le serveur :
 	mlorenzo:
 		- Finished the implementation of the map with the shadows
 		- edited the PNJ a bit
+26/10/2026:
+	mlorenzo:
+		- Implemented the quest system
+		- Added the dialogue of pnj depending on the stage of the quest
+		- Edited the inventory setup for it to match the items
+		- Added the main quest of the queen and the quest of dory to the world.yaml and in game
 ````
 
 TODO:

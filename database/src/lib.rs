@@ -1,13 +1,13 @@
-// - init_db : crée game.db et les tables si elles n'existent pas
-// - register_player : crée un compte
-// - verify_player : vérifie le mot de passe à la connexion
-// - load_player : charge les données persistées d'un joueur
-// - save_player : sauvegarde les données d'un joueur
+// - init_db   : creates game.db and tables if they don't exist
+// - register_player : creates a player account
+// - verify_player  : checks password on login
+// - load_player    : loads persisted player data
+// - save_player    : saves player data
 //
-// Depuis l'adoption du modèle de `domain`, la persistance manipule les types
-// forts (Inventory, ItemId, QuestId, RoomId) au lieu de String/HashMap bruts.
-// Les colonnes JSON stockent désormais : l'inventaire complet (3 sacs) en un
-// objet, l'équipement en table emplacement -> id, et les quêtes en liste d'ids.
+// Since adopting the `domain` model, persistence uses strong types
+// (Inventory, ItemId, QuestId, RoomId) instead of raw Strings/HashMaps.
+// JSON columns now store: the full inventory (3 bags) as one
+// object, equipment as slot -> id map, and quests as id list.
 
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -24,23 +24,23 @@ pub struct PlayerData {
     pub money: i32,
     pub current_room: RoomId,
     pub inventory: Inventory,
-    /// emplacement ("head", "weapon"…) -> identifiant de l'objet équipé.
+    /// slot ("head", "weapon"…) -> id of the equipped item.
     pub equipment: HashMap<String, ItemId>,
     pub completed_quests: Vec<QuestId>,
-    /// Nom du skin (fichier sous sprites/skin/, sans extension). "default" par défaut.
+    /// Skin name (file under sprites/skin/, no extension). "default" by default.
     pub skin: String,
-    /// Dernière position (x, y) dans la salle. `None` si jamais sauvegardée
-    /// (nouveau joueur) : le client retombe alors sur son point d'apparition.
+    /// Last position (x, y) in the room. `None` if never saved
+    /// (new player): client falls back to its spawn point.
     pub position: Option<(f32, f32)>,
 }
 
 // Init
 
-// Crée le pool de connexions SQLite et exécute les migrations.
-// Le fichier game.db est créé s'il n'existe pas.
+// Creates the SQLite connection pool and runs migrations.
+// The game.db file is created if it doesn't exist.
 
 pub async fn init_db(database_url: &str) -> Result<SqlitePool, sqlx::Error> {
-    // create_if_missing : crée le fichier game.db s'il n'existe pas encore
+    // create_if_missing: creates game.db if it doesn't exist yet
     let options = SqliteConnectOptions::from_str(database_url)?
         .create_if_missing(true);
 
@@ -49,16 +49,16 @@ pub async fn init_db(database_url: &str) -> Result<SqlitePool, sqlx::Error> {
         .connect_with(options)
         .await?;
 
-    // Exécute tous les fichiers dans migrations dans l'ordre
-    // S'arrête proprement si les migrations ont déjà été jouées
+    // Runs all migration files in order
+    // Stops cleanly if migrations have already been applied
     sqlx::migrate!("./migrations").run(&pool).await?;
 
     Ok(pool)
 }
 
-// Crée un nouveau compte joueur.
-// Hache le mot de passe avec argon2 avant de l'écrire.
-// Retourne false si le pseudo est déjà pris.
+// Creates a new player account.
+// Hashes the password with argon2 before writing.
+// Returns false if the username is already taken.
 
 pub async fn register_player(
     pool: &SqlitePool,
@@ -73,10 +73,10 @@ pub async fn register_player(
     .await?;
 
     if existing.is_some() {
-        return Ok(false); // Pseudo déjà pris
+        return Ok(false); // Username already taken
     }
 
-    // Hache le mot de passe
+    // Hash the password
     let salt = SaltString::generate(&mut OsRng);
     let hash = Argon2::default()
         .hash_password(password.as_bytes(), &salt)
@@ -94,9 +94,9 @@ pub async fn register_player(
     Ok(true)
 }
 
-// Vérifie le mot de passe d'un joueur existant.
-// Retourne true si le mot de passe est correct.
-// Retourne false si le joueur n'existe pas ou si le mot de passe est faux.
+// Verifies an existing player's password.
+// Returns true if the password is correct.
+// Returns false if the player doesn't exist or the password is wrong.
 
 pub async fn verify_player(
     pool: &SqlitePool,
@@ -111,7 +111,7 @@ pub async fn verify_player(
     .await?;
 
     match row {
-        None => Ok(false), // Joueur pas dans données
+        None => Ok(false), // Player not found
         Some((hash,)) => {
             let parsed = PasswordHash::new(&hash).expect("invalid hash");
             let ok = Argon2::default()
@@ -122,10 +122,10 @@ pub async fn verify_player(
     }
 }
 
-//load la save
+// Load player save
 
-// Charge les données persistées d'un joueur.
-// Retourne None si le joueur n'existe pas.
+// Loads persisted player data.
+// Returns None if the player doesn't exist.
 
 pub async fn load_player(
     pool: &SqlitePool,
@@ -150,7 +150,7 @@ pub async fn load_player(
             let completed_quests: Vec<QuestId> =
                 serde_json::from_str(&quests_json).unwrap_or_default();
 
-            // Position seulement si les deux colonnes sont renseignées.
+            // Position only if both columns are set.
             let position = match (pos_x, pos_y) {
                 (Some(x), Some(y)) => Some((x as f32, y as f32)),
                 _ => None,
@@ -172,8 +172,8 @@ pub async fn load_player(
     }
 }
 
-// Save l'état actuel du joueur.
-// Appeler quand le joueur se déconnecte.
+// Saves the current player state.
+// Call when the player disconnects.
 
 #[allow(clippy::too_many_arguments)]
 pub async fn save_player(

@@ -141,7 +141,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             let hp = server_state.npc_hps.get(npc_id).copied().unwrap_or(npc.hp);
                                             let scale = npc.scale.unwrap_or(1.0);
                                             let _ = tx.send(GlobalEvent {
-                                                sender_addr: None, // Serveur envoie, personne n'est exclu
+                                                sender_addr: None, // Server sends, no one excluded
                                                 message: format!("S: EVT ROOM {} MOB_SPAWN {} {} {} {} {} {} {} {} {}\n", room_id, npc_id, sprite, x, y, hp, npc.hp, scale, npc.name.replace(" ", "_"), npc.role),
                                                 target_room: Some(room_id.clone()),
                                                 target_group: None,

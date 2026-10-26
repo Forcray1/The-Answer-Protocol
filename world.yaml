@@ -81,6 +81,28 @@ world:
         - "Y-You did it ! Thank you so much. I don't know how to repay you."
       spawn_pos: [46.0, 406.0]
       scale: 0.6
+      quest_dialogues:
+        # Stage 0 — première rencontre, quête pas encore démarrée
+        - quest_id: "main_quest"
+          stage: 0
+          lines:
+            - "You're the one Sir Gragas sent to help ?"
+            - "I'm glad that you are here, we need your help. Before taking down the temple, you need to go look for our treasure, it has been stolen and taken to the cave in the south west."
+        # Stage 1 — FetchItem en cours, la reine attend le cimeterre
+        - quest_id: "main_quest"
+          stage: 1
+          lines:
+            - "I'm glad that you are here, we need your help. Before taking down the temple, you need to go look for our treasure, it has been stolen and taken to the cave in the south west."
+        # Stage 2 — FetchItem accompli, attente de la mort du boss
+        - quest_id: "main_quest"
+          stage: 2
+          lines:
+            - "You succeeded to retrieve it ? Thank you, you're stronger than what Sir Gragas was telling us. Here is a pass to the temple. Be aware, there is a lot of monsters and our enemy is truly strong."
+        # Stage 255 — quête terminée
+        - quest_id: "main_quest"
+          stage: 255
+          lines:
+            - "Y-You did it ! Thank you so much. I don't know how to repay you."
 
     - id: "Dory"
       name: "Dory"
@@ -94,6 +116,34 @@ world:
         - "You little selfish peasant, nothing for you then..."
       spawn_pos: [0.0, 0.0]
       scale: 0.6
+      quest_dialogues:
+        # Stage 0 — premier contact, quête pas encore démarrée
+        - quest_id: "quest_dory"
+          stage: 0
+          lines:
+            - "Did you know I made this city ?"
+            - "If you go check poiscapute on instagram I'll give you an item..."
+          choices:
+            - text: "I checked it out!"
+              answer: "yes"
+            - text: "Not interested."
+              answer: "no"
+        # Stage 1 — en attente de réponse (relance si le joueur re-parle)
+        - quest_id: "quest_dory"
+          stage: 1
+          lines:
+            - "Did you know I made this city ?"
+            - "If you go check poiscapute on instagram I'll give you an item..."
+          choices:
+            - text: "I checked it out!"
+              answer: "yes"
+            - text: "Not interested."
+              answer: "no"
+        # Stage 255 — quête terminée, medaillon déjà donné
+        - quest_id: "quest_dory"
+          stage: 255
+          lines:
+            - "Thank you so much ! Here you go, it's for you."
 
     - id: "Oguzhan"
       name: "Oguzhan"
@@ -212,6 +262,20 @@ world:
       spawn_pos: [0.0, 0.0]
       scale: 0.6
 
+    - id: "Final_boss"
+      name: "blank"
+      role: "enemy"
+      sprite: "SandMonster"
+      combat_sprite: "SandMonster"
+      spawn_pos: [0.0, 0.0]
+      scale: 1.2
+      hp: 300
+      damage: 20
+      defense: 8
+      exp_reward: 500
+      respawn_time: 9999
+      dialogue: ["..."]
+
   items:
     - id: "Excalibur"
       name: "Excalibur"
@@ -226,7 +290,57 @@ world:
       slot: "weapon"
       obtainable: true
       description: "Simple dague"
-  quests: []
+    - id: "urbosas_cimeter"
+      name: "Urbosa's Cimeter"
+      obtainable: true
+      type: "quest"
+      description: "A sacred blade stolen from the royal treasury. The Queen needs it back."
+      sprite: "sword_icone"
+    - id: "magical_strength_medaillon"
+      name: "Magical Strength Medaillon"
+      obtainable: true
+      type: "quest"
+      slot: "medaillon"
+      description: "A mysterious medaillon that radiates magical power. Dory gave it to you as a reward."
+      sprite: "QuestUI"
+  quests:
+    - id: "main_quest"
+      name: "The Answer Protocol"
+      description: "Help the Queen reclaim the royal treasure and defeat the evil that has taken the temple."
+      giver_id: "Queen"
+      objective:
+        type: talk_to_npc
+        npc: "Queen"
+      stages:
+        - stage: 1
+          objective:
+            type: fetch_item
+            item: "urbosas_cimeter"
+        - stage: 2
+          objective:
+            type: kill_mob
+            npc: "Final_boss"
+            count: 1
+      reward_exp: 1000
+    - id: "quest_dory"
+      name: "Dory's Gift"
+      description: "Did you know Dory made this city? Check poiscapute on instagram and he might give you something."
+      giver_id: "Dory"
+      objective:
+        type: talk_to_npc
+        npc: "Dory"
+      stages:
+        - stage: 1
+          objective:
+            type: answer_dialogue
+            npc: "Dory"
+            expected_answer: "yes"
+          on_wrong_answer:
+            dialogue:
+              - "You little selfish peasant, nothing for you then..."
+            reset: true
+      reward_item: "magical_strength_medaillon"
+      reward_exp: 50
   locations:
     Wild1:
       name: "Wild1"
@@ -348,7 +462,7 @@ world:
       exits:
         north: "Cave3"
       npcs: []
-      items: []
+      items: ["urbosas_cimeter"]
     Temple1:
       name: "Temple1"
       description: ""
@@ -378,5 +492,5 @@ world:
       description: ""
       exits:
         west: "Temple3"
-      npcs: []
+      npcs: ["Final_boss"]
       items: []
