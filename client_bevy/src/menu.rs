@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
-use crate::net::{NetworkSender, ServerMessageEvent};
+use crate::net::{NetworkSender, NetworkStatus, ServerMessageEvent};
 use crate::AppState;
 
 #[derive(Resource, Default)]
@@ -29,6 +29,7 @@ fn login_ui_system(
     mut contexts: EguiContexts,
     mut login_data: ResMut<LoginData>,
     sender: Res<NetworkSender>,
+    status: Res<NetworkStatus>,
 ) {
     let ctx = contexts.ctx_mut();
 
@@ -46,6 +47,11 @@ fn login_ui_system(
                 ui.add_space(10.0);
                 ui.heading("The Answer Protocol");
                 ui.add_space(20.0);
+
+                if !status.connected {
+                    ui.colored_label(egui::Color32::YELLOW, "Waiting for the server...");
+                    ui.add_space(10.0);
+                }
 
                 if let Some(error) = &login_data.error_msg {
                     ui.colored_label(egui::Color32::RED, error);
@@ -97,6 +103,11 @@ fn handle_login_responses(
             next_state.set(AppState::InGame);
         } else if msg.starts_with("S: ERR") {
             login_data.error_msg = Some(msg.clone());
+        } else if msg == "Network system initialized." {
+            // Connected (again): drop a stale "unreachable" error.
+            if login_data.error_msg.as_deref() == Some("S: ERR Unable to reach the server.") {
+                login_data.error_msg = None;
+            }
         }
     }
 }

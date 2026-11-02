@@ -12,6 +12,7 @@ mod net;
 mod parse_layers;
 mod player;
 mod quest;
+mod shop;
 mod ui;
 mod minimap;
 mod combat;
@@ -54,5 +55,6 @@ fn main() {
         ))
         .add_plugins(interaction::InteractionPlugin)
         .add_plugins(quest::QuestTrackerPlugin)
+        .add_plugins(shop::ShopPlugin)
         .run();
 }

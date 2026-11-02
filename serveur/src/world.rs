@@ -118,6 +118,16 @@ pub struct Npc {
     /// Dialogue blocks conditional on quest state.
     #[serde(default)]
     pub quest_dialogues: Vec<QuestDialogue>,
+    /// Items sold by this NPC (empty = not a merchant).
+    #[serde(default)]
+    pub shop: Vec<ShopItem>,
+}
+
+/// One entry in an NPC's shop list (parsed from world.yaml).
+#[derive(Debug, Deserialize, Clone)]
+pub struct ShopItem {
+    pub item_id: ItemId,
+    pub price: u32,
 }
 
 impl Npc {
@@ -166,6 +176,9 @@ pub struct Item {
     pub slot: Option<String>,
     #[serde(default)]
     pub sprite: Option<String>,
+    /// If true, this item can be bought multiple times (e.g. potions).
+    #[serde(default)]
+    pub consumable: bool,
 }
 
 impl Item {
@@ -225,6 +238,12 @@ pub struct Quest {
     pub giver_id: Option<NpcId>,
     pub reward_exp: Option<i32>,
     pub reward_item: Option<ItemId>,
+    /// Gold given on completion.
+    #[serde(default)]
+    pub reward_gold: Option<i32>,
+    /// Extra reward items; list an id N times to give N units.
+    #[serde(default)]
+    pub reward_items: Vec<ItemId>,
     /// Stage definitions (new multi-step format).
     /// If empty, the quest has a single implicit stage (Stage 1).
     #[serde(default)]

@@ -28,8 +28,10 @@ pub enum GameCommand {
     GroupInfo,
     Quit,
     Flee,
-    /// Répondre à un dialogue à choix : `ANSWER <npc_id> <answer>`
+    /// Reply to a multiple-choice dialogue: `ANSWER <npc_id> <answer>`
     Answer { npc: String, answer: String },
+    /// Buy an item from an NPC's shop: `BUY <npc_id> <item_id>`
+    Buy { npc: String, item: String },
     Unknown,
 }
 
@@ -66,7 +68,7 @@ impl GameCommand {
             "TALK" if parts.len() > 1 => GameCommand::Talk(parts[1..].join(" ")),
             "INTERACT" if parts.len() > 1 => GameCommand::Interact(parts[1..].join(" ")),
             "QUESTS" => GameCommand::Quests,
-            "QUEST" if parts.len() > 1 => GameCommand::Quest(parts[1].to_string()),
+            "QUEST" if parts.len() > 1 => GameCommand::Quest(parts[1..].join(" ")),
             
             "WHO" => GameCommand::Who,
 
@@ -80,6 +82,10 @@ impl GameCommand {
             "ANSWER" if parts.len() > 2 => GameCommand::Answer {
                 npc: parts[1].to_string(),
                 answer: parts[2..].join(" ").to_lowercase(),
+            },
+            "BUY" if parts.len() > 2 => GameCommand::Buy {
+                npc: parts[1].to_string(),
+                item: parts[2].to_string(),
             },
 
             "CHAT" if parts.len() > 2 => {

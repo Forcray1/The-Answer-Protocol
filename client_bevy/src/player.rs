@@ -16,6 +16,7 @@ impl Plugin for PlayerPlugin {
             .init_resource::<LocalPlayerSkin>()
             .insert_resource(PosSendTimer(Timer::from_seconds(POS_SEND_INTERVAL, TimerMode::Repeating)))
             .add_systems(Update, spawn_local_player_on_connect)
+            .add_systems(OnEnter(AppState::MainMenu), clear_players_on_logout)
             .add_systems(
                 Update,
                 (
@@ -380,6 +381,23 @@ fn send_local_position(
     let _ = sender.0.send(format!("POS {} {}\n", pos.x.round() as i64, pos.y.round() as i64));
 }
 
+/// Back to the login screen (QUIT or lost connection): remove the local avatar and the
+/// remote players of the previous session, otherwise the next login would reuse them
+/// (`spawn_local_player_on_connect` does nothing while a local player already exists).
+fn clear_players_on_logout(
+    mut commands: Commands,
+    locals: Query<Entity, With<LocalPlayer>>,
+    remotes: Query<Entity, With<RemotePlayer>>,
+    mut local_name: ResMut<LocalPlayerName>,
+    mut held: ResMut<HeldDirections>,
+) {
+    for entity in locals.iter().chain(remotes.iter()) {
+        commands.entity(entity).despawn_recursive();
+    }
+    local_name.0 = None;
+    held.0.clear();
+}
+
 fn handle_presence_events(
     mut commands: Commands,
     mut events: EventReader<ServerMessageEvent>,
@@ -388,7 +406,7 @@ fn handle_presence_events(
     mut remotes: Query<(Entity, &mut RemotePlayer)>,
 ) {
     for ev in events.read() {
-        if ev.0.starts_with("S: OK room-loc.") {
+        if ev.0.starts_with("S: OK room=loc.") {
             for (entity, _) in &remotes {
                 commands.entity(entity).despawn_recursive();
             }
@@ -396,20 +414,20 @@ fn handle_presence_events(
         }
 
         let p: Vec<&str> = ev.0.split_whitespace().collect();
-        if p.len() < 5 || p[0] != "S:" || p[1] != "EVT" || p[2] != "ROOM" {
+        if p.len() < 4 || p[0] != "S:" || p[1] != "EVT" || p[2] != "ROOM" {
             continue;
         }
 
-        match p[4] {
-            "PRESENCE" if p.len() >= 7 => {
-                let name = p[6];
+        match p[3] {
+            "PRESENCE" if p.len() >= 6 => {
+                let name = p[5];
                 if Some(name) == local_name.0.as_deref() {
                     continue; // jamais soi-même
                 }
-                match p[5] {
-                    "ENTER" | "ROSTER" if p.len() >= 10 => {
-                        let skin = p[7];
-                        let pos = Vec2::new(p[8].parse().unwrap_or(0.0), p[9].parse().unwrap_or(0.0));
+                match p[4] {
+                    "ENTER" | "ROSTER" if p.len() >= 9 => {
+                        let skin = p[6];
+                        let pos = Vec2::new(p[7].parse().unwrap_or(0.0), p[8].parse().unwrap_or(0.0));
                         if remotes.iter().any(|(_, r)| r.name == name) {
                             continue; // déjà présent
                         }
@@ -430,12 +448,12 @@ fn handle_presence_events(
                     _ => {}
                 }
             }
-            "POS" if p.len() >= 8 => {
-                let name = p[5];
+            "POS" if p.len() >= 7 => {
+                let name = p[4];
                 if Some(name) == local_name.0.as_deref() {
                     continue;
                 }
-                let target = Vec2::new(p[6].parse().unwrap_or(0.0), p[7].parse().unwrap_or(0.0));
+                let target = Vec2::new(p[5].parse().unwrap_or(0.0), p[6].parse().unwrap_or(0.0));
                 for (_, mut r) in &mut remotes {
                     if r.name == name {
                         r.target = target;

@@ -96,7 +96,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut reader = BufReader::new(reader);
             let mut line = String::new();
 
-            let _ = writer.write_all(b"S: DK hello proto=1\n").await;
+            let _ = writer.write_all(b"S: OK hello proto=1\n").await;
 
             loop {
                 line.clear();
@@ -112,7 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     log_event("DISCONNECT", &player.username, json!({"reason": "connection_lost"}));
                                     let _ = tx.send(GlobalEvent {
                                         sender_addr: Some(addr),
-                                        message: format!("S: EVT ROOM {} PRESENCE LEAVE {}\n", player.current_room, player.username),
+                                        message: format!("S: EVT ROOM PRESENCE LEAVE {}\n", player.username),
                                         target_room: Some(player.current_room.clone()),
                                         target_group: None,
                                         target_player: None,
@@ -142,7 +142,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             let scale = npc.scale.unwrap_or(1.0);
                                             let _ = tx.send(GlobalEvent {
                                                 sender_addr: None, // Server sends, no one excluded
-                                                message: format!("S: EVT ROOM {} MOB_SPAWN {} {} {} {} {} {} {} {} {}\n", room_id, npc_id, sprite, x, y, hp, npc.hp, scale, npc.name.replace(" ", "_"), npc.role),
+                                                message: format!("S: EVT ROOM MOB_SPAWN {} {} {} {} {} {} {} {} {}\n", npc_id, sprite, x, y, hp, npc.hp, scale, npc.name.replace(" ", "_"), npc.role),
                                                 target_room: Some(room_id.clone()),
                                                 target_group: None,
                                                 target_player: None,
@@ -168,7 +168,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         log_event("DISCONNECT", &player.username, json!({"reason": "QUIT"}));
                                         let _ = tx.send(GlobalEvent {
                                             sender_addr: Some(addr),
-                                            message: format!("S: EVT ROOM {} PRESENCE LEAVE {}\n", player.current_room, player.username),
+                                            message: format!("S: EVT ROOM PRESENCE LEAVE {}\n", player.username),
                                             target_room: Some(player.current_room.clone()),
                                             target_group: None,
                                             target_player: None,

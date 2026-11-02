@@ -35,6 +35,7 @@ impl Plugin for InventoryPlugin {
                 handle_action_btn,
                 handle_char_stats,
                 handle_tab_click,
+                update_tab_highlight,
                 update_silhouette,
             ).run_if(in_state(AppState::InGame)));
     }
@@ -692,35 +693,48 @@ fn handle_inventory_data(
 }
 
 /// Switches the active tab and re-filters the cached item list.
+/// (The highlight of the tab buttons is handled by `update_tab_highlight`.)
 fn handle_tab_click(
-    mut tab_btns: Query<
-        (&Interaction, &InventoryTabBtn, &mut BackgroundColor, &mut BorderColor, &Children),
-        (Changed<Interaction>, With<Button>),
-    >,
-    mut text_q: Query<&mut Text>,
+    tab_btns: Query<(&Interaction, &InventoryTabBtn), (Changed<Interaction>, With<Button>)>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     grid_query: Query<Entity, With<InventoryGrid>>,
     existing_slots: Query<Entity, With<InventorySlot>>,
     mut inv_state: ResMut<InventoryState>,
 ) {
-    for (interaction, tab_btn, mut bg, mut border, children) in &mut tab_btns {
+    for (interaction, tab_btn) in &tab_btns {
         if *interaction != Interaction::Pressed { continue; }
 
         inv_state.active_tab = tab_btn.0.clone();
 
-        // Update visual state of this button
-        *bg = TAB_ACTIVE_BG.into();
-        *border = BORDER_GOLD.into();
-        if let Some(&child) = children.first() {
-            if let Ok(mut txt) = text_q.get_mut(child) {
-                txt.sections[0].style.color = TITLE_COLOR;
-            }
-        }
-
         let Ok(grid) = grid_query.get_single() else { continue };
         let tab = inv_state.active_tab.clone();
         rebuild_grid(&mut commands, &asset_server, grid, &existing_slots, &inv_state.cached_items, &tab);
+    }
+}
+
+/// Keeps the look of the four tab buttons in sync with `InventoryState::active_tab`:
+/// the active tab is highlighted and every other tab goes back to idle.
+fn update_tab_highlight(
+    inv_state: Res<InventoryState>,
+    mut tabs: Query<(&InventoryTabBtn, &mut BackgroundColor, &mut BorderColor, &Children)>,
+    mut text_q: Query<&mut Text>,
+) {
+    if !inv_state.is_changed() { return; }
+
+    for (tab, mut bg, mut border, children) in &mut tabs {
+        let active = tab.0 == inv_state.active_tab;
+
+        let bg_color: Color = if active { TAB_ACTIVE_BG } else { TAB_IDLE_BG };
+        let border_color: Color = if active { BORDER_GOLD } else { Color::NONE };
+        *bg = bg_color.into();
+        *border = border_color.into();
+
+        if let Some(&child) = children.first() {
+            if let Ok(mut txt) = text_q.get_mut(child) {
+                txt.sections[0].style.color = if active { TITLE_COLOR } else { TEXT_DIM };
+            }
+        }
     }
 }
 
@@ -1780,14 +1794,14 @@ fn process_chat_events(
             continue;
         }
 
-        // 2. ROOM EVENTS: S: EVT ROOM <room> ...
+        // 2. ROOM EVENTS: S: EVT ROOM <verb> ...
         if line.starts_with("S: EVT ROOM ") {
             let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() >= 5 {
-                match parts[4] {
-                    "CHAT" if parts.len() >= 7 => {
-                        let sender = parts[5].replace('_', " ");
-                        let message = parts[6..].join(" ");
+            if parts.len() >= 4 {
+                match parts[3] {
+                    "CHAT" if parts.len() >= 6 => {
+                        let sender = parts[4].replace('_', " ");
+                        let message = parts[5..].join(" ");
                         let is_recent_self = local_name.0.as_deref() == Some(sender.as_str())
                             && console.last_sent.as_ref().map_or(false, |(c, m, t)| *c == ChatChannel::Room && m == &message && t.elapsed().as_secs() < 3);
 
@@ -1802,9 +1816,9 @@ fn process_chat_events(
                             }
                         }
                     }
-                    "PRESENCE" if parts.len() >= 7 => {
-                        let action = parts[5];
-                        let user = parts[6];
+                    "PRESENCE" if parts.len() >= 6 => {
+                        let action = parts[4];
+                        let user = parts[5];
                         let is_me = local_name.0.as_deref() == Some(user);
                         if !is_me {
                             if action == "LEAVE" {
@@ -1837,8 +1851,8 @@ fn process_chat_events(
             continue;
         }
 
-        // 3. ROOM LOCATION CHANGE: S: OK room-loc.<room>
-        if let Some(room) = line.strip_prefix("S: OK room-loc.") {
+        // 3. ROOM LOCATION CHANGE: S: OK room=loc.<room>
+        if let Some(room) = line.strip_prefix("S: OK room=loc.") {
             console.room_change_time = Some(std::time::Instant::now());
             history.add(
                 ChatChannel::Room,
@@ -2271,10 +2285,10 @@ fn spawn_chat_bubbles(
 ) {
     for ev in events.read() {
         let parts: Vec<&str> = ev.0.split_whitespace().collect();
-        // S: EVT ROOM <room> CHAT <user> <msg>
-        if parts.len() >= 7 && parts[0] == "S:" && parts[1] == "EVT" && parts[2] == "ROOM" && parts[4] == "CHAT" {
-            let username = parts[5];
-            let message = parts[6..].join(" ");
+        // S: EVT ROOM CHAT <user> <msg>
+        if parts.len() >= 6 && parts[0] == "S:" && parts[1] == "EVT" && parts[2] == "ROOM" && parts[3] == "CHAT" {
+            let username = parts[4];
+            let message = parts[5..].join(" ");
             let text_len = message.chars().count() as f32;
             let bubble_width = (text_len * 14.0).max(50.0);
             
@@ -2824,7 +2838,8 @@ impl Plugin for HudPlugin {
                 ).run_if(in_state(AppState::InGame)),
             )
             .add_systems(OnEnter(AppState::InGame), show_hud)
-            .add_systems(OnExit(AppState::InGame), hide_hud);
+            .add_systems(OnExit(AppState::InGame), hide_hud)
+            .add_systems(OnEnter(AppState::MainMenu), reset_ui_data_on_logout);
     }
 }
 
@@ -2972,6 +2987,23 @@ fn setup_hud_ui(mut commands: Commands) {
                 ));
             });
         });
+}
+
+/// Back to the login screen: forget the previous session's inventory, quests, stats and chat.
+fn reset_ui_data_on_logout(
+    mut inventory: ResMut<InventoryState>,
+    mut selected_item: ResMut<SelectedItem>,
+    mut quests: ResMut<QuestState>,
+    mut selected_quest: ResMut<SelectedQuest>,
+    mut stats: ResMut<PlayerStats>,
+    mut history: ResMut<ChatHistory>,
+) {
+    *inventory = InventoryState::default();
+    *selected_item = SelectedItem::default();
+    *quests = QuestState::default();
+    *selected_quest = SelectedQuest::default();
+    *stats = PlayerStats::default();
+    *history = ChatHistory::default();
 }
 
 fn show_hud(

@@ -472,6 +472,17 @@ References:
 	mlorenzo:
 		- Update README
 		- Added Makefile
+		- Listing items and mobs
+		- Made the QUIT command get back to the login screen
+01/11/2026:
+	mlorenzo:
+		- Done the positioning of all PNJ
+		- First version of the shop
+		- Quests fully done
+		- Corrected some bugs in the UI
+02/11/2026:
+	mlorenzo:
+		- Shop improved
 ````
 
 TODO:
@@ -483,6 +494,8 @@ TODO:
 	- Fix bug respawn mob system, they respawn only if the players moves
 	- Help Command
 	- Stats Point system
+	- use of potion
+	- make shop work
 
 - Combat system
 - Inventory
@@ -533,9 +546,5 @@ Internal checklist written after reviewing the code against the subject (v1.4). 
 
 ### Repository hygiene
 
-- [ ] Commit `Cargo.lock` (binaries, and the Makefile uses `cargo fetch --locked` when it exists).
-- [ ] Add a `.gitignore` for `target/`, `game.db*`, `logs.json`.
-- [ ] Make sure the sprite/asset folder is committed where the GUI expects it (Bevy loads `assets/` relative to the crate, i.e. `client_bevy/assets`; `make run-client-gui` prints a warning when the folder is missing).
-- [ ] Both members need commits and meaningful commit messages (subject VII.2); keep the Group Contributions table accurate.
 - [ ] Fill in the "How AI was used" paragraph in Resources, and make sure each of you can explain the `select!` loop, the broadcast routing in `main.rs` and the quest-stage code during the evaluation (a small live modification may be requested).
 - [ ] Remove or keep this section as you prefer once everything is ticked; the Timeline below is the original development log and TODO list, kept unchanged.

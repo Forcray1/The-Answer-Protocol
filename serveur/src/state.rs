@@ -87,6 +87,8 @@ pub struct Player {
     pub last_move: Option<Instant>,
     pub last_attack: Option<Instant>,
     pub last_chat: Option<Instant>,
+    /// Guest session (CONNECT without password): not backed by an account, never saved.
+    pub guest: bool,
 }
 
 impl Player {
@@ -117,6 +119,7 @@ impl Player {
             last_move: None,
             last_attack: None,
             last_chat: None,
+            guest: false,
         }
     }
 

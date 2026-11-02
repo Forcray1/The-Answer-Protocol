@@ -15,10 +15,16 @@ use crate::AppState;
 
 pub struct QuestTrackerPlugin;
 
+/// Back to the login screen: forget the previous session's quests.
+fn reset_quest_tracker_on_logout(mut tracker: ResMut<QuestTracker>) {
+    *tracker = QuestTracker::default();
+}
+
 impl Plugin for QuestTrackerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<QuestTracker>()
             .add_event::<QuestUpdatedEvent>()
+            .add_systems(OnEnter(AppState::MainMenu), reset_quest_tracker_on_logout)
             .add_systems(
                 Update,
                 (

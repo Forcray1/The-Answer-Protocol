@@ -14,6 +14,7 @@ impl Plugin for MobPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<InteractableTarget>()
             .add_systems(Startup, setup_interaction_ui)
+            .add_systems(OnEnter(AppState::MainMenu), clear_mobs_on_logout)
             .add_systems(
                 Update,
                 (handle_mob_events, animate_mobs, cleanup_mobs_on_room_change, interaction_system, handle_interaction_input)
@@ -62,20 +63,20 @@ fn handle_mob_events(
     for ev in events.read() {
         let parts: Vec<&str> = ev.0.split_whitespace().collect();
 
-        // S: EVT ROOM <room> MOB_SPAWN <npc_id> <sprite> <x> <y> <hp> <max_hp> <scale> <name> [role]
-        if parts.len() >= 10
+        // S: EVT ROOM MOB_SPAWN <npc_id> <sprite> <x> <y> <hp> <max_hp> <scale> <name> [role]
+        if parts.len() >= 9
             && parts[0] == "S:"
             && parts[1] == "EVT"
             && parts[2] == "ROOM"
-            && parts[4] == "MOB_SPAWN"
+            && parts[3] == "MOB_SPAWN"
         {
-            let npc_id = parts[5];
-            let sprite_name = parts[6];
-            let x: f32 = parts[7].parse().unwrap_or(0.0);
-            let y: f32 = parts[8].parse().unwrap_or(0.0);
-            let scale: f32 = parts.get(11).and_then(|s| s.parse().ok()).unwrap_or(1.0);
-            let npc_name = parts.get(12).map(|s| s.replace("_", " ")).unwrap_or_else(|| npc_id.to_string());
-            let is_enemy = parts.get(13).map(|s| *s == "enemy").unwrap_or(false);
+            let npc_id = parts[4];
+            let sprite_name = parts[5];
+            let x: f32 = parts[6].parse().unwrap_or(0.0);
+            let y: f32 = parts[7].parse().unwrap_or(0.0);
+            let scale: f32 = parts.get(10).and_then(|s| s.parse().ok()).unwrap_or(1.0);
+            let npc_name = parts.get(11).map(|s| s.replace("_", " ")).unwrap_or_else(|| npc_id.to_string());
+            let is_enemy = parts.get(12).map(|s| *s == "enemy").unwrap_or(false);
 
             // Don't duplicate if already spawned
             if mobs.iter().any(|(_, m)| m.npc_id == npc_id) {
@@ -118,14 +119,14 @@ fn handle_mob_events(
             println!("[MOB] Spawned '{}' (name '{}', sprite '{}') at ({}, {}) scale: {}", npc_id, npc_name, sprite_clean, x, y, scale);
         }
 
-        // S: EVT ROOM <room> MOB_DESPAWN <npc_id>
-        if parts.len() >= 6
+        // S: EVT ROOM MOB_DESPAWN <npc_id>
+        if parts.len() >= 5
             && parts[0] == "S:"
             && parts[1] == "EVT"
             && parts[2] == "ROOM"
-            && parts[4] == "MOB_DESPAWN"
+            && parts[3] == "MOB_DESPAWN"
         {
-            let npc_id = parts[5];
+            let npc_id = parts[4];
             for (entity, mob) in &mobs {
                 if mob.npc_id == npc_id {
                     commands.entity(entity).despawn_recursive();
@@ -186,6 +187,18 @@ fn animate_mobs(
     }
 }
 
+/// Back to the login screen: remove every mob of the previous session.
+fn clear_mobs_on_logout(
+    mut commands: Commands,
+    mobs: Query<Entity, With<Mob>>,
+    mut target: ResMut<InteractableTarget>,
+) {
+    for entity in &mobs {
+        commands.entity(entity).despawn_recursive();
+    }
+    target.0 = None;
+}
+
 /// When the client enters a new room, despawn all existing mobs.
 /// The server will send fresh MOB_SPAWN events for the new room.
 fn cleanup_mobs_on_room_change(
@@ -194,7 +207,7 @@ fn cleanup_mobs_on_room_change(
     mobs: Query<Entity, With<Mob>>,
 ) {
     for ev in events.read() {
-        if ev.0.starts_with("S: OK room-loc.") {
+        if ev.0.starts_with("S: OK room=loc.") {
             for entity in &mobs {
                 commands.entity(entity).despawn_recursive();
             }

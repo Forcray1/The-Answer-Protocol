@@ -19,32 +19,73 @@ fn ci_eq(a: &str, b: &str) -> bool {
 }
 
 fn reward_quest(player: &mut Player, q: &crate::world::Quest, world: &WorldData) -> String {
-    player.completed_quests.push(q.id.clone());
+    if !player.completed_quests.contains(&q.id) {
+        player.completed_quests.push(q.id.clone());
+    }
+
+    let item_label = |id: &domain::ItemId| -> String {
+        world.world.items.iter().find(|i| &i.id == id).map(|i| i.name.clone()).unwrap_or_else(|| id.to_string())
+    };
+    let bucket_of = |id: &domain::ItemId| -> ItemBucket {
+        world.world.items.iter().find(|i| &i.id == id).map(|i| i.bucket()).unwrap_or(ItemBucket::Item)
+    };
 
     let mut msg = format!("[QUEST COMPLETE] {}!", q.name);
     if let Some(ref reward_id) = q.reward_item {
-        let bucket = world
-            .world
-            .items
-            .iter()
-            .find(|i| &i.id == reward_id)
-            .map(|i| i.bucket())
-            .unwrap_or(ItemBucket::Item);
-        player.inventory.add(reward_id.clone(), bucket);
-        let item_name = world
-            .world
-            .items
-            .iter()
-            .find(|i| &i.id == reward_id)
-            .map(|i| i.name.clone())
-            .unwrap_or_else(|| reward_id.to_string());
-        msg.push_str(&format!(" You receive: {}.", item_name));
+        player.inventory.add(reward_id.clone(), bucket_of(reward_id));
+        msg.push_str(&format!(" You receive: {}.", item_label(reward_id)));
+    }
+
+    // Extra reward items: an id listed N times gives N units.
+    let mut given: Vec<(domain::ItemId, u32)> = Vec::new();
+    for id in &q.reward_items {
+        player.inventory.add(id.clone(), bucket_of(id));
+        let mut found = false;
+        for entry in given.iter_mut() {
+            if &entry.0 == id {
+                entry.1 += 1;
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            given.push((id.clone(), 1));
+        }
+    }
+    for (id, n) in &given {
+        msg.push_str(&format!(" You receive: {}x {}.", n, item_label(id)));
+    }
+
+    if let Some(gold) = q.reward_gold {
+        player.add_money(gold);
+        msg.push_str(&format!(" (+{} gold)", gold));
     }
     if let Some(xp) = q.reward_exp {
         player.add_xp(xp);
         msg.push_str(&format!(" (+{} EXP)", xp));
     }
 
+    msg
+}
+
+/// Completes a single-objective quest: archives its progress, gives the reward
+/// and tells the client (`EVT QUEST_UPDATE <id> completed 0`).
+fn complete_legacy_quest(
+    addr: SocketAddr,
+    q: &crate::world::Quest,
+    player: &mut Player,
+    world: &WorldData,
+    tx: &Sender<GlobalEvent>,
+) -> String {
+    player.quest_progress.retain(|p| p.quest_id != q.id);
+    let msg = reward_quest(player, q, world);
+    let _ = tx.send(GlobalEvent {
+        sender_addr: None,
+        message: format!("S: EVT QUEST_UPDATE {} completed 0\n", q.id),
+        target_room: None,
+        target_group: None,
+        target_player: Some(addr),
+    });
     msg
 }
 
@@ -120,17 +161,22 @@ pub async fn process_command(
         GameCommand::GroupLeave     => (handle_group_leave(addr, state, tx), false),
         GameCommand::GroupInfo      => (handle_group_info(addr, state), false),
         GameCommand::Quests         => (handle_quests(addr, state, world), false),
+        GameCommand::Quest(c)       => (handle_quest(addr, c, state, world), false),
         GameCommand::Flee           => (handle_flee(addr, state), false),
         GameCommand::Answer { npc, answer } => (handle_answer(addr, npc, answer, state, world, tx), false),
+        GameCommand::Buy { npc, item }      => (handle_buy(addr, npc, item, state, world, tx), false),
         GameCommand::Quit           => ("S: OK goodbye\n".to_string(), true),
         GameCommand::Unknown        => ("S: ERR malformed_command\n".to_string(), false),
-        _                           => ("S: OK command received but not implemented yet\n".to_string(), false),
     }
 }
 
 // Save called on disconnect
 
 pub async fn save_player_to_db(pool: &DbPool, player: &Player) {
+    // Guest sessions (CONNECT without password) are never persisted.
+    if player.guest {
+        return;
+    }
     // Structured equipment is flattened to a slot -> id table for the DB.
     let mut equipment: HashMap<String, ItemId> = HashMap::new();
     for (slot, id, _name) in player.equipement.equipped() {
@@ -184,8 +230,8 @@ fn room_mob_roster(room: &RoomId, state: &ServerState, world: &WorldData) -> Str
                 let max_hp = npc.hp;
                 let scale = npc.scale.unwrap_or(1.0);
                 out.push_str(&format!(
-                    "S: EVT ROOM {} MOB_SPAWN {} {} {} {} {} {} {} {} {}\n",
-                    room, npc_id, sprite, x, y, hp, max_hp, scale, npc.name.replace(" ", "_"), npc.role
+                    "S: EVT ROOM MOB_SPAWN {} {} {} {} {} {} {} {} {}\n",
+                    npc_id, sprite, x, y, hp, max_hp, scale, npc.name.replace(" ", "_"), npc.role
                 ));
             }
         }
@@ -207,9 +253,7 @@ async fn handle_connect(
         return "S: ERR you_are_already_connected\n".to_string();
     }
 
-    if password.is_empty() {
-        return "S: ERR password_required\n".to_string();
-    }
+    // An empty password is allowed: it opens a guest session (see below).
 
     // Prevent logging in twice on the same account
     if state.players.values().any(|p| p.username == pseudo) {
@@ -219,6 +263,10 @@ async fn handle_connect(
     // Try to load an existing player
     match database::load_player(pool, &pseudo).await {
         Ok(Some(data)) => {
+            // A registered account can only be used with its password.
+            if password.is_empty() {
+                return "S: ERR password_required\n".to_string();
+            }
             // Existing account → verify password before restoring
             match database::verify_player(pool, &pseudo, &password).await {
                 Ok(true) => {} // Password correct, continue
@@ -266,7 +314,7 @@ async fn handle_connect(
             });
             let _ = tx.send(GlobalEvent {
                 sender_addr: Some(addr),
-                message: format!("S: EVT ROOM {} PRESENCE ENTER {} {} {} {}\n", enter_room, pseudo, skin, px, py),
+                message: format!("S: EVT ROOM PRESENCE ENTER {} {} {} {}\n", pseudo, skin, px, py),
                 target_room: Some(enter_room.clone()),
                 target_group: None,
             target_player: None,
@@ -286,11 +334,20 @@ async fn handle_connect(
         }
         Ok(None) => {
             // New player → create account with the provided password
-            if let Err(e) = database::register_player(pool, &pseudo, &password).await {
-                eprintln!("[DB] Account creation error: {}", e);
-                return "S: ERR internal_error\n".to_string();
+            // No password -> guest session: no account is created and nothing is saved.
+            let guest = password.is_empty();
+            if !guest {
+                if let Err(e) = database::register_player(pool, &pseudo, &password).await {
+                    eprintln!("[DB] Account creation error: {}", e);
+                    return "S: ERR internal_error\n".to_string();
+                }
             }
             state.add_player(addr, pseudo.clone());
+            if guest {
+                if let Some(p) = state.players.get_mut(&addr) {
+                    p.guest = true;
+                }
+            }
             let skin = state
                 .players
                 .get(&addr)
@@ -301,7 +358,8 @@ async fn handle_connect(
                 .get(&addr)
                 .map(|p| p.current_room.clone())
                 .unwrap_or_else(|| RoomId::from(START_ROOM));
-            log_event("CONNECT", &pseudo, json!({"ip": addr.to_string(), "type": "new"}));
+            let kind = if guest { "guest" } else { "new" };
+            log_event("CONNECT", &pseudo, json!({"ip": addr.to_string(), "type": kind}));
             let _ = tx.send(GlobalEvent {
                 sender_addr: Some(addr),
                 message: format!("S: EVT GLOBAL CHAT Server {} just connected!\n", pseudo),
@@ -311,7 +369,7 @@ async fn handle_connect(
             });
             let _ = tx.send(GlobalEvent {
                 sender_addr: Some(addr),
-                message: format!("S: EVT ROOM {} PRESENCE ENTER {} {} 0 0\n", enter_room, pseudo, skin),
+                message: format!("S: EVT ROOM PRESENCE ENTER {} {} 0 0\n", pseudo, skin),
                 target_room: Some(enter_room.clone()),
                 target_group: None,
             target_player: None,
@@ -334,43 +392,61 @@ async fn handle_connect(
 }
 
 fn handle_look(addr: SocketAddr, state: &ServerState, world: &WorldData) -> String {
-    if let Some(player) = state.players.get(&addr) {
-        if let Some(loc) = world.world.locations.get(&player.current_room) {
-            let mut objets_text = String::from("No items on the ground.");
-            if let Some(items_au_sol) = state.room_items.get(&player.current_room) {
-                let noms_objets: Vec<String> = items_au_sol.iter()
-                    .filter(|ri| {
-                        if let Some(static_item) = world.world.items.iter().find(|i| i.id == ri.item_id) {
-                            match static_item.r#type {
-                                crate::world::ItemType::Standard => true,
-                                crate::world::ItemType::Quest => !ri.collected_by.contains(&player.username)
-                            }
-                        } else { false }
-                    })
-                    .map(|ri| {
-                        world.world.items.iter()
-                            .find(|i| i.id == ri.item_id)
-                            .map(|i| format!("\"{}\"", i.name))
-                            .unwrap_or_else(|| format!("\"{}\"", ri.item_id))
-                    }).collect();
-                if !noms_objets.is_empty() {
-                    objets_text = format!("Items on the ground: {}", noms_objets.join(", "));
-                }
-            }
-            let mut npcs_text = String::from("Nobody else here.");
-            if let Some(npcs_ici) = state.room_npcs.get(&player.current_room) {
-                if !npcs_ici.is_empty() {
-                    let noms_npcs: Vec<String> = npcs_ici.iter().map(|id| {
-                        world.world.npcs.iter().find(|n| &n.id == id)
-                            .map(|n| format!("\"{}\"", n.name))
-                            .unwrap_or_else(|| format!("\"{}\"", id))
-                    }).collect();
-                    npcs_text = format!("Present: {}", noms_npcs.join(", "));
-                }
-            }
-            format!("S: OK [{}] - {} | {} | {}\n", loc.name, loc.description, objets_text, npcs_text)
-        } else { "S: ERR room_not_found\n".to_string() }
-    } else { "S: ERR utilize_connect_first\n".to_string() }
+    let Some(player) = state.players.get(&addr) else {
+        return "S: ERR utilize_connect_first\n".to_string();
+    };
+    let Some(loc) = world.world.locations.get(&player.current_room) else {
+        return "S: ERR room_not_found\n".to_string();
+    };
+
+    // Items on the ground (quest items already collected by this player are hidden).
+    let items: Vec<String> = state
+        .room_items
+        .get(&player.current_room)
+        .map(|ground| {
+            ground
+                .iter()
+                .filter(|ri| match world.world.items.iter().find(|i| i.id == ri.item_id) {
+                    Some(item) => match item.r#type {
+                        crate::world::ItemType::Standard => true,
+                        crate::world::ItemType::Quest => !ri.collected_by.contains(&player.username),
+                    },
+                    None => false,
+                })
+                .map(|ri| ri.item_id.to_string())
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let npcs: Vec<String> = state
+        .room_npcs
+        .get(&player.current_room)
+        .map(|ids| ids.iter().map(|id| id.to_string()).collect())
+        .unwrap_or_default();
+
+    let players: Vec<&str> = state
+        .players
+        .values()
+        .filter(|p| p.current_room == player.current_room)
+        .map(|p| p.username.as_str())
+        .collect();
+
+    let mut exits: Vec<&str> = loc.exits.keys().map(|d| d.as_str()).collect();
+    exits.sort_unstable();
+
+    // RFC 42TAP: OK { "room": {...}, "players": [...], "items": [...], "npcs": [...] }
+    let reply = json!({
+        "room": {
+            "id": player.current_room.as_str(),
+            "name": loc.name,
+            "description": loc.description,
+            "exits": exits,
+        },
+        "players": players,
+        "items": items,
+        "npcs": npcs,
+    });
+    format!("S: OK {}\n", reply)
 }
 
 fn handle_pos(addr: SocketAddr, x: f32, y: f32, state: &mut ServerState, tx: &Sender<GlobalEvent>) -> String {
@@ -381,7 +457,7 @@ fn handle_pos(addr: SocketAddr, x: f32, y: f32, state: &mut ServerState, tx: &Se
         let name = player.username.clone();
         let _ = tx.send(GlobalEvent {
             sender_addr: Some(addr),
-            message: format!("S: EVT ROOM {} POS {} {} {}\n", room, name, x as i64, y as i64),
+            message: format!("S: EVT ROOM POS {} {} {}\n", name, x as i64, y as i64),
             target_room: Some(room),
             target_group: None,
             target_player: None,
@@ -395,8 +471,8 @@ fn room_presence_roster(addr: SocketAddr, state: &ServerState, room: &RoomId) ->
     for (other_addr, p) in &state.players {
         if *other_addr != addr && &p.current_room == room {
             out.push_str(&format!(
-                "S: EVT ROOM {} PRESENCE ROSTER {} {} {} {}\n",
-                room, p.username, p.skin, p.pos_x as i64, p.pos_y as i64
+                "S: EVT ROOM PRESENCE ROSTER {} {} {} {}\n",
+                p.username, p.skin, p.pos_x as i64, p.pos_y as i64
             ));
         }
     }
@@ -434,20 +510,20 @@ fn handle_move(addr: SocketAddr, dir: String, state: &mut ServerState, world: &W
 
     let _ = tx.send(GlobalEvent {
         sender_addr: Some(addr),
-        message: format!("S: EVT ROOM {} PRESENCE LEAVE {}\n", old_room, username),
+        message: format!("S: EVT ROOM PRESENCE LEAVE {}\n", username),
         target_room: Some(old_room.clone()),
         target_group: None,
             target_player: None,
     });
     let _ = tx.send(GlobalEvent {
         sender_addr: Some(addr),
-        message: format!("S: EVT ROOM {} PRESENCE ENTER {} {} {} {}\n", next_room, username, skin, px as i64, py as i64),
+        message: format!("S: EVT ROOM PRESENCE ENTER {} {} {} {}\n", username, skin, px as i64, py as i64),
         target_room: Some(next_room.clone()),
         target_group: None,
             target_player: None,
     });
     let exits = format_exits(world, &next_room);
-    format!("S: OK room-loc.{}{}\n{}{}", next_room, exits, room_presence_roster(addr, state, &next_room), room_mob_roster(&next_room, state, world))
+    format!("S: OK room=loc.{}{}\n{}{}", next_room, exits, room_presence_roster(addr, state, &next_room), room_mob_roster(&next_room, state, world))
 }
 
 fn get_inv_data_event(player: &crate::state::Player, world: &WorldData) -> String {
@@ -498,21 +574,21 @@ fn get_char_stats_event(player: &crate::state::Player) -> String {
 
 fn handle_inventory(addr: SocketAddr, state: &ServerState, world: &WorldData) -> String {
     if let Some(player) = state.players.get(&addr) {
-        if player.inventory.is_empty() {
-            format!("S: OK Your inventory is empty.\n{}{}{}", get_inv_data_event(player, world), get_equip_data_event(player), get_char_stats_event(player))
-        } else {
-            let mut noms_objets = Vec::new();
-            for (id, count) in player.inventory.iter() {
-                let item_opt = world.world.items.iter().find(|i| &i.id == id);
-                let name = item_opt.map(|i| i.name.clone()).unwrap_or_else(|| id.to_string());
-                if *count > 1 {
-                    noms_objets.push(format!("{} (x{})", name, count));
-                } else {
-                    noms_objets.push(name);
-                }
+        // RFC 42TAP: OK ["item.herbs", "item.bread"] (one entry per unit held)
+        let mut ids: Vec<String> = Vec::new();
+        for (id, count) in player.inventory.iter() {
+            for _ in 0..*count {
+                ids.push(id.to_string());
             }
-            format!("S: OK Inventory: [{}]\n{}{}{}", noms_objets.join(", "), get_inv_data_event(player, world), get_equip_data_event(player), get_char_stats_event(player))
         }
+        ids.sort();
+        format!(
+            "S: OK {}\n{}{}{}",
+            json!(ids),
+            get_inv_data_event(player, world),
+            get_equip_data_event(player),
+            get_char_stats_event(player)
+        )
     } else { "S: ERR utilize_connect_first\n".to_string() }
 }
 
@@ -639,7 +715,7 @@ fn handle_take(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
                                 }
                             }
                         }
-                        format!("S: OK You picked up: {}{}\n", item.name, quest_msg)
+                        format!("S: OK taken={}{}\n", item.id, quest_msg)
                     }
                 } else { "S: ERR This item is not here.\n".to_string() }
             } else { "S: ERR room_error\n".to_string() }
@@ -662,7 +738,7 @@ fn handle_drop(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
                         collected_by: std::collections::HashSet::new(),
                     });
                     log_event("DROP", &player.username, json!({"item_id": item.id}));
-                    format!("S: OK You dropped on the ground: {}\n", item.name)
+                    format!("S: OK dropped={}\n", item.id)
                 }
             } else { format!("S: ERR You don't have the item \"{}\".\n", item.name) }
         } else { "S: ERR Unknown item.\n".to_string() }
@@ -739,20 +815,33 @@ fn pick_quest_dialogue<'a>(
     npc: &'a crate::world::Npc,
     player: &crate::state::Player,
     world: &WorldData,
+    just_completed: &[domain::QuestId],
 ) -> Option<&'a crate::world::QuestDialogue> {
-    // For each quest linked to this NPC (giver_id OR objective target), find the right block.
+    // Stage 254 = "just completed": shown once, in the conversation that completes the quest.
+    for qid in just_completed {
+        if let Some(qd) = npc.quest_dialogues.iter().find(|qd| &qd.quest_id == qid && qd.stage == 254) {
+            return Some(qd);
+        }
+    }
+
+    // Blocks are tried in the order of the quests in world.yaml; the first quest that has a
+    // block for the player's current state wins.
     for q in &world.world.quests {
+        // The NPC takes part in a quest if it gives it, is its target, or declares dialogue
+        // blocks for it (e.g. an NPC whose text changes with the main story line).
         let is_giver = q.giver_id.as_ref() == Some(&npc.id);
         let is_target = is_npc_quest_target(npc, q);
-        if !is_giver && !is_target { continue; }
+        let has_blocks = npc.quest_dialogues.iter().any(|qd| qd.quest_id == q.id);
+        if !is_giver && !is_target && !has_blocks { continue; }
 
         if player.completed_quests.contains(&q.id) {
-            // Look for a stage = 255 (Completed) block
+            // stage 255 = already completed
             let maybe = npc.quest_dialogues.iter().find(|qd| qd.quest_id == q.id && qd.stage == 255);
             if maybe.is_some() { return maybe; }
             continue;
         }
 
+        // 0 = not started, 1..N = Stage(n)
         let current_stage_num = player.quest_progress.iter()
             .find(|p| p.quest_id == q.id)
             .map(|p| match &p.stage {
@@ -760,7 +849,7 @@ fn pick_quest_dialogue<'a>(
                 QuestStage::Stage(n)   => *n,
                 QuestStage::Completed  => 255,
             })
-            .unwrap_or(0); // 0 = not yet started
+            .unwrap_or(0);
 
         let maybe = npc.quest_dialogues.iter().find(|qd| qd.quest_id == q.id && qd.stage == current_stage_num);
         if maybe.is_some() { return maybe; }
@@ -804,6 +893,8 @@ fn handle_talk(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
 
     // ── 2. Quest resolution (legacy: DeliverItem / TalkToNpc) ──────────
     let mut quest_msgs: Vec<String> = Vec::new();
+    // Quests completed during this very conversation (selects the "just completed" dialogue).
+    let mut completed_now: Vec<domain::QuestId> = Vec::new();
     {
         let player = state.players.get_mut(&addr).unwrap();
         for q in &world.world.quests {
@@ -830,6 +921,7 @@ fn handle_talk(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
                                     player.completed_quests.push(q.id.clone());
                                     player.quest_progress.retain(|p| p.quest_id != q.id);
                                     quest_msgs.push(reward_quest(player, q, world));
+                                    completed_now.push(q.id.clone());
                                     let _ = tx.send(GlobalEvent {
                                         sender_addr: None,
                                         message: format!("S: EVT QUEST_UPDATE {} completed 0\n", q.id),
@@ -857,6 +949,7 @@ fn handle_talk(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
                                     player.completed_quests.push(q.id.clone());
                                     player.quest_progress.retain(|p| p.quest_id != q.id);
                                     quest_msgs.push(reward_quest(player, q, world));
+                                    completed_now.push(q.id.clone());
                                     let _ = tx.send(GlobalEvent {
                                         sender_addr: None,
                                         message: format!("S: EVT QUEST_UPDATE {} completed 0\n", q.id),
@@ -881,7 +974,8 @@ fn handle_talk(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
                 crate::world::QuestObjective::DeliverItem { item, to } => {
                     if &npc.id == to && player.inventory.contains(item) {
                         player.inventory.remove_one(item);
-                        quest_msgs.push(reward_quest(player, q, world));
+                        quest_msgs.push(complete_legacy_quest(addr, q, player, world, tx));
+                        completed_now.push(q.id.clone());
                     }
                 }
                 crate::world::QuestObjective::DeliverItems { items, to } => {
@@ -893,12 +987,14 @@ fn handle_talk(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
                         for (id, needed) in required_counts {
                             for _ in 0..needed { player.inventory.remove_one(&id); }
                         }
-                        quest_msgs.push(reward_quest(player, q, world));
+                        quest_msgs.push(complete_legacy_quest(addr, q, player, world, tx));
+                        completed_now.push(q.id.clone());
                     }
                 }
                 crate::world::QuestObjective::TalkToNpc { npc: target_npc } => {
                     if &npc.id == target_npc {
-                        quest_msgs.push(reward_quest(player, q, world));
+                        quest_msgs.push(complete_legacy_quest(addr, q, player, world, tx));
+                        completed_now.push(q.id.clone());
                     }
                 }
                 crate::world::QuestObjective::FetchItem { .. }
@@ -906,7 +1002,8 @@ fn handle_talk(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
                     if let Some(legacy_target) = &q.target_id {
                         if q.giver_id.as_ref() == Some(&npc.id) && player.inventory.contains(legacy_target) {
                             player.inventory.remove_one(legacy_target);
-                            quest_msgs.push(reward_quest(player, q, world));
+                            quest_msgs.push(complete_legacy_quest(addr, q, player, world, tx));
+                            completed_now.push(q.id.clone());
                         }
                     }
                 }
@@ -914,32 +1011,20 @@ fn handle_talk(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
         }
     }
 
-    if !quest_msgs.is_empty() {
-        return format!("S: OK {} {}\n", npc.name, quest_msgs.join(" "));
-    }
-
-    // ── 3. Start a quest if this NPC is the giver and the player
-    //       has not started it yet ─────────────────────────────────────────
-    {
-        let player = state.players.get_mut(&addr).unwrap();
-        for q in &world.world.quests {
-            if q.giver_id.as_ref() == Some(&npc.id)
-                && !player.completed_quests.contains(&q.id)
-                && !player.quest_progress.iter().any(|p| p.quest_id == q.id)
-            {
-                start_quest(addr, q, player, tx);
-            }
-        }
-    }
-
-    // ── 4. Pick the right dialogue (conditional or default) ─────────────
+    // ── 3. Pick the right dialogue (conditional or default) ─────────────
+    //    The text is chosen BEFORE this NPC starts its quests, so the "not started"
+    //    block (stage 0) is what the player sees on a first meeting.
     let player = state.players.get(&addr).unwrap();
     let npc_key = npc.name.replace(' ', "_");
 
-    if let Some(qd) = pick_quest_dialogue(&npc, player, world) {
+    let dialogue_text: String;
+    if let Some(qd) = pick_quest_dialogue(&npc, player, world, &completed_now) {
+        // The lines of the block, then the reward summary if a quest was just completed.
+        let mut lines: Vec<String> = qd.lines.clone();
+        lines.extend(quest_msgs.iter().cloned());
+        dialogue_text = lines.join(" ");
+        let pages = lines.join("|");
         if qd.choices.is_empty() {
-            // Dialogue simple
-            let pages = qd.lines.join("|");
             let _ = tx.send(GlobalEvent {
                 sender_addr: None,
                 message: format!("S: EVT DIALOGUE {} {}\n", npc_key, pages),
@@ -948,8 +1033,7 @@ fn handle_talk(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
                 target_player: Some(addr),
             });
         } else {
-            // Choice dialogue: format `S: EVT DIALOGUE_CHOICE <npc_key> <pages>||CHOICES||<text>:<answer>|…`
-            let pages = qd.lines.join("|");
+            // Choice dialogue: `S: EVT DIALOGUE_CHOICE <npc_key> <pages>||CHOICES||<text>:<answer>|...`
             let choices_str = qd.choices.iter()
                 .map(|c| format!("{}:{}", c.text.replace(' ', "_"), c.answer))
                 .collect::<Vec<_>>()
@@ -962,18 +1046,88 @@ fn handle_talk(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
                 target_player: Some(addr),
             });
         }
-    } else {
-        let dialog_pages = npc.dialogue.join("|");
+    } else if !quest_msgs.is_empty() {
+        // A quest was completed but this NPC has no dedicated text: show only the reward.
+        dialogue_text = quest_msgs.join(" ");
         let _ = tx.send(GlobalEvent {
             sender_addr: None,
-            message: format!("S: EVT DIALOGUE {} {}\n", npc_key, dialog_pages),
+            message: format!("S: EVT DIALOGUE {} {}\n", npc_key, quest_msgs.join("|")),
+            target_room: None,
+            target_group: None,
+            target_player: Some(addr),
+        });
+    } else {
+        dialogue_text = npc.dialogue.join(" ");
+        let _ = tx.send(GlobalEvent {
+            sender_addr: None,
+            message: format!("S: EVT DIALOGUE {} {}\n", npc_key, npc.dialogue.join("|")),
             target_room: None,
             target_group: None,
             target_player: Some(addr),
         });
     }
 
-    "S: OK interaction_started\n".to_string()
+    // ── 4. Start the quests this NPC gives (if not started / not completed) ──
+    {
+        let player = state.players.get_mut(&addr).unwrap();
+        for q in &world.world.quests {
+            if q.giver_id.as_ref() == Some(&npc.id)
+                && !player.completed_quests.contains(&q.id)
+                && !player.quest_progress.iter().any(|p| p.quest_id == q.id)
+            {
+                start_quest(addr, q, player, tx);
+            }
+        }
+    }
+
+    // Rewards (XP, items, equipment) changed: refresh the client's stats, inventory and equipment panels.
+    if !quest_msgs.is_empty() {
+        if let Some(player) = state.players.get(&addr) {
+            let _ = tx.send(GlobalEvent {
+                sender_addr: None,
+                message: format!(
+                    "S: EVT PLAYER_STATS {} {} {} {} {}\n{}{}{}",
+                    player.hp, player.max_hp, player.xp_bar.current, player.xp_bar.requiered, player.level,
+                    get_inv_data_event(player, world),
+                    get_equip_data_event(player),
+                    get_char_stats_event(player)
+                ),
+                target_room: None,
+                target_group: None,
+                target_player: Some(addr),
+            });
+        }
+    }
+
+    // RFC 42TAP: OK { "npc": "guard", "dialogue": "Stay safe, traveler." }
+    // (the paged dialogue itself is pushed to the client with EVT DIALOGUE / DIALOGUE_CHOICE)
+
+    // ── 5. If NPC is a merchant, push the shop listing ───────────────────
+    if !npc.shop.is_empty() {
+        if let Some(player) = state.players.get(&addr) {
+            let shop_entries: Vec<String> = npc.shop.iter().filter_map(|si| {
+                let item_def = world.world.items.iter().find(|i| i.id == si.item_id)?;
+                let sprite = item_def.sprite.clone().unwrap_or_else(|| "UI/QuestUI".to_string());
+                let can_buy = if item_def.consumable {
+                    1
+                } else {
+                    let already_equipped = player.equipement.equipped().iter().any(|(_, id, _)| id == &si.item_id);
+                    if player.inventory.contains(&si.item_id) || already_equipped { 0 } else { 1 }
+                };
+                Some(format!("{}:{}:{}:{}:{}", si.item_id, item_def.name, si.price, sprite, can_buy))
+            }).collect();
+            let npc_key = npc.id.as_str().to_string();
+            let _ = tx.send(GlobalEvent {
+                sender_addr: None,
+                message: format!("S: EVT SHOP {} {} {}\n", npc_key, player.money, shop_entries.join("|")),
+                target_room: None,
+                target_group: None,
+                target_player: Some(addr),
+            });
+        }
+    }
+
+    format!("S: OK {}\n", json!({ "npc": npc.id.as_str(), "dialogue": dialogue_text }))
 }
 
 /// Handles the player's answer to a multiple-choice dialogue.
@@ -1159,6 +1313,78 @@ fn handle_interact(addr: SocketAddr, cible: String, state: &mut ServerState, wor
     }
 }
 
+fn handle_buy(addr: SocketAddr, npc_id: String, item_id: String, state: &mut ServerState, world: &WorldData, tx: &Sender<GlobalEvent>) -> String {
+    // ── 1. Find the NPC and its shop ────────────────────────────────────
+    let npc = world.world.npcs.iter().find(|n| ci_eq(n.id.as_str(), &npc_id) || ci_eq(&n.name, &npc_id));
+    let npc = match npc {
+        Some(n) => n.clone(),
+        None => return "S: ERR npc_not_found\n".to_string(),
+    };
+    if npc.shop.is_empty() {
+        return "S: ERR npc_has_no_shop\n".to_string();
+    }
+    let shop_entry = npc.shop.iter().find(|si| si.item_id.as_str() == item_id);
+    let shop_entry = match shop_entry {
+        Some(e) => e.clone(),
+        None => return "S: ERR item_not_in_shop\n".to_string(),
+    };
+    let item_def = match world.world.items.iter().find(|i| i.id.as_str() == item_id) {
+        Some(i) => i.clone(),
+        None => return "S: ERR item_unknown\n".to_string(),
+    };
+
+    // ── 2. Check player state ────────────────────────────────────────────
+    let player = match state.players.get_mut(&addr) {
+        Some(p) => p,
+        None => return "S: ERR utilize_connect_first\n".to_string(),
+    };
+    // One-per-player limit for non-consumables
+    if !item_def.consumable {
+        let already_equipped = player.equipement.equipped().iter().any(|(_, id, _)| id.as_str() == item_id);
+        if player.inventory.contains(&shop_entry.item_id) || already_equipped {
+            return "S: ERR already_owned\n".to_string();
+        }
+    }
+    if player.money < shop_entry.price as i32 {
+        return "S: ERR not_enough_gold\n".to_string();
+    }
+
+    // ── 3. Process the purchase ──────────────────────────────────────────
+    player.money -= shop_entry.price as i32;
+    let bucket = item_def.bucket();
+    player.inventory.add(shop_entry.item_id.clone(), bucket);
+    let gold_left = player.money;
+    let item_name = item_def.name.clone();
+
+    // Send inventory + stats refresh
+    let inv_evt = get_inv_data_event(player, world);
+    let stats_evt = format!("S: EVT PLAYER_STATS {} {} {} {} {}\n",
+        player.hp, player.max_hp, player.xp_bar.current, player.xp_bar.requiered, player.level);
+    let gold_evt = format!("S: EVT GOLD {}\n", gold_left);
+
+    // Refresh the shop listing so can_buy flags update
+    let shop_entries: Vec<String> = npc.shop.iter().filter_map(|si| {
+        let idef = world.world.items.iter().find(|i| i.id == si.item_id)?;
+        let sprite = idef.sprite.clone().unwrap_or_else(|| "UI/QuestUI".to_string());
+        let can = if idef.consumable { 1 } else {
+            let eq = player.equipement.equipped().iter().any(|(_, id, _)| id == &si.item_id);
+            if player.inventory.contains(&si.item_id) || eq { 0 } else { 1 }
+        };
+        Some(format!("{}:{}:{}:{}:{}", si.item_id, idef.name, si.price, sprite, can))
+    }).collect();
+    let shop_evt = format!("S: EVT SHOP {} {} {}\n", npc.id, gold_left, shop_entries.join("|"));
+
+    let _ = tx.send(GlobalEvent {
+        sender_addr: None,
+        message: format!("{}{}{}{}", inv_evt, stats_evt, gold_evt, shop_evt),
+        target_room: None,
+        target_group: None,
+        target_player: Some(addr),
+    });
+
+    format!("S: OK Bought {} for {} gold. ({} gold left)\n", item_name, shop_entry.price, gold_left)
+}
+
 fn handle_attack(addr: SocketAddr, cible: String, state: &mut ServerState, world: &WorldData, tx: &Sender<GlobalEvent>) -> String {
     let current_room_id;
     let mut player_damage = 10;
@@ -1291,7 +1517,7 @@ fn handle_attack(addr: SocketAddr, cible: String, state: &mut ServerState, world
             }
             let _ = tx.send(GlobalEvent {
                 sender_addr: None, // Broadcast to all (mob despawn)
-                message: format!("S: EVT ROOM {} MOB_DESPAWN {}\n", current_room_id, m_id),
+                message: format!("S: EVT ROOM MOB_DESPAWN {}\n", m_id),
                 target_room: Some(current_room_id.clone()),
                 target_group: None,
                 target_player: None,
@@ -1353,7 +1579,7 @@ fn handle_chat(addr: SocketAddr, channel: String, message: String, state: &mut S
                 "S: OK\n".to_string()
             }
             "ROOM" => {
-                let _ = tx.send(GlobalEvent { sender_addr: None, message: format!("S: EVT ROOM {} CHAT {} {}\n", current_room, username, message), target_room: Some(RoomId::from(current_room.as_str())), target_group: None, target_player: None });
+                let _ = tx.send(GlobalEvent { sender_addr: None, message: format!("S: EVT ROOM CHAT {} {}\n", username, message), target_room: Some(RoomId::from(current_room.as_str())), target_group: None, target_player: None });
                 "S: OK\n".to_string()
             }
             "GROUP" => {
@@ -1368,11 +1594,12 @@ fn handle_chat(addr: SocketAddr, channel: String, message: String, state: &mut S
 fn handle_who(addr: SocketAddr, state: &ServerState) -> String {
     let total_serveur = state.players.len();
     if let Some(current_player) = state.players.get(&addr) {
-        let players_in_room: Vec<String> = state.players.values()
+        let players_in_room: Vec<&str> = state.players.values()
             .filter(|p| p.current_room == current_player.current_room)
-            .map(|p| format!("\"{}\"", p.username))
+            .map(|p| p.username.as_str())
             .collect();
-        format!("S: OK {{ \"room\": [{}], \"server\": {} }}\n", players_in_room.join(", "), total_serveur)
+        // RFC 42TAP: OK { "room": ["alice", "bob"], "server": 5 }
+        format!("S: OK {}\n", json!({ "room": players_in_room, "server": total_serveur }))
     } else { "S: ERR utilize_connect_first\n".to_string() }
 }
 
@@ -1571,48 +1798,173 @@ fn handle_group_info(addr: SocketAddr, state: &ServerState) -> String {
     } else { "S: ERR utilize_connect_first\n".to_string() }
 }
 
+/// Human-readable objective of a quest (English). `prog` is the player's progress,
+/// or `None` to describe the first stage of a quest the player has not started.
+/// The text must not contain ':' or '|' (field separators of EVT QUEST_DATA).
+fn quest_objective_text(q: &crate::world::Quest, prog: Option<&QuestProgress>, world: &WorldData) -> String {
+    use domain::quest::StageObjective as Obj;
+    use crate::world::QuestObjective as Legacy;
+
+    let label = |id: &domain::ItemId| -> String {
+        world.world.items.iter().find(|i| &i.id == id).map(|i| i.name.clone()).unwrap_or_else(|| id.to_string())
+    };
+
+    if q.stages.is_empty() {
+        // Legacy single-objective quest.
+        return match &q.objective {
+            Legacy::FetchItem { item } => format!("Fetch {}", label(item)),
+            Legacy::DefeatNpc { npc } => format!("Defeat {}", npc),
+            Legacy::DeliverItem { item, to } => format!("Bring {} to {}", label(item), to),
+            Legacy::DeliverItems { items, to } => {
+                // Group repeated ids: [bone, bone, diamond] -> "2x Bone, 1x Diamond"
+                let mut counts: Vec<(domain::ItemId, u32)> = Vec::new();
+                for i in items {
+                    let mut found = false;
+                    for entry in counts.iter_mut() {
+                        if &entry.0 == i {
+                            entry.1 += 1;
+                            found = true;
+                            break;
+                        }
+                    }
+                    if !found {
+                        counts.push((i.clone(), 1));
+                    }
+                }
+                let list = counts.iter().map(|(id, n)| format!("{}x {}", n, label(id))).collect::<Vec<_>>().join(", ");
+                format!("Bring {} to {}", list, to)
+            }
+            Legacy::TalkToNpc { npc } => format!("Talk to {}", npc),
+        };
+    }
+
+    // Multi-stage quest.
+    let (stage_num, counter) = match prog {
+        Some(p) => match p.stage.stage_num() {
+            Some(n) => (n, p.counter),
+            None => return p.stage.to_wire(),
+        },
+        None => (1, 0),
+    };
+    match q.stages.iter().find(|s| s.stage == stage_num).and_then(|s| s.objective.as_ref()) {
+        Some(Obj::TalkToNpc { npc }) => format!("Talk to {} (stage {})", npc, stage_num),
+        Some(Obj::FetchItem { item }) => format!("Bring {} to the quest giver (stage {})", label(item), stage_num),
+        Some(Obj::KillMob { npc, count }) => format!("Defeat {} x{} ({}/{}) (stage {})", npc, count, counter, count, stage_num),
+        Some(Obj::AnswerDialogue { npc, .. }) => format!("Answer {} (stage {})", npc, stage_num),
+        None => format!("Stage {}", stage_num),
+    }
+}
+
+/// For delivery quests: what the player holds vs what is needed, e.g. "Bone 4/10".
+/// Empty for every other kind of quest. Must not contain ':' or '|'.
+fn delivery_progress(q: &crate::world::Quest, player: &crate::state::Player, world: &WorldData) -> String {
+    use crate::world::QuestObjective as Legacy;
+    if !q.stages.is_empty() {
+        return String::new();
+    }
+    let mut needed: Vec<(domain::ItemId, u32)> = Vec::new();
+    match &q.objective {
+        Legacy::DeliverItem { item, .. } => needed.push((item.clone(), 1)),
+        Legacy::DeliverItems { items, .. } => {
+            for i in items {
+                let mut found = false;
+                for entry in needed.iter_mut() {
+                    if &entry.0 == i {
+                        entry.1 += 1;
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    needed.push((i.clone(), 1));
+                }
+            }
+        }
+        _ => return String::new(),
+    }
+    needed
+        .iter()
+        .map(|(id, need)| {
+            let name = world.world.items.iter().find(|i| &i.id == id).map(|i| i.name.clone()).unwrap_or_else(|| id.to_string());
+            let have = player.inventory.count(id).min(*need);
+            format!("{} {}/{}", name, have, need)
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// `QUEST <id or name>`: details and status of one quest.
+/// RFC 42TAP: OK { "id": ..., "name": ..., "status": ..., ... } or ERR unknown_quest.
+fn handle_quest(addr: SocketAddr, query: String, state: &ServerState, world: &WorldData) -> String {
+    let Some(player) = state.players.get(&addr) else {
+        return "S: ERR utilize_connect_first\n".to_string();
+    };
+    let Some(q) = world
+        .world
+        .quests
+        .iter()
+        .find(|q| ci_eq(q.id.as_str(), &query) || ci_eq(&q.name, &query))
+    else {
+        return "S: ERR unknown_quest\n".to_string();
+    };
+
+    let prog = quest_progress_for(player, &q.id);
+    let (status, stage) = if player.completed_quests.contains(&q.id) {
+        ("completed", "completed".to_string())
+    } else if let Some(p) = prog {
+        ("active", p.stage.to_wire())
+    } else {
+        ("not_started", "notstarted".to_string())
+    };
+    let objective = if status == "completed" {
+        "Completed".to_string()
+    } else {
+        quest_objective_text(q, prog, world)
+    };
+    let progress = if status == "completed" { String::new() } else { delivery_progress(q, player, world) };
+    let reward_items: Vec<String> = q.reward_items.iter().map(|i| i.to_string()).collect();
+
+    let reply = json!({
+        "id": q.id.as_str(),
+        "name": q.name,
+        "description": q.description,
+        "status": status,
+        "stage": stage,
+        "objective": objective,
+        "progress": progress,
+        "giver": q.giver_id.as_ref().map(|g| g.to_string()),
+        "reward_exp": q.reward_exp,
+        "reward_gold": q.reward_gold,
+        "reward_items": reward_items,
+        "reward_item": q.reward_item.as_ref().map(|i| i.to_string()),
+    });
+    format!("S: OK {}\n", reply)
+}
+
 fn handle_quests(addr: SocketAddr, state: &ServerState, world: &WorldData) -> String {
     let Some(player) = state.players.get(&addr) else {
         return "S: ERR utilize_connect_first\n".to_string();
     };
 
     if player.quest_progress.is_empty() {
-        return "S: EVT QUEST_DATA empty\n".to_string();
+        return "S: OK quests=0\nS: EVT QUEST_DATA empty\n".to_string();
     }
 
     let mut parts = Vec::new();
     for prog in &player.quest_progress {
         if let Some(q) = world.world.quests.iter().find(|q| q.id == prog.quest_id) {
-            // Pick the objective text to display for the current stage
-            let objective_str = if !q.stages.is_empty() {
-                if let Some(stage_num) = prog.stage.stage_num() {
-                    if let Some(stage_def) = q.stages.iter().find(|s| s.stage == stage_num) {
-                        if let Some(obj) = &stage_def.objective {
-                            match obj {
-                                domain::quest::StageObjective::TalkToNpc { npc } => format!("Parler a {} (etape {})", npc, stage_num),
-                                domain::quest::StageObjective::FetchItem { item } => format!("Recuperer {} (etape {})", item, stage_num),
-                                domain::quest::StageObjective::KillMob { npc, count } => format!("Tuer {} x{} ({}/{}) (etape {})", npc, count, prog.counter, count, stage_num),
-                                domain::quest::StageObjective::AnswerDialogue { npc, .. } => format!("Repondre a {} (etape {})", npc, stage_num),
-                            }
-                        } else { format!("Etape {}", stage_num) }
-                    } else { format!("Etape {}", stage_num) }
-                } else { prog.stage.to_wire() }
-            } else {
-                match &q.objective {
-                    crate::world::QuestObjective::FetchItem { item } => format!("Recuperer {}", item),
-                    crate::world::QuestObjective::DefeatNpc { npc } => format!("Vaincre {}", npc),
-                    crate::world::QuestObjective::DeliverItem { item, to } => format!("Livrer {} a {}", item, to),
-                    crate::world::QuestObjective::DeliverItems { items, to } => format!("Livrer [{}] a {}", items.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(", "), to),
-                    crate::world::QuestObjective::TalkToNpc { npc } => format!("Parler a {}", npc),
-                }
-            };
+            let mut objective_str = quest_objective_text(q, Some(prog), world);
+            let progress = delivery_progress(q, player, world);
+            if !progress.is_empty() {
+                objective_str.push_str(&format!(" - you have {}", progress));
+            }
             parts.push(format!("{}:{}:{}:{}:{}", q.id, q.name, q.description, objective_str, prog.stage.to_wire()));
         }
     }
 
     if parts.is_empty() {
-        "S: EVT QUEST_DATA empty\n".to_string()
+        "S: OK quests=0\nS: EVT QUEST_DATA empty\n".to_string()
     } else {
-        format!("S: EVT QUEST_DATA {}\n", parts.join("|"))
+        format!("S: OK quests={}\nS: EVT QUEST_DATA {}\n", parts.len(), parts.join("|"))
     }
 }

@@ -23,8 +23,14 @@ pub struct GamePlugin;
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<GameState>()
-            .add_systems(Update, track_current_room);
+            .add_systems(Update, track_current_room)
+            .add_systems(OnEnter(crate::AppState::MainMenu), reset_game_state_on_logout);
     }
+}
+
+/// Back to the login screen: forget the room of the previous session.
+fn reset_game_state_on_logout(mut game_state: ResMut<GameState>) {
+    *game_state = GameState::default();
 }
 
 fn track_current_room(mut events: EventReader<ServerMessageEvent>, mut game_state: ResMut<GameState>) {
@@ -57,7 +63,7 @@ fn room_from_connect(msg: &str) -> Option<(&str, Vec<String>)> {
 }
 
 fn room_from_move(msg: &str) -> Option<(&str, Vec<String>)> {
-    let rest = msg.strip_prefix("S: OK room-loc.")?;
+    let rest = msg.strip_prefix("S: OK room=loc.")?;
     let end = rest.find(char::is_whitespace).unwrap_or(rest.len());
     let room = &rest[..end];
     let exits = extract_exits(&rest[end..]);
