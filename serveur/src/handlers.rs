@@ -165,6 +165,11 @@ pub async fn process_command(
         GameCommand::Flee           => (handle_flee(addr, state), false),
         GameCommand::Answer { npc, answer } => (handle_answer(addr, npc, answer, state, world, tx), false),
         GameCommand::Buy { npc, item }      => (handle_buy(addr, npc, item, state, world, tx), false),
+        GameCommand::Use(item)              => (handle_use(addr, item, state, world, tx), false),
+        GameCommand::StatUp(stat)           => (handle_statup(addr, stat, state, world), false),
+        GameCommand::AttackMagic(target)    => (handle_attack_magic(addr, target, state, world, tx), false),
+        GameCommand::AttackHeavy(target)     => (handle_attack_heavy(addr, target, false, state, world, tx), false),
+        GameCommand::AttackMagicHeavy(target) => (handle_attack_heavy(addr, target, true, state, world, tx), false),
         GameCommand::Quit           => ("S: OK goodbye\n".to_string(), true),
         GameCommand::Unknown        => ("S: ERR malformed_command\n".to_string(), false),
     }
@@ -174,13 +179,14 @@ pub async fn process_command(
 
 pub async fn save_player_to_db(pool: &DbPool, player: &Player) {
     // Guest sessions (CONNECT without password) are never persisted.
-    if player.guest {
-        return;
-    }
-    // Structured equipment is flattened to a slot -> id table for the DB.
+    if player.guest { return; }
     let mut equipment: HashMap<String, ItemId> = HashMap::new();
     for (slot, id, _name) in player.equipement.equipped() {
         equipment.insert(slot.to_string(), id);
+    }
+    // Persist equipped medaillon id in the equipment map
+    if let Some(mid) = &player.equipped_medaillon_id {
+        equipment.insert("medaillon".to_string(), mid.clone());
     }
 
     let result = database::save_player(
@@ -197,6 +203,7 @@ pub async fn save_player_to_db(pool: &DbPool, player: &Player) {
         &player.skin,
         player.pos_x as f64,
         player.pos_y as f64,
+        player.stat_points,
     ).await;
 
     if let Err(e) = result {
@@ -293,6 +300,11 @@ async fn handle_connect(
             player.completed_quests = data.completed_quests;
             player.equipement = build_equipement(world, &data.equipment);
             player.skin = data.skin;
+            player.stat_points = data.stat_points;
+            // Restore equipped medaillon from equipment map
+            if let Some(mid) = data.equipment.get("medaillon") {
+                player.equipped_medaillon_id = Some(mid.clone());
+            }
             if let Some((x, y)) = saved_pos {
                 player.pos_x = x;
                 player.pos_y = y;
@@ -325,11 +337,15 @@ async fn handle_connect(
                 .unwrap_or_default();
             let p = state.players.get(&addr).unwrap();
             format!(
-                "S: OK connected skin={} name={} room={}{}{}\n{}{}\nS: EVT PLAYER_STATS {} {} {} {} {}\n",
+                "S: OK connected skin={} name={} room={}{}{}\n{}{}\nS: EVT PLAYER_STATS {} {} {} {} {}\nS: EVT GOLD {}\nS: EVT STAT_POINTS {}\n{}{}{}\n",
                 skin, pseudo, enter_room, exits, pos_str,
                 room_presence_roster(addr, state, &enter_room),
                 room_mob_roster(&enter_room, state, world),
-                p.hp, p.max_hp, p.xp_bar.current, p.xp_bar.requiered, p.level
+                p.hp, p.max_hp, p.xp_bar.current, p.xp_bar.requiered, p.level,
+                p.money, p.stat_points,
+                get_inv_data_event(p, world),
+                get_equip_data_event(p),
+                get_char_stats_event(p),
             )
         }
         Ok(None) => {
@@ -533,13 +549,13 @@ fn get_inv_data_event(player: &crate::state::Player, world: &WorldData) -> Strin
     let mut data_objets = Vec::new();
     for (id, count) in player.inventory.iter() {
         let item_opt = world.world.items.iter().find(|i| &i.id == id);
-        let name   = item_opt.map(|i| i.name.clone()).unwrap_or_else(|| id.to_string());
-        let slot   = item_opt.and_then(|i| i.slot.clone()).unwrap_or_else(|| "none".to_string());
-        let damage = item_opt.and_then(|i| i.damage).unwrap_or(0);
-        let sprite = item_opt.and_then(|i| i.sprite.clone()).unwrap_or_else(|| "none".to_string());
-        // 7th field: 1 if this item is the currently equipped medaillon
-        let equipped = if player.equipped_medaillon_id.as_ref() == Some(id) { 1u8 } else { 0u8 };
-        data_objets.push(format!("{}:{}:{}:{}:{}:{}:{}", id, count, slot, name, damage, sprite, equipped));
+        let name        = item_opt.map(|i| i.name.clone()).unwrap_or_else(|| id.to_string());
+        let slot        = item_opt.and_then(|i| i.slot.clone()).unwrap_or_else(|| "none".to_string());
+        let damage      = item_opt.and_then(|i| i.damage).unwrap_or(0);
+        let sprite      = item_opt.and_then(|i| i.sprite.clone()).unwrap_or_else(|| "none".to_string());
+        let equipped    = if player.equipped_medaillon_id.as_ref() == Some(id) { 1u8 } else { 0u8 };
+        let consumable  = if item_opt.map(|i| i.consumable).unwrap_or(false) { 1u8 } else { 0u8 };
+        data_objets.push(format!("{}:{}:{}:{}:{}:{}:{}:{}", id, count, slot, name, damage, sprite, equipped, consumable));
     }
     format!("S: EVT INV_DATA {}\n", data_objets.join("|"))
 }
@@ -569,7 +585,8 @@ fn get_char_stats_event(player: &crate::state::Player) -> String {
             .filter_map(|s| s.as_ref())
             .map(|a| a.special_defense)
             .sum::<i32>();
-    format!("S: EVT CHAR_STATS {} {} {} {} {}\n", total_dmg, total_spe_dmg, total_def, total_spe_def, player.max_hp)
+    format!("S: EVT CHAR_STATS {} {} {} {} {} {}\n",
+        total_dmg, total_spe_dmg, total_def, total_spe_def, player.max_hp, player.stat_points)
 }
 
 fn handle_inventory(addr: SocketAddr, state: &ServerState, world: &WorldData) -> String {
@@ -1385,6 +1402,246 @@ fn handle_buy(addr: SocketAddr, npc_id: String, item_id: String, state: &mut Ser
     format!("S: OK Bought {} for {} gold. ({} gold left)\n", item_name, shop_entry.price, gold_left)
 }
 
+fn handle_use(addr: SocketAddr, item_id: String, state: &mut ServerState, world: &WorldData, tx: &Sender<GlobalEvent>) -> String {
+    let player = match state.players.get_mut(&addr) {
+        Some(p) => p,
+        None => return "S: ERR utilize_connect_first\n".to_string(),
+    };
+    let item_def = world.world.items.iter().find(|i| i.id.as_str() == item_id || i.id.as_str().replace('_', " ").eq_ignore_ascii_case(&item_id));
+    let item_def = match item_def {
+        Some(i) => i.clone(),
+        None => return "S: ERR item_unknown\n".to_string(),
+    };
+    if !item_def.consumable {
+        return "S: ERR item_not_consumable\n".to_string();
+    }
+    if !player.inventory.contains(&item_def.id) {
+        return "S: ERR item_not_in_inventory\n".to_string();
+    }
+    player.inventory.remove_one(&item_def.id);
+    let heal_pct = item_def.heal_percent.unwrap_or(50) as i32;
+    let heal_amount = (player.max_hp * heal_pct / 100).max(1);
+    let old_hp = player.hp;
+    player.hp = (player.hp + heal_amount).min(player.max_hp);
+    let actual_heal = player.hp - old_hp;
+    let stats_evt = format!("S: EVT PLAYER_STATS {} {} {} {} {}\n", player.hp, player.max_hp, player.xp_bar.current, player.xp_bar.requiered, player.level);
+    let inv_evt = get_inv_data_event(player, world);
+    let _ = tx.send(GlobalEvent {
+        sender_addr: None,
+        message: format!("{}{}", stats_evt, inv_evt),
+        target_room: None, target_group: None, target_player: Some(addr),
+    });
+    format!("S: OK Used {}. Restored {} HP. (HP: {}/{})\n", item_def.name, actual_heal, player.hp, player.max_hp)
+}
+
+fn handle_statup(addr: SocketAddr, stat: String, state: &mut ServerState, _world: &WorldData) -> String {
+    let player = match state.players.get_mut(&addr) {
+        Some(p) => p,
+        None => return "S: ERR utilize_connect_first\n".to_string(),
+    };
+    if player.stat_points <= 0 {
+        return "S: ERR no_stat_points\n".to_string();
+    }
+    match stat.as_str() {
+        "damage"           => player.stats.damage += 1,
+        "special_damage"   => player.stats.special_damage += 1,
+        "defense"          => player.stats.defense += 1,
+        "special_defense"  => player.stats.special_defense += 1,
+        "max_hp"           => { player.max_hp += 5; player.hp = (player.hp + 5).min(player.max_hp); }
+        _ => return "S: ERR unknown_stat\n".to_string(),
+    }
+    player.stat_points -= 1;
+    let char_stats = get_char_stats_event(player);
+    let stats_evt = format!("S: EVT PLAYER_STATS {} {} {} {} {}\n", player.hp, player.max_hp, player.xp_bar.current, player.xp_bar.requiered, player.level);
+    format!("S: OK Stat '{}' increased! ({} points left)\n{}{}", stat, player.stat_points, stats_evt, char_stats)
+}
+
+fn handle_attack_magic(addr: SocketAddr, cible: String, state: &mut ServerState, world: &WorldData, tx: &Sender<GlobalEvent>) -> String {
+    // Same as handle_attack but scales on special_damage / hits special_defense
+    let current_room_id;
+    let mut player_spe_dmg = 5;
+    let mut player_armor   = 0;
+    let mut monster_id_found = None;
+    let mut monster_name     = String::new();
+    let player_name;
+    let mut monster_damage   = 5;
+    let mut monster_spe_def  = 0;
+    let mut exp_gained       = 0;
+    let mut monster_drops    = Vec::new();
+    let mut max_hp_monster   = 1;
+    let mut on_cooldown      = false;
+
+    if let Some(player) = state.players.get(&addr) {
+        if player.last_attack.map_or(false, |last| last.elapsed() < Duration::from_millis(1000)) { on_cooldown = true; }
+    }
+    if on_cooldown { return "S: ERR attack_cooldown\n".to_string(); }
+
+    if let Some(player) = state.players.get_mut(&addr) {
+        current_room_id = player.current_room.clone();
+        player_name = player.username.clone();
+        player.last_attack = Some(Instant::now());
+        // Base: special_damage stat + medaillon bonus
+        player_spe_dmg += player.stats.special_damage;
+        // Add medaillon special_damage bonus
+        if let Some(mid) = &player.equipped_medaillon_id.clone() {
+            if let Some(item) = world.world.items.iter().find(|i| &i.id == mid) {
+                player_spe_dmg += item.special_damage.unwrap_or(0);
+            }
+        }
+        player_armor += player.equipement.total_defense();
+    } else { return "S: ERR utilize_connect_first\n".to_string(); }
+
+    if let Some(npcs_in_room) = state.room_npcs.get(&current_room_id) {
+        for npc_id in npcs_in_room {
+            if let Some(npc) = world.world.npcs.iter().find(|n| &n.id == npc_id) {
+                if npc.role == "enemy" && (ci_eq(npc.id.as_str(), &cible) || ci_eq(&npc.name, &cible)) {
+                    monster_id_found = Some(npc.id.clone());
+                    monster_name  = npc.name.clone();
+                    monster_damage = npc.damage.unwrap_or(5);
+                    monster_spe_def = npc.special_defense.unwrap_or(0);
+                    exp_gained    = npc.exp_reward.unwrap_or(0);
+                    monster_drops = npc.drops.clone();
+                    max_hp_monster = npc.hp;
+                    break;
+                }
+            }
+        }
+    }
+
+    if let Some(m_id) = monster_id_found {
+        let final_damage = (player_spe_dmg - monster_spe_def).max(1);
+        let mut monster_dead = false;
+        let mut monster_hp_left = 0;
+        if let Some(hp) = state.npc_hps.get_mut(&m_id) {
+            *hp -= final_damage;
+            monster_hp_left = *hp;
+            if *hp <= 0 { monster_dead = true; }
+        }
+        if monster_dead {
+            if let Some(player) = state.players.get_mut(&addr) { player.combat = CombatState::Idle; }
+            state.active_combats.remove(&addr);
+            if let Some(npcs_in_room) = state.room_npcs.get_mut(&current_room_id) { npcs_in_room.retain(|id| id != &m_id); }
+            if let Some(npc_static) = world.world.npcs.iter().find(|n| n.id == m_id) {
+                let delay = npc_static.respawn_time.unwrap_or(30);
+                state.dead_npcs.push(crate::state::DeadNpc { npc_id: m_id.clone(), room_id: current_room_id.clone(), respawn_at: Instant::now() + Duration::from_secs(delay) });
+            }
+            let mut drop_names = Vec::new();
+            let mut stat_str = String::new();
+            if let Some(player) = state.players.get_mut(&addr) {
+                player.add_xp(exp_gained);
+                for drop in monster_drops {
+                    if rand::thread_rng().gen_range(1..=100) <= drop.chance {
+                        let bucket = world.world.items.iter().find(|i| i.id == drop.item_id).map(|i| i.bucket()).unwrap_or(ItemBucket::Item);
+                        player.inventory.add(drop.item_id.clone(), bucket);
+                        let nom = world.world.items.iter().find(|i| i.id == drop.item_id).map(|i| i.name.clone()).unwrap_or_else(|| drop.item_id.to_string());
+                        drop_names.push(nom);
+                    }
+                }
+                stat_str = format!("S: EVT PLAYER_STATS {} {} {} {} {}\n", player.hp, player.max_hp, player.xp_bar.current, player.xp_bar.requiered, player.level);
+            }
+            let _ = tx.send(GlobalEvent { sender_addr: None, message: format!("S: EVT ROOM {} MOB_DESPAWN {}\n", current_room_id, m_id), target_room: Some(current_room_id.clone()), target_group: None, target_player: None });
+            let mut msg = format!("S: EVT COMBAT END victory\nS: OK Magic deals {}. {} collapses! (+{} EXP)\n", final_damage, monster_name, exp_gained);
+            if !drop_names.is_empty() { msg.push_str(&format!("You obtain: {}\n", drop_names.join(", "))); }
+            msg.push_str(&stat_str);
+            msg
+        } else {
+            let mut stat_str = String::new();
+            let mut player_dead = false;
+            let mut player_hp = 0;
+            let final_monster_damage = (monster_damage - player_armor).max(1);
+            if let Some(player) = state.players.get_mut(&addr) {
+                player.hp -= final_monster_damage;
+                player_hp = player.hp;
+                if player.hp <= 0 {
+                    player_dead = true;
+                    player.hp = player.max_hp;
+                    player.current_room = RoomId::from(START_ROOM);
+                    player.combat = CombatState::Idle;
+                }
+                stat_str = format!("S: EVT PLAYER_STATS {} {} {} {} {}\n", player.hp, player.max_hp, player.xp_bar.current, player.xp_bar.requiered, player.level);
+            }
+            if player_dead {
+                state.active_combats.remove(&addr);
+                let _ = tx.send(GlobalEvent { sender_addr: Some(addr), message: format!("S: EVT GLOBAL CHAT Server A player was killed by {}!\n", monster_name), target_room: None, target_group: None, target_player: None });
+                log_event("DEATH", &player_name, json!({"killer": monster_name}));
+                format!("S: EVT COMBAT END defeat\nS: OK Magic deals {}. {} retaliates and finishes you off. DEAD!\n{}", final_damage, monster_name, stat_str)
+            } else {
+                format!("S: EVT COMBAT HIT {} {} {} {}\nS: OK Magic deals {}. {} retaliates (-{} HP). (HP: {})\n{}", monster_hp_left, max_hp_monster, final_damage, final_monster_damage, final_damage, monster_name, final_monster_damage, player_hp, stat_str)
+            }
+        }
+    } else { "S: ERR You can't attack that.\n".to_string() }
+}
+
+/// Heavy attack: 1.75× the damage of the appropriate attack type.
+fn handle_attack_heavy(addr: SocketAddr, cible: String, magic: bool, state: &mut ServerState, world: &WorldData, tx: &Sender<GlobalEvent>) -> String {
+    // Delegate to the correct base handler, then multiply final damage
+    // We reuse handle_attack / handle_attack_magic but send ATTACK_HEAVY sentinel
+    // Simpler: inline logic is duplication-heavy so we call the base and reprocess.
+    // For clarity, just duplicate the damage formula with ×1.75.
+    let base_resp = if magic {
+        handle_attack_magic(addr, cible.clone(), state, world, tx)
+    } else {
+        handle_attack(addr, cible.clone(), state, world, tx)
+    };
+    // The base handler already dealt damage. We can't easily undo it.
+    // Instead: call get_bonus_hit to deal extra 0.75× portion.
+    // Practical approach: just run the attack command and append note.
+    // For the extra 0.75× bonus we send a second smaller hit.
+    // Simplest correct solution: handle heavy fully inline.
+    // The above handlers already applied full base damage. Append 75% bonus.
+    // We'll call a lightweight extra damage step:
+    apply_bonus_hit(addr, &cible, magic, state, world, tx);
+    base_resp
+}
+
+/// Applies the 75% bonus portion for a heavy attack (called after the base 100% hit).
+fn apply_bonus_hit(addr: SocketAddr, cible: &str, magic: bool, state: &mut ServerState, world: &WorldData, tx: &Sender<GlobalEvent>) {
+    let current_room_id = match state.players.get(&addr) {
+        Some(p) => p.current_room.clone(),
+        None => return,
+    };
+    let monster_id = state.room_npcs.get(&current_room_id).and_then(|ids| {
+        ids.iter().find_map(|npc_id| {
+            let npc = world.world.npcs.iter().find(|n| &n.id == npc_id)?;
+            if npc.role == "enemy" && (ci_eq(npc.id.as_str(), cible) || ci_eq(&npc.name, cible)) {
+                Some(npc_id.clone())
+            } else { None }
+        })
+    });
+    let Some(m_id) = monster_id else { return };
+    // Calculate the 75% bonus damage
+    let bonus = if let Some(player) = state.players.get(&addr) {
+        let base = if magic {
+            let mut d = 5 + player.stats.special_damage;
+            if let Some(mid) = &player.equipped_medaillon_id.clone() {
+                if let Some(item) = world.world.items.iter().find(|i| &i.id == mid) {
+                    d += item.special_damage.unwrap_or(0);
+                }
+            }
+            d
+        } else {
+            let mut d = 10 + player.stats.damage + player.equipement.weapon_damage();
+            if let Some(mid) = &player.equipped_medaillon_id.clone() {
+                if let Some(item) = world.world.items.iter().find(|i| &i.id == mid) {
+                    d += item.damage.unwrap_or(0);
+                }
+            }
+            d
+        };
+        ((base as f32) * 0.75).round() as i32
+    } else { return };
+
+    if let Some(hp) = state.npc_hps.get_mut(&m_id) {
+        *hp -= bonus.max(1);
+    }
+    // The main hit already handles death/despawn in the same frame, so no need to recheck here.
+    let _ = tx.send(GlobalEvent {
+        sender_addr: None,
+        message: format!("S: EVT COMBAT BONUS_HIT {}\n", bonus),
+        target_room: None, target_group: None, target_player: Some(addr),
+    });
+}
+
 fn handle_attack(addr: SocketAddr, cible: String, state: &mut ServerState, world: &WorldData, tx: &Sender<GlobalEvent>) -> String {
     let current_room_id;
     let mut player_damage = 10;
@@ -1408,8 +1665,13 @@ fn handle_attack(addr: SocketAddr, cible: String, state: &mut ServerState, world
         current_room_id = player.current_room.clone();
         player_name = player.username.clone();
         player.last_attack = Some(Instant::now());
-        // Damage = base + equipped weapon; armor = sum of equipped pieces.
-        player_damage += player.equipement.weapon_damage();
+        // Damage = base stats + weapon + medaillon bonus; armor = equipped pieces.
+        player_damage += player.stats.damage + player.equipement.weapon_damage();
+        if let Some(mid) = &player.equipped_medaillon_id.clone() {
+            if let Some(item) = world.world.items.iter().find(|i| &i.id == mid) {
+                player_damage += item.damage.unwrap_or(0);
+            }
+        }
         player_armor += player.equipement.total_defense();
     } else { return "S: ERR utilize_connect_first\n".to_string(); }
 

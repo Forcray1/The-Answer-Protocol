@@ -320,7 +320,7 @@ Based on the development history (see [Timeline](#timeline)):
 | Member | Responsibilities |
 | --- | --- |
 | **avauclai** | Core architecture (async TCP server, command parser), world loading from YAML, navigation and chat, GUI work: login menu, inventory UI, quest UI, health/XP bars, chat box, room transitions, mob placement, `E` interaction, combat system and its QTE design. |
-| **mlorenzo** | Domain crate and shared types, inventory and quest delivery, SQLite persistence, sprites/maps/layers/collisions/minimap for the Bevy client, player movement and animation, world design (`world.yaml`), NPC dialogues and characters, multi-stage quest system. |
+| **mlorenzo** | Domain crate and shared types, inventory and quest delivery, SQLite persistence, sprites/maps/layers/collisions/minimap for the Bevy client, player movement and animation, world design (`world.yaml`), NPC dialogues and characters, multi-stage quest system, inventory UI redesign (silhouette/tabs/medaillon), shop system, stat points, item stat bonuses, combat turn-sequencing and sub-menu overhaul. |
 
 ## Resources
 
@@ -483,19 +483,37 @@ References:
 02/11/2026:
 	mlorenzo:
 		- Shop improved
+03/11/2026:
+	mlorenzo:
+		- Inventory UI fully redesigned: silhouette panel, category tabs (All/Weapons/Armor/Medaillon/Consumables/Key Items), medaillon slot
+		- Medaillon equip/unequip system with persistence in DB
+		- Gold display and stat-points counter in inventory stats panel
+		- Consumable tab with "Use" action button; healing potion restores % of max HP
+		- Stat point allocation system: +3 points per level-up, spendable per stat via "+" buttons
+		- Item stat bonuses applied in combat (damage/special_damage from equipped medaillon)
+		- Combat charge animation: player and enemy lunge sprites with AtPeak pause and snap-back
+		- Magic attack command (`ATTACK_MAGIC`) scaling on special_damage vs special_defense
+		- Heavy attack (`ATTACK_HEAVY`, `ATTACK_MAGIC_HEAVY`): 1.75× damage, 1-turn cooldown
+		- Shop system: Forgeon NPC, `BUY <npc> <item>` server command, shop window UI with item list and gold cost
+04/11/2026:
+	mlorenzo:
+		- Combat overhauled to Pokemon-style turn sequencing: player lunge → 2 s damage display → enemy lunge → 2 s damage display → input
+		- Main menu reduced to 3 options (Attack / Item / Flee); attack sub-menu has 4 types (Physical / Heavy Phys / Magical / Class1 Magic)
+		- Button images swap dynamically between menus; no white text overlay on main menu (images carry baked-in labels)
+		- Combat end (victory/defeat) now correctly triggers exit transition from within the turn sequence
 ````
 
 TODO:
 	- Add the collisions [DONE] and interactions
 	- finish the world.yaml with all the informations
-	- Make all of the combat system
+	- Make all of the combat system [DONE]
 	- Logs not working for bevy client (ah ouais ?)
 	- Upgrade the UI (chatbox disapear after 5s), Create Group UI and main menu UI with leave option.
 	- Fix bug respawn mob system, they respawn only if the players moves
 	- Help Command
-	- Stats Point system
-	- use of potion
-	- make shop work
+	- Stats Point system [DONE]
+	- use of potion [DONE]
+	- make shop work [DONE]
 
 - Combat system
 - Inventory

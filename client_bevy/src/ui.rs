@@ -17,6 +17,7 @@ pub struct InventorySlotInfo {
     pub damage: u32,
     pub slot: String,
     pub is_equipped: bool,
+    pub consumable: bool,
 }
 
 pub struct ConsolePlugin;
@@ -37,6 +38,10 @@ impl Plugin for InventoryPlugin {
                 handle_tab_click,
                 update_tab_highlight,
                 update_silhouette,
+                handle_gold_event,
+                handle_stat_points_event,
+                handle_statup_click,
+                handle_use_item_btn,
             ).run_if(in_state(AppState::InGame)));
     }
 }
@@ -49,24 +54,30 @@ pub enum InventoryTab {
     All,
     Weapons,
     Armor,
+    Medaillon,
+    Consumables,
     KeyItems,
 }
 
 impl InventoryTab {
     fn label(&self) -> &'static str {
         match self {
-            InventoryTab::All      => "All",
-            InventoryTab::Weapons  => "Weapons",
-            InventoryTab::Armor    => "Armor",
-            InventoryTab::KeyItems => "Key Items",
+            InventoryTab::All        => "All",
+            InventoryTab::Weapons    => "Weapons",
+            InventoryTab::Armor      => "Armor",
+            InventoryTab::Medaillon  => "Medaillon",
+            InventoryTab::Consumables => "Consumables",
+            InventoryTab::KeyItems   => "Other",
         }
     }
-    fn matches(&self, slot: &str) -> bool {
+    fn matches(&self, slot: &str, consumable: bool) -> bool {
         match self {
-            InventoryTab::All      => true,
-            InventoryTab::Weapons  => slot == "weapon",
-            InventoryTab::Armor    => matches!(slot, "head" | "chest" | "legs" | "boot"),
-            InventoryTab::KeyItems => slot == "none",
+            InventoryTab::All        => true,
+            InventoryTab::Weapons    => slot == "weapon",
+            InventoryTab::Armor      => matches!(slot, "head" | "chest" | "legs" | "boot"),
+            InventoryTab::Medaillon  => slot == "medaillon",
+            InventoryTab::Consumables => consumable,
+            InventoryTab::KeyItems   => slot == "none" && !consumable,
         }
     }
 }
@@ -82,6 +93,7 @@ pub struct RawInvItem {
     pub damage: u32,
     pub sprite: String,
     pub is_equipped: bool,
+    pub consumable: bool,
 }
 
 // ── Resources ─────────────────────────────────────────────────────────────
@@ -91,6 +103,8 @@ pub struct InventoryState {
     pub open: bool,
     pub active_tab: InventoryTab,
     pub cached_items: Vec<RawInvItem>,
+    pub player_gold: i32,
+    pub stat_points: i32,
 }
 
 #[derive(Component)]
@@ -114,6 +128,22 @@ pub struct InventoryActionText;
 #[derive(Component)]
 pub struct StatValueText(pub usize);
 
+/// Marks the gold display text in the inventory.
+#[derive(Component)]
+struct InventoryGoldText;
+
+/// Marks the "N stat points" text.
+#[derive(Component)]
+struct StatPointsText;
+
+/// "+ button" for a stat: contains the stat name to send to the server.
+#[derive(Component)]
+struct StatUpBtn(pub String);
+
+/// Marks a "Use" button on a consumable item slot; contains the item id.
+#[derive(Component)]
+struct UseItemBtn(pub String);
+
 #[derive(Component)]
 pub struct CloseButton(pub String);
 
@@ -134,6 +164,8 @@ pub struct SelectedItem {
     pub id: Option<String>,
     pub name: Option<String>,
     pub is_equipped: bool,
+    pub consumable: bool,
+    pub slot: String,
 }
 
 // ── Color palette ──────────────────────────────────────────────────────────
@@ -440,18 +472,48 @@ fn setup_inventory_ui(mut commands: Commands) {
                             },
                             ..default()
                         }).with_children(|stats| {
-                            let rows: &[(&str, Color, usize)] = &[
-                                ("Damage",       STAT_RED,   0),
-                                ("Spe. Damage",  STAT_RED,   1),
-                                ("Defense",      STAT_GREEN, 2),
-                                ("Spe. Defense", STAT_GREEN, 3),
-                                ("Max HP",       STAT_GREEN, 4),
+                            // Gold row
+                            stats.spawn(NodeBundle {
+                                style: Style {
+                                    flex_direction: FlexDirection::Row,
+                                    justify_content: JustifyContent::SpaceBetween,
+                                    width: Val::Percent(100.0),
+                                    margin: UiRect::bottom(Val::Px(6.0)),
+                                    ..default()
+                                },
+                                ..default()
+                            }).with_children(|r| {
+                                r.spawn(TextBundle::from_section("  Gold", TextStyle { font_size: 14.0, color: Color::rgb(1.0, 0.88, 0.3), ..default() }));
+                                r.spawn((TextBundle::from_section("0", TextStyle { font_size: 14.0, color: Color::rgb(1.0, 0.88, 0.3), ..default() }), InventoryGoldText));
+                            });
+                            // Stat points row
+                            stats.spawn(NodeBundle {
+                                style: Style {
+                                    flex_direction: FlexDirection::Row,
+                                    justify_content: JustifyContent::SpaceBetween,
+                                    width: Val::Percent(100.0),
+                                    margin: UiRect::bottom(Val::Px(6.0)),
+                                    ..default()
+                                },
+                                ..default()
+                            }).with_children(|r| {
+                                r.spawn(TextBundle::from_section("  Points", TextStyle { font_size: 14.0, color: Color::rgb(0.5, 0.8, 1.0), ..default() }));
+                                r.spawn((TextBundle::from_section("0", TextStyle { font_size: 14.0, color: Color::rgb(0.5, 0.8, 1.0), ..default() }), StatPointsText));
+                            });
+                            // Stat rows with + button
+                            let rows: &[(&str, Color, usize, &str)] = &[
+                                ("Damage",       STAT_RED,   0, "damage"),
+                                ("Spe. Damage",  STAT_RED,   1, "special_damage"),
+                                ("Defense",      STAT_GREEN, 2, "defense"),
+                                ("Spe. Defense", STAT_GREEN, 3, "special_defense"),
+                                ("Max HP",       STAT_GREEN, 4, "max_hp"),
                             ];
-                            for (label, color, idx) in rows {
+                            for (label, color, idx, stat_key) in rows {
                                 stats.spawn(NodeBundle {
                                     style: Style {
                                         flex_direction: FlexDirection::Row,
                                         justify_content: JustifyContent::SpaceBetween,
+                                        align_items: AlignItems::Center,
                                         width: Val::Percent(100.0),
                                         ..default()
                                     },
@@ -461,10 +523,24 @@ fn setup_inventory_ui(mut commands: Commands) {
                                         format!("  {}", label),
                                         TextStyle { font_size: 14.0, color: TEXT_LIGHT, ..default() },
                                     ));
-                                    r.spawn((
-                                        TextBundle::from_section("0", TextStyle { font_size: 14.0, color: *color, ..default() }),
-                                        StatValueText(*idx),
-                                    ));
+                                    // Value + optional + button
+                                    r.spawn(NodeBundle { style: Style { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: Val::Px(4.0), ..default() }, ..default() }).with_children(|rv| {
+                                        rv.spawn((
+                                            TextBundle::from_section("0", TextStyle { font_size: 14.0, color: *color, ..default() }),
+                                            StatValueText(*idx),
+                                        ));
+                                        rv.spawn((
+                                            ButtonBundle {
+                                                style: Style { width: Val::Px(18.0), height: Val::Px(18.0), align_items: AlignItems::Center, justify_content: JustifyContent::Center, ..default() },
+                                                background_color: Color::rgba(0.2, 0.5, 0.2, 0.0).into(), // hidden by default
+                                                visibility: Visibility::Hidden,
+                                                ..default()
+                                            },
+                                            StatUpBtn(stat_key.to_string()),
+                                        )).with_children(|btn| {
+                                            btn.spawn(TextBundle::from_section("+", TextStyle { font_size: 14.0, color: Color::rgb(0.4, 1.0, 0.4), ..default() }));
+                                        });
+                                    });
                                 });
                             }
                         });
@@ -498,10 +574,12 @@ fn setup_inventory_ui(mut commands: Commands) {
                             border_color: BORDER_INNER.into(),
                             ..default()
                         }).with_children(|tabs| {
-                            spawn_tab_btn(tabs, InventoryTab::All,      true);
-                            spawn_tab_btn(tabs, InventoryTab::Weapons,  false);
-                            spawn_tab_btn(tabs, InventoryTab::Armor,    false);
-                            spawn_tab_btn(tabs, InventoryTab::KeyItems, false);
+                            spawn_tab_btn(tabs, InventoryTab::All,         true);
+                            spawn_tab_btn(tabs, InventoryTab::Weapons,     false);
+                            spawn_tab_btn(tabs, InventoryTab::Armor,       false);
+                            spawn_tab_btn(tabs, InventoryTab::Medaillon,   false);
+                            spawn_tab_btn(tabs, InventoryTab::Consumables, false);
+                            spawn_tab_btn(tabs, InventoryTab::KeyItems,    false);
                         });
 
                         // ── Item grid (5 × 4) ─────────────────────────────
@@ -610,6 +688,7 @@ fn spawn_inv_slot(
             damage:      item.damage,
             slot:        item.slot.clone(),
             is_equipped: item.is_equipped,
+            consumable:  item.consumable,
         },
     )).with_children(|slot| {
         slot.spawn(ImageBundle {
@@ -651,7 +730,7 @@ fn rebuild_grid(
     tab: &InventoryTab,
 ) {
     for e in existing.iter() { commands.entity(e).despawn_recursive(); }
-    for item in items.iter().filter(|i| tab.matches(&i.slot)) {
+    for item in items.iter().filter(|i| tab.matches(&i.slot, i.consumable)) {
         spawn_inv_slot(commands, asset_server, grid, item);
     }
 }
@@ -682,6 +761,7 @@ fn handle_inventory_data(
                         damage:      parts[4].parse().unwrap_or(0),
                         sprite:      parts.get(5).copied().unwrap_or("none").to_string(),
                         is_equipped: parts.get(6).copied().unwrap_or("0") == "1",
+                        consumable:  parts.get(7).copied().unwrap_or("0") == "1",
                     });
                 }
             }
@@ -779,16 +859,21 @@ fn handle_slot_interactions(
                 selected_item.id          = Some(info.id.clone());
                 selected_item.name        = Some(info.name.clone());
                 selected_item.is_equipped = info.is_equipped;
+                selected_item.consumable  = info.consumable;
+                selected_item.slot        = info.slot.clone();
 
                 if let Ok(mut style) = action_btn_q.get_single_mut() {
-                    if info.slot != "none" {
-                        style.display = Display::Flex;
-                        if let Ok(mut btn_txt) = action_txt_q.get_single_mut() {
-                            btn_txt.sections[0].value =
-                                if info.is_equipped { "Unequip".to_string() } else { "Equip".to_string() };
-                        }
-                    } else {
-                        style.display = Display::None;
+                    // Show action button for: equippable items OR consumables
+                    let show = info.slot != "none" || info.consumable;
+                    style.display = if show { Display::Flex } else { Display::None };
+                    if let Ok(mut btn_txt) = action_txt_q.get_single_mut() {
+                        btn_txt.sections[0].value = if info.consumable {
+                            "Use".to_string()
+                        } else if info.is_equipped {
+                            "Unequip".to_string()
+                        } else {
+                            "Equip".to_string()
+                        };
                     }
                 }
             }
@@ -818,8 +903,12 @@ fn handle_action_btn(
             Interaction::Pressed => {
                 *color = Color::rgba(0.50, 0.40, 0.22, 1.0).into();
                 if let Some(id) = &selected_item.id {
-                    let cmd = if selected_item.is_equipped { "UNEQUIP" } else { "EQUIP" };
-                    let _ = sender.0.send(format!("{} {}\n", cmd, id));
+                    if selected_item.consumable {
+                        let _ = sender.0.send(format!("USE {}\n", id));
+                    } else {
+                        let cmd = if selected_item.is_equipped { "UNEQUIP" } else { "EQUIP" };
+                        let _ = sender.0.send(format!("{} {}\n", cmd, id));
+                    }
                 }
             }
             Interaction::Hovered => {
@@ -871,6 +960,7 @@ fn handle_equip_data(
                                     damage,
                                     slot: slot_name.to_string(),
                                     is_equipped: true,
+                                    consumable: false,
                                 });
                                 
                                 let mut icon = None;
@@ -926,21 +1016,96 @@ fn handle_equip_data(
 fn handle_char_stats(
     mut events: EventReader<crate::net::ServerMessageEvent>,
     mut stat_texts: Query<(&mut Text, &StatValueText)>,
+    mut inv_state: ResMut<InventoryState>,
+    mut sp_text_q: Query<&mut Text, (With<StatPointsText>, Without<StatValueText>)>,
+    mut statup_btn_q: Query<&mut Visibility, With<StatUpBtn>>,
 ) {
     for ev in events.read() {
         if let Some(data) = ev.0.strip_prefix("S: EVT CHAR_STATS ") {
             let parts: Vec<&str> = data.trim().split_whitespace().collect();
-            if parts.len() >= 5 {
-                let values: Vec<i32> = parts.iter().filter_map(|p| p.parse().ok()).collect();
-                if values.len() >= 5 {
-                    // 0=damage, 1=spe_damage, 2=defense, 3=spe_defense, 4=max_hp
-                    for (mut text, stat_marker) in stat_texts.iter_mut() {
-                        if stat_marker.0 < values.len() {
-                            text.sections[0].value = values[stat_marker.0].to_string();
-                        }
+            let values: Vec<i32> = parts.iter().filter_map(|p| p.parse().ok()).collect();
+            if values.len() >= 5 {
+                for (mut text, stat_marker) in stat_texts.iter_mut() {
+                    if stat_marker.0 < values.len() {
+                        text.sections[0].value = values[stat_marker.0].to_string();
                     }
                 }
             }
+            if values.len() >= 6 {
+                let points = values[5];
+                inv_state.stat_points = points;
+                if let Ok(mut t) = sp_text_q.get_single_mut() {
+                    t.sections[0].value = points.to_string();
+                }
+                // Show/hide + buttons based on available points
+                let vis = if points > 0 { Visibility::Inherited } else { Visibility::Hidden };
+                for mut v in statup_btn_q.iter_mut() { *v = vis; }
+            }
+        }
+    }
+}
+
+fn handle_gold_event(
+    mut events: EventReader<crate::net::ServerMessageEvent>,
+    mut inv_state: ResMut<InventoryState>,
+    mut gold_q: Query<&mut Text, With<InventoryGoldText>>,
+) {
+    for ev in events.read() {
+        if let Some(rest) = ev.0.strip_prefix("S: EVT GOLD ") {
+            if let Ok(gold) = rest.trim().parse::<i32>() {
+                inv_state.player_gold = gold;
+                if let Ok(mut t) = gold_q.get_single_mut() {
+                    t.sections[0].value = gold.to_string();
+                }
+            }
+        }
+    }
+}
+
+fn handle_stat_points_event(
+    mut events: EventReader<crate::net::ServerMessageEvent>,
+    mut inv_state: ResMut<InventoryState>,
+    mut sp_text_q: Query<&mut Text, With<StatPointsText>>,
+    mut statup_btn_q: Query<&mut Visibility, With<StatUpBtn>>,
+) {
+    for ev in events.read() {
+        if let Some(rest) = ev.0.strip_prefix("S: EVT STAT_POINTS ") {
+            if let Ok(points) = rest.trim().parse::<i32>() {
+                inv_state.stat_points = points;
+                if let Ok(mut t) = sp_text_q.get_single_mut() {
+                    t.sections[0].value = points.to_string();
+                }
+                let vis = if points > 0 { Visibility::Inherited } else { Visibility::Hidden };
+                for mut v in statup_btn_q.iter_mut() { *v = vis; }
+            }
+        }
+    }
+}
+
+fn handle_statup_click(
+    mut btn_q: Query<(&Interaction, &StatUpBtn, &mut BackgroundColor), (Changed<Interaction>, With<Button>)>,
+    sender: Option<Res<NetworkSender>>,
+) {
+    let Some(sender) = sender else { return };
+    for (interaction, stat_btn, mut bg) in &mut btn_q {
+        match *interaction {
+            Interaction::Pressed => {
+                let _ = sender.0.try_send(format!("STATUP {}\n", stat_btn.0));
+            }
+            Interaction::Hovered => *bg = Color::rgba(0.2, 0.5, 0.2, 0.9).into(),
+            Interaction::None    => *bg = Color::rgba(0.2, 0.5, 0.2, 0.0).into(),
+        }
+    }
+}
+
+fn handle_use_item_btn(
+    mut btn_q: Query<(&Interaction, &UseItemBtn), (Changed<Interaction>, With<Button>)>,
+    sender: Option<Res<NetworkSender>>,
+) {
+    let Some(sender) = sender else { return };
+    for (interaction, use_btn) in &mut btn_q {
+        if *interaction == Interaction::Pressed {
+            let _ = sender.0.try_send(format!("USE {}\n", use_btn.0));
         }
     }
 }

@@ -81,6 +81,8 @@ pub struct Player {
     pub quest_progress: Vec<domain::QuestProgress>,
     /// Currently equipped medaillon (stays in inventory, just flagged).
     pub equipped_medaillon_id: Option<domain::ItemId>,
+    /// Unspent stat allocation points (+3 per level up).
+    pub stat_points: i32,
     pub group: Option<GroupId>,
     pub pending_group_invite: Option<GroupId>,
     pub combat: CombatState,
@@ -113,6 +115,7 @@ impl Player {
             completed_quests: Vec::new(),
             quest_progress: Vec::new(),
             equipped_medaillon_id: None,
+            stat_points: 0,
             group: None,
             pending_group_invite: None,
             combat: CombatState::Idle,
@@ -133,6 +136,7 @@ impl Player {
             self.level += 1;
             levels_gained += 1;
             self.xp_bar.requiered = xp_required_for_level(self.level);
+            self.stat_points += 3; // 3 stat points per level
         }
         levels_gained
     }

@@ -11,6 +11,8 @@ world:
       hp: 50
       damage: 1
       defense: 2
+      special_damage: 3
+      special_defense: 1
       exp_reward: 65
       respawn_time: 10
       dialogue: ["Grahhhh !"]
@@ -425,12 +427,15 @@ world:
       obtainable: true
       type: "quest"
       slot: "medaillon"
+      damage: 5
+      special_damage: 3
       description: "A medaillon Soufiane bought from a strange merchant a long time ago."
     - id: "healing_potion"
       name: "Healing Potion"
       obtainable: true
       consumable: true
-      description: "A potion that restores health."
+      heal_percent: 50
+      description: "A potion that restores 50% of your max health."
     - id: "steel_sword"
       name: "Steel Sword"
       damage: 12

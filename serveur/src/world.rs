@@ -102,6 +102,10 @@ pub struct Npc {
     #[serde(default)]
     pub defense: Option<i32>,
     #[serde(default)]
+    pub special_damage: Option<i32>,
+    #[serde(default)]
+    pub special_defense: Option<i32>,
+    #[serde(default)]
     pub exp_reward: Option<i32>,
     #[serde(default)]
     pub drops: Vec<DropChance>,
@@ -173,12 +177,19 @@ pub struct Item {
     #[serde(default)]
     pub defense: Option<i32>,
     #[serde(default)]
+    pub special_damage: Option<i32>,
+    #[serde(default)]
+    pub special_defense: Option<i32>,
+    #[serde(default)]
     pub slot: Option<String>,
     #[serde(default)]
     pub sprite: Option<String>,
     /// If true, this item can be bought multiple times (e.g. potions).
     #[serde(default)]
     pub consumable: bool,
+    /// Heal amount (as % of max HP, e.g. 50 = heal 50% max HP). Only used if consumable = true.
+    #[serde(default)]
+    pub heal_percent: Option<u32>,
 }
 
 impl Item {
