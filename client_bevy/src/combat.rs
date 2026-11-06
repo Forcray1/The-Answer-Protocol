@@ -158,10 +158,6 @@ struct CombatCursorVisual {
     current_top: f32,
 }
 
-/// Text overlay label on a combat button (updated per frame from MenuLevel).
-#[derive(Component)]
-struct CombatBtnLabel(usize);
-
 /// Marks the outer NodeBundle wrapper of each button slot (for show/hide).
 #[derive(Component)]
 struct CombatBtnSlot(#[allow(dead_code)] usize);
@@ -181,6 +177,10 @@ fn setup_combat_overlay(
     let _ = asset_server.load::<Image>("CombatUI_Attaquer.png");
     let _ = asset_server.load::<Image>("CombatUI_Objet.png");
     let _ = asset_server.load::<Image>("CombatUI_Fuir.png");
+    let _ = asset_server.load::<Image>("CombatUI_Physic.png");
+    let _ = asset_server.load::<Image>("CombatUI_Heavy.png");
+    let _ = asset_server.load::<Image>("CombatUI_Magic.png");
+    let _ = asset_server.load::<Image>("CombatUI_HeavyMagic.png");
     let _ = asset_server.load::<Image>("curseur.png");
 
     // Fullscreen UI overlay at Z=9999: covers both the 2D world AND all UI
@@ -247,10 +247,29 @@ fn listen_combat_events(
             }
         }
 
+        // Extract damage numbers when defeating a monster (server sends OK line without EVT COMBAT HIT)
+        if let Some(rest) = line.strip_prefix("S: OK You dealt ") {
+            if let Some(dmg_str) = rest.split_whitespace().next() {
+                if let Ok(dmg) = dmg_str.parse::<i32>() {
+                    combat.pending_dealt = dmg;
+                }
+            }
+        } else if let Some(rest) = line.strip_prefix("S: OK Magic deals ") {
+            if let Some(token) = rest.split_whitespace().next() {
+                let clean = token.trim_end_matches('.');
+                if let Ok(dmg) = clean.parse::<i32>() {
+                    combat.pending_dealt = dmg;
+                }
+            }
+        }
+
         // S: EVT COMBAT END <reason>
         if let Some(rest) = line.strip_prefix("S: EVT COMBAT END ") {
             let reason = rest.trim().to_string();
             combat.pending_end = Some(reason.clone());
+            if reason == "victory" {
+                combat.enemy_hp = 0;
+            }
             // If animating, let the sequence driver handle it;
             // if idle (flee etc.) apply immediately
             if combat.seq == TurnSequence::Idle {
@@ -622,19 +641,6 @@ fn spawn_combat_arena(
                         current_height: initial_h,
                     },
                 ));
-                // Text label overlay — empty in Main (image has baked-in text), populated in AttackSub
-                slot.spawn((
-                    TextBundle::from_section(
-                        "",   // always starts empty; update_combat_btn_labels fills AttackSub labels
-                        TextStyle { font_size: 20.0, color: Color::WHITE, ..default() },
-                    ).with_style(Style {
-                        position_type: PositionType::Absolute,
-                        left: Val::Px(28.0),
-                        top: Val::Px(18.0),
-                        ..default()
-                    }),
-                    CombatBtnLabel(i),
-                ));
             });
         }
 
@@ -710,7 +716,27 @@ fn handle_combat_inputs(
     console: Option<Res<crate::ui::ChatConsole>>,
 ) {
     if !combat.in_combat || combat.phase != CombatTransitionPhase::None { return; }
-    // Block input until the full turn sequence is done
+
+    // Any key during damage pauses immediately skips the timer so the player is never frozen
+    if combat.seq == TurnSequence::PauseAfterPlayer || combat.seq == TurnSequence::PauseAfterEnemy || combat.seq == TurnSequence::Recovery {
+        let skip_pressed = input.just_pressed(KeyCode::Space)
+            || input.just_pressed(KeyCode::Enter)
+            || input.just_pressed(KeyCode::NumpadEnter)
+            || input.just_pressed(KeyCode::KeyE)
+            || input.just_pressed(KeyCode::Escape)
+            || input.just_pressed(KeyCode::KeyB)
+            || input.just_pressed(KeyCode::ArrowUp)
+            || input.just_pressed(KeyCode::ArrowDown)
+            || input.just_pressed(KeyCode::KeyW)
+            || input.just_pressed(KeyCode::KeyS)
+            || input.just_pressed(KeyCode::KeyZ);
+        if skip_pressed {
+            combat.seq_timer = 0.0;
+        }
+        return;
+    }
+
+    // Block input while physical charge animations are playing
     if combat.seq != TurnSequence::Idle { return; }
     if let Some(ref c) = console {
         if c.open || c.terminal_open { return; }
@@ -721,10 +747,22 @@ fn handle_combat_inputs(
         MenuLevel::AttackSub => 4, // Physical | Heavy Phys | Magical | Class1 Magic
     };
 
-    if input.just_pressed(KeyCode::ArrowUp) || input.just_pressed(KeyCode::ArrowLeft) {
+    let up = input.just_pressed(KeyCode::ArrowUp)
+        || input.just_pressed(KeyCode::ArrowLeft)
+        || input.just_pressed(KeyCode::KeyW)
+        || input.just_pressed(KeyCode::KeyZ)
+        || input.just_pressed(KeyCode::KeyA)
+        || input.just_pressed(KeyCode::KeyQ);
+
+    let down = input.just_pressed(KeyCode::ArrowDown)
+        || input.just_pressed(KeyCode::ArrowRight)
+        || input.just_pressed(KeyCode::KeyS)
+        || input.just_pressed(KeyCode::KeyD);
+
+    if up {
         if combat.selected_action == 0 { combat.selected_action = num_options - 1; }
         else { combat.selected_action -= 1; }
-    } else if input.just_pressed(KeyCode::ArrowDown) || input.just_pressed(KeyCode::ArrowRight) {
+    } else if down {
         if combat.selected_action >= num_options - 1 { combat.selected_action = 0; }
         else { combat.selected_action += 1; }
     }
@@ -759,6 +797,7 @@ fn handle_combat_inputs(
                         combat.seq = TurnSequence::PlayerCharging;
                     }
                     combat.menu_level = MenuLevel::Main;
+                    combat.selected_action = 0;
                 }
                 1 => { // Heavy Physical (1.75×)
                     if combat.heavy_blocked_turns > 0 {
@@ -772,6 +811,7 @@ fn handle_combat_inputs(
                         combat.heavy_blocked_turns = 1;
                     }
                     combat.menu_level = MenuLevel::Main;
+                    combat.selected_action = 0;
                 }
                 2 => { // Magical Attack
                     if !combat.enemy_id.is_empty() {
@@ -781,6 +821,7 @@ fn handle_combat_inputs(
                         combat.seq = TurnSequence::PlayerCharging;
                     }
                     combat.menu_level = MenuLevel::Main;
+                    combat.selected_action = 0;
                 }
                 3 => { // Class1 Magic (Heavy Magic)
                     if combat.heavy_blocked_turns > 0 {
@@ -794,6 +835,7 @@ fn handle_combat_inputs(
                         combat.heavy_blocked_turns = 1;
                     }
                     combat.menu_level = MenuLevel::Main;
+                    combat.selected_action = 0;
                 }
                 _ => { combat.menu_level = MenuLevel::Main; combat.selected_action = 0; } // Back
             },
@@ -818,6 +860,25 @@ fn advance_turn_sequence(
         TurnSequence::PauseAfterPlayer => {
             combat.seq_timer -= dt;
             if combat.seq_timer <= 0.0 {
+                // If enemy is defeated or combat has ended, finish immediately
+                if combat.enemy_hp <= 0 || combat.pending_end.is_some() {
+                    if let Some(reason) = combat.pending_end.take() {
+                        let msg = match reason.as_str() {
+                            "victory" => "Victory! The enemy collapses.".to_string(),
+                            "defeat"  => "Defeated... You wake up at the oasis.".to_string(),
+                            _         => "You fled.".to_string(),
+                        };
+                        combat.combat_message = msg;
+                        combat.message_timer = 1.5;
+                        combat.charge_phase = ChargePhase::Idle;
+                        combat.enemy_charge_phase = ChargePhase::Idle;
+                        combat.seq = TurnSequence::Idle;
+                        combat.menu_level = MenuLevel::Main;
+                        combat.selected_action = 0;
+                        combat.phase = CombatTransitionPhase::ExitingToBlack;
+                        return;
+                    }
+                }
                 // Kick off enemy lunge
                 combat.enemy_charge_phase = ChargePhase::ChargingForward;
                 combat.seq = TurnSequence::EnemyCharging;
@@ -840,16 +901,22 @@ fn advance_turn_sequence(
                     combat.charge_phase = ChargePhase::Idle;
                     combat.enemy_charge_phase = ChargePhase::Idle;
                     combat.seq = TurnSequence::Idle;
+                    combat.menu_level = MenuLevel::Main;
+                    combat.selected_action = 0;
                     combat.phase = CombatTransitionPhase::ExitingToBlack;
                     return;
                 }
                 combat.seq = TurnSequence::Idle;
+                combat.menu_level = MenuLevel::Main;
+                combat.selected_action = 0;
             }
         }
         TurnSequence::Recovery => {
             combat.seq_timer -= dt;
             if combat.seq_timer <= 0.0 {
                 combat.seq = TurnSequence::Idle;
+                combat.menu_level = MenuLevel::Main;
+                combat.selected_action = 0;
             }
         }
         _ => {}
@@ -995,36 +1062,16 @@ fn update_combat_hp_bars(
     }
 }
 
-/// Returns the label text for each button slot based on menu level.
-fn menu_label_for(level: MenuLevel, index: usize) -> &'static str {
-    match level {
-        MenuLevel::Main => match index {
-            0 => "Attack",
-            1 => "Item",
-            _ => "Flee",
-        },
-        MenuLevel::AttackSub => match index {
-            0 => "Physical",
-            1 => "Heavy Phys",
-            2 => "Magical",
-            _ => "Class1 Magic",
-        },
-    }
-}
-
-/// Updates button images, text labels and slot 3 visibility on menu level change.
+/// Updates button images and slot 3 visibility on menu level change.
 fn update_combat_btn_labels(
     combat: Res<CombatResource>,
     asset_server: Res<AssetServer>,
-    mut labels: Query<(&mut Text, &CombatBtnLabel)>,
     mut slots: Query<(&mut Style, &CombatBtnSlot)>,
     mut images: Query<(&mut UiImage, &CombatButtonVisual)>,
 ) {
     if !combat.is_changed() { return; }
 
     // ── 1. Swap button images ────────────────────────────────────────────
-    // Main menu:   each slot keeps its dedicated image (Attack / Item / Flee / hidden)
-    // AttackSub:   all 4 slots use the Attack image; text labels identify them
     for (mut img, btn) in images.iter_mut() {
         img.texture = match combat.menu_level {
             MenuLevel::Main => match btn.index {
@@ -1033,7 +1080,12 @@ fn update_combat_btn_labels(
                 2 => asset_server.load("CombatUI_Fuir.png"),
                 _ => asset_server.load("CombatUI_Attaquer.png"),
             },
-            MenuLevel::AttackSub => asset_server.load("CombatUI_Attaquer.png"),
+            MenuLevel::AttackSub => match btn.index {
+                0 => asset_server.load("CombatUI_Physic.png"),
+                1 => asset_server.load("CombatUI_Heavy.png"),
+                2 => asset_server.load("CombatUI_Magic.png"),
+                _ => asset_server.load("CombatUI_HeavyMagic.png"),
+            },
         };
     }
 
@@ -1046,16 +1098,6 @@ fn update_combat_btn_labels(
                 Display::None
             };
         }
-    }
-
-    // ── 3. Text labels ───────────────────────────────────────────────────
-    // Main:     images carry baked-in text → overlay stays empty
-    // AttackSub: overlay shows the attack type name
-    for (mut text, lbl) in labels.iter_mut() {
-        text.sections[0].value = match combat.menu_level {
-            MenuLevel::Main => String::new(),
-            MenuLevel::AttackSub => menu_label_for(combat.menu_level, lbl.0).to_string(),
-        };
     }
 }
 
@@ -1078,6 +1120,9 @@ fn animate_player_charge(
                     tf.translation.x = target_x;
                     combat.charge_phase = ChargePhase::AtPeak;
                     combat.seq_timer = 0.10;
+                    if combat.pending_end.as_deref() == Some("victory") {
+                        combat.enemy_hp = 0;
+                    }
                 }
             }
             ChargePhase::AtPeak => {
@@ -1099,6 +1144,9 @@ fn animate_player_charge(
     }
     if finished {
         combat.charge_phase = ChargePhase::Idle;
+        if combat.pending_end.as_deref() == Some("victory") {
+            combat.enemy_hp = 0;
+        }
         // Advance sequencer: show dealt damage for 2 s, then trigger enemy
         combat.combat_message = format!("You dealt {} dmg!", combat.pending_dealt);
         combat.seq = TurnSequence::PauseAfterPlayer;
