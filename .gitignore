@@ -11,3 +11,4 @@ game.db-wal
 game.db.backup-*
 
 .DS_Store
+
