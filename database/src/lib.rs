@@ -34,6 +34,12 @@ pub struct PlayerData {
     pub position: Option<(f32, f32)>,
     /// Unspent stat allocation points.
     pub stat_points: i32,
+    /// Base stats allocated via STATUP (not counting equipment bonuses).
+    pub base_damage: i32,
+    pub base_defense: i32,
+    pub base_spe_dmg: i32,
+    pub base_spe_def: i32,
+    pub base_max_hp: i32,
 }
 
 // Init
@@ -141,6 +147,15 @@ pub async fn load_player(
     .fetch_optional(pool)
     .await?;
 
+    // Load base stats separately to avoid tuple-size limits in sqlx.
+    let stats_row: Option<(i32, i32, i32, i32, i32)> = sqlx::query_as(
+        "SELECT base_damage, base_defense, base_spe_dmg, base_spe_def, base_max_hp
+         FROM players WHERE username = ?"
+    )
+    .bind(username)
+    .fetch_optional(pool)
+    .await?;
+
     match row {
         None => Ok(None),
         Some((hp, exp, level, money, current_room, inv_json, equip_json, quests_json, skin, pos_x, pos_y, stat_points)) => {
@@ -156,6 +171,9 @@ pub async fn load_player(
                 _ => None,
             };
 
+            let (base_damage, base_defense, base_spe_dmg, base_spe_def, base_max_hp) =
+                stats_row.unwrap_or((0, 0, 0, 0, 0));
+
             Ok(Some(PlayerData {
                 hp,
                 exp,
@@ -168,6 +186,11 @@ pub async fn load_player(
                 skin,
                 position,
                 stat_points,
+                base_damage,
+                base_defense,
+                base_spe_dmg,
+                base_spe_def,
+                base_max_hp,
             }))
         }
     }
@@ -192,6 +215,11 @@ pub async fn save_player(
     pos_x: f64,
     pos_y: f64,
     stat_points: i32,
+    base_damage: i32,
+    base_defense: i32,
+    base_spe_dmg: i32,
+    base_spe_def: i32,
+    base_max_hp: i32,
 ) -> Result<(), sqlx::Error> {
     let inv_json = serde_json::to_string(inventory).unwrap_or_default();
     let equip_json = serde_json::to_string(equipment).unwrap_or_default();
@@ -201,7 +229,8 @@ pub async fn save_player(
         "UPDATE players
          SET hp = ?, exp = ?, level = ?, money = ?, current_room = ?,
              inventory = ?, equipment = ?, completed_quests = ?, skin = ?,
-             pos_x = ?, pos_y = ?, stat_points = ?
+             pos_x = ?, pos_y = ?, stat_points = ?,
+             base_damage = ?, base_defense = ?, base_spe_dmg = ?, base_spe_def = ?, base_max_hp = ?
          WHERE username = ?"
     )
     .bind(hp)
@@ -216,6 +245,11 @@ pub async fn save_player(
     .bind(pos_x)
     .bind(pos_y)
     .bind(stat_points)
+    .bind(base_damage)
+    .bind(base_defense)
+    .bind(base_spe_dmg)
+    .bind(base_spe_def)
+    .bind(base_max_hp)
     .bind(username)
     .execute(pool)
     .await?;

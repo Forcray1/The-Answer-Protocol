@@ -12,6 +12,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 use crate::world::WorldData;
+use crate::board_quests::BoardQuestPool;
 use domain::{
     xp_required_for_level, CombatState, Equipement, Group, GroupId, Inventory, ItemId, Medaillon, NpcId,
     PlayerId, RoomId, Stats, XpBar,
@@ -31,6 +32,9 @@ pub struct RuntimeItem {
     pub item_id: ItemId,
     pub source: ItemSource,
     pub collected_by: HashSet<String>,
+    /// World-space position (used for ground-item rendering by the Bevy client).
+    pub pos_x: f32,
+    pub pos_y: f32,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -83,6 +87,8 @@ pub struct Player {
     pub equipped_medaillon_id: Option<domain::ItemId>,
     /// Unspent stat allocation points (+3 per level up).
     pub stat_points: i32,
+    /// Base max_hp before STATUP increases (used to compute the STATUP delta for saves).
+    pub base_max_hp: i32,
     pub group: Option<GroupId>,
     pub pending_group_invite: Option<GroupId>,
     pub combat: CombatState,
@@ -116,6 +122,7 @@ impl Player {
             quest_progress: Vec::new(),
             equipped_medaillon_id: None,
             stat_points: 0,
+            base_max_hp: 100,
             group: None,
             pending_group_invite: None,
             combat: CombatState::Idle,
@@ -170,6 +177,8 @@ pub struct ServerState {
     pub dead_npcs: Vec<DeadNpc>,
     pub groups: HashMap<GroupId, Group>,
     pub group_counter: u64,
+    /// Shared board quest pool for all notice boards.
+    pub board_quests: BoardQuestPool,
 }
 
 impl ServerState {
@@ -183,6 +192,7 @@ impl ServerState {
             dead_npcs: Vec::new(),
             groups: HashMap::new(),
             group_counter: 0,
+            board_quests: BoardQuestPool::new(),
         }
     }
 
@@ -212,13 +222,26 @@ impl ServerState {
 
     pub fn initialize_from_world(&mut self, world_data: &WorldData) {
         for (room_id, location) in &world_data.world.locations {
+            let n = location.items.len();
             let runtime_items: Vec<RuntimeItem> = location
                 .items
                 .iter()
-                .map(|id| RuntimeItem {
-                    item_id: id.clone(),
-                    source: ItemSource::World,
-                    collected_by: HashSet::new(),
+                .enumerate()
+                .map(|(i, id)| {
+                    // Distribute items in a circle around the room centre.
+                    let angle = if n > 1 {
+                        (i as f32 / n as f32) * std::f32::consts::TAU
+                    } else {
+                        0.0
+                    };
+                    let radius = 280.0_f32;
+                    RuntimeItem {
+                        item_id: id.clone(),
+                        source: ItemSource::World,
+                        collected_by: HashSet::new(),
+                        pos_x: angle.cos() * radius,
+                        pos_y: angle.sin() * radius,
+                    }
                 })
                 .collect();
 

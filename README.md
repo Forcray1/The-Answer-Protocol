@@ -501,22 +501,17 @@ References:
 		- Main menu reduced to 3 options (Attack / Item / Flee); attack sub-menu has 4 types (Physical / Heavy Phys / Magical / Class1 Magic)
 		- Button images swap dynamically between menus; no white text overlay on main menu (images carry baked-in labels)
 		- Combat end (victory/defeat) now correctly triggers exit transition from within the turn sequence
+09/11/2026:
+	mlorenzo:
+		- Done the items on the ground, and the drop/take both on terminal and bevy
+		- Did the quest board entierly 
 ````
 
 TODO:
-	- Add the collisions [DONE] and interactions
 	- finish the world.yaml with all the informations
-	- Make all of the combat system [DONE]
-	- Logs not working for bevy client (ah ouais ?)
 	- Upgrade the UI (chatbox disapear after 5s), Create Group UI and main menu UI with leave option.
 	- Fix bug respawn mob system, they respawn only if the players moves
 	- Help Command
-	- Stats Point system [DONE]
-	- use of potion [DONE]
-	- make shop work [DONE]
-
-- Combat system
-- Inventory
 - PNJ (quest giver, dialogue, item giver)
 - Quests and boardquest
 - Statistics windows

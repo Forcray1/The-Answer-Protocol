@@ -12,6 +12,7 @@ mod commands;
 mod world;
 mod state;
 pub mod handlers;
+pub mod board_quests;
 
 use commands::GameCommand;
 use world::WorldData;
@@ -81,6 +82,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let listener = TcpListener::bind("127.0.0.1:4243").await?;
     println!("[SERVER] Listening on port 4243...");
+
+    // Spawn a task that waits for SIGINT (Ctrl-C) and saves world state before exit.
+    {
+        let state_for_shutdown = Arc::clone(&shared_state);
+        let pool_for_shutdown  = Arc::clone(&shared_pool);
+        tokio::spawn(async move {
+            if tokio::signal::ctrl_c().await.is_ok() {
+                println!("[SERVER] Shutdown signal received. Saving player data and world state…");
+                let guard = state_for_shutdown.lock().await;
+                // Save every connected (non-guest) player to the DB.
+                for player in guard.players.values() {
+                    handlers::save_player_to_db(&pool_for_shutdown, player).await;
+                }
+                save_world_state(&guard.room_items, "world.yaml");
+                println!("[SERVER] All data saved. Goodbye.");
+                std::process::exit(0);
+            }
+        });
+    }
 
     loop {
         let (mut socket, addr) = listener.accept().await?;
@@ -217,5 +237,55 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         });
+    }
+}
+
+// ── World state persistence ───────────────────────────────────────────────────
+//
+// On clean shutdown (SIGINT / Ctrl-C), all items currently on the ground
+// (whether originally from world.yaml or dropped by a player) are written
+// back into the `items:` arrays in world.yaml.  On the next startup they
+// will be loaded as regular World items and appear on the ground again.
+
+fn save_world_state(
+    room_items: &std::collections::HashMap<domain::RoomId, Vec<state::RuntimeItem>>,
+    world_path: &str,
+) {
+    let content = match std::fs::read_to_string(world_path) {
+        Ok(c) => c,
+        Err(e) => { eprintln!("[SAVE] Cannot read {}: {}", world_path, e); return; }
+    };
+
+    let mut value: serde_yaml::Value = match serde_yaml::from_str(&content) {
+        Ok(v) => v,
+        Err(e) => { eprintln!("[SAVE] Cannot parse world.yaml: {}", e); return; }
+    };
+
+    if let Some(locations) = value
+        .get_mut("world")
+        .and_then(|w| w.get_mut("locations"))
+        .and_then(|l| l.as_mapping_mut())
+    {
+        for (room_id, items) in room_items {
+            let key = serde_yaml::Value::String(room_id.0.clone());
+            if let Some(room_entry) = locations.get_mut(&key) {
+                let item_ids: Vec<serde_yaml::Value> = items
+                    .iter()
+                    .map(|ri| serde_yaml::Value::String(ri.item_id.0.clone()))
+                    .collect();
+                room_entry["items"] = serde_yaml::Value::Sequence(item_ids);
+            }
+        }
+    }
+
+    match serde_yaml::to_string(&value) {
+        Ok(output) => {
+            if let Err(e) = std::fs::write(world_path, output) {
+                eprintln!("[SAVE] Cannot write world.yaml: {}", e);
+            } else {
+                println!("[SAVE] world.yaml updated with current ground items.");
+            }
+        }
+        Err(e) => eprintln!("[SAVE] Cannot serialize world.yaml: {}", e),
     }
 }

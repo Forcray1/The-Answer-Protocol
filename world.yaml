@@ -1,699 +1,840 @@
 world:
-  name: "The Answer Protocol"
+  name: The Answer Protocol
   npcs:
-    - id: "SandMonster"
-      name: "SandMonster"
-      role: "enemy"
-      sprite: "IdleSqueleton"
-      combat_sprite: "Squelette"
-      spawn_pos: [300, -200]
-      scale: 0.8
-      hp: 50
-      damage: 1
-      defense: 2
-      special_damage: 3
-      special_defense: 1
-      exp_reward: 65
-      respawn_time: 10
-      dialogue: ["Grahhhh !"]
-      drops:
-        - item_id: "bone"
-          chance: 80
-        - item_id: "diamond"
-          chance: 20
-
-    - id: "Guard1"
-      name: "guard"
-      role: "None"
-      sprite: "../skin/Guard"
-      hp: 50
-      dialogue:
-        - "If you go through this gate you will enter the city"
-      spawn_pos: [-150.0, 595.0]
-      scale: 0.6
-
-    - id: "Guard2"
-      name: "guard"
-      role: "None"
-      sprite: "../skin/Guard"
-      hp: 50
-      dialogue:
-        - "If you go through this gate you will enter the city"
-      spawn_pos: [150.0, 595.0]
-      scale: 0.6
-
-    - id: "Guard3"
-      name: "guard"
-      role: "None"
-      sprite: "../skin/Guard"
-      hp: 50
-      dialogue:
-        - "Did you have an audience with the queen ?"
-        - "I'll let you pass go on"
-      spawn_pos: [-39.0, 339.0]
-      scale: 0.6
-
-    - id: "Guard4"
-      name: "guard"
-      role: "None"
-      sprite: "../skin/Guard"
-      hp: 50
-      dialogue:
-        - "Did you have an audience with the queen ?"
-        - "I'll let you pass go on"
-      spawn_pos: [139.0, 339.0]
-      scale: 0.6
-
-    - id: "Gragas"
-      name: "Sir Gragas"
-      role: "Quest_giver"
-      sprite: "../skin/Chief1"
-      hp: 50
-      dialogue:
-        - "Hey, I have something for you to do."
-        - "There is trouble in the city and the queen is asking for someone strong so I recommended you. The temple has been taken by some kind of monster. Most of the informations are confidential but you need to hurry to the city. It's at the north east So go to the east first from here. Good luck and come back safe"
-        - "So that's what they want you to do ? Their hopes are high I hope you can do it. Here you go, you should go the the Oasis in the south, it's at the south of the city, there's a shop there so you can get some equipment, good luck"
-        - "You can go train north from here there is some monsters you could defeat"
-      spawn_pos: [-275.0, 474.0]
-      scale: 0.6
-      quest_dialogues:
-        - quest_id: "quest_gragas"
-          stage: 0
-          lines:
-            - "Hey, I have something for you to do."
-            - "There is trouble in the city and the queen is asking for someone strong so I recommended you. The temple has been taken by some kind of monster. Most of the informations are confidential but you need to hurry to the city. It's at the north east So go to the east first from here. Good luck and come back safe"
-        - quest_id: "quest_gragas"
-          stage: 1
-          lines:
-            - "Have you been to see the Queen yet ? She is in the city, at the north east. Go to the east first from here, then come back and tell me what she wants."
-        - quest_id: "quest_gragas"
-          stage: 254
-          lines:
-            - "So that's what they want you to do ? Their hopes are high I hope you can do it. Here you go, you should go the the Oasis in the south, it's at the south of the city, there's a shop there so you can get some equipment, good luck"
-        - quest_id: "quest_gragas"
-          stage: 255
-          lines:
-            - "You can go train north from here there is some monsters you could defeat"
-
-    - id: "Queen"
-      name: "The Queen"
-      role: "Quest_giver"
-      sprite: "../skin/Queen"
-      hp: 60
-      dialogue:
-        - "You're the one Sir Gragas sent to help ?"
-        - "I'm glad that you are here, we need your help. Before taking down the temple, you need to go look for our treasure, it has been stolen and taken to the cave in the south west."
-        - "You succeeded to retrieve it ? Thank you, you're stronger than what Sir Gragas was telling us. Here is a pass to the temple. Be aware, there is a lot of monsters and our enemy is truly strong."
-        - "Y-You did it ! Thank you so much. I don't know how to repay you."
-      spawn_pos: [46.0, 406.0]
-      scale: 0.6
-      quest_dialogues:
-        # Stage 0 — première rencontre, quête pas encore démarrée
-        - quest_id: "main_quest"
-          stage: 0
-          lines:
-            - "You're the one Sir Gragas sent to help ?"
-            - "I'm glad that you are here, we need your help. Before taking down the temple, you need to go look for our treasure, it has been stolen and taken to the cave in the south west."
-        # Stage 1 — FetchItem en cours, la reine attend le cimeterre
-        - quest_id: "main_quest"
-          stage: 1
-          lines:
-            - "I'm glad that you are here, we need your help. Before taking down the temple, you need to go look for our treasure, it has been stolen and taken to the cave in the south west."
-        # Stage 2 — FetchItem accompli, attente de la mort du boss
-        - quest_id: "main_quest"
-          stage: 2
-          lines:
-            - "You succeeded to retrieve it ? Thank you, you're stronger than what Sir Gragas was telling us. Here is a pass to the temple. Be aware, there is a lot of monsters and our enemy is truly strong."
-        # Stage 255 — quête terminée
-        - quest_id: "main_quest"
-          stage: 255
-          lines:
-            - "Y-You did it ! Thank you so much. I don't know how to repay you."
-
-    - id: "Dory"
-      name: "Dory"
-      role: "Quest_giver"
-      sprite: "../skin/Dory"
-      hp: 50
-      dialogue:
-        - "Did you know I made this city ?"
-        - "If you go check poiscapute on instagram I'll give you an item..."
-        - "Thank you so much ! Here you go, it's for you."
-        - "You little selfish peasant, nothing for you then..."
-      spawn_pos: [980.0, 298.0]
-      scale: 0.6
-      quest_dialogues:
-        # Stage 0 — premier contact, quête pas encore démarrée
-        - quest_id: "quest_dory"
-          stage: 0
-          lines:
-            - "Did you know I made this city ?"
-            - "If you go check poiscapute on instagram I'll give you an item..."
-          choices:
-            - text: "I checked it out!"
-              answer: "yes"
-            - text: "Not interested."
-              answer: "no"
-        # Stage 1 — en attente de réponse (relance si le joueur re-parle)
-        - quest_id: "quest_dory"
-          stage: 1
-          lines:
-            - "Did you know I made this city ?"
-            - "If you go check poiscapute on instagram I'll give you an item..."
-          choices:
-            - text: "I checked it out!"
-              answer: "yes"
-            - text: "Not interested."
-              answer: "no"
-        # Stage 255 — quête terminée, medaillon déjà donné
-        - quest_id: "quest_dory"
-          stage: 255
-          lines:
-            - "Thank you so much ! Here you go, it's for you."
-
-    - id: "Oguzhan"
-      name: "Oguzhan"
-      role: "None"
-      sprite: "../skin/Oguzhan"
-      hp: 50
-      dialogue:
-        - "The temple can't be accessed because it's been taken by some monster."
-        - "I'll go free it easily but I still have work to do..."
-      spawn_pos: [-466.0, 351.0]
-      scale: 0.6
-
-    - id: "Soufiane"
-      name: "Soufiane"
-      role: "Quest_giver"
-      sprite: "../skin/Soufiane"
-      hp: 50
-      dialogue:
-        - "Do you know about Pocket monsters ? They are famous in my country."
-        - "There is new merch, a sword has been released in the oasis of the south, if you go get it for me I'll give you something"
-        - "Thank you so much, here you go. I bought it from a strange merchant a long time ago, you may have a better use for it than me."
-      spawn_pos: [214.0, -302.0]
-      scale: 0.6
-      quest_dialogues:
-        - quest_id: "quest_soufiane"
-          stage: 0
-          lines:
-            - "Do you know about Pocket monsters ? They are famous in my country."
-            - "There is new merch, a sword has been released in the oasis of the south, if you go get it for me I'll give you something"
-        - quest_id: "quest_soufiane"
-          stage: 1
-          lines:
-            - "Did you find the Pocket Monsters sword in the oasis of the south ? I'll give you something if you bring it to me."
-        - quest_id: "quest_soufiane"
-          stage: 254
-          lines:
-            - "Thank you so much, here you go. I bought it from a strange merchant a long time ago, you may have a better use for it than me"
-        - quest_id: "quest_soufiane"
-          stage: 255
-          lines:
-            - "Thank you again for the sword, it looks great on my shelf."
-
-    - id: "Jamato"
-      name: "Jamato"
-      role: "Quest_giver"
-      sprite: "../skin/Jamato"
-      hp: 50
-      dialogue:
-        - "Don't tell anyone but I found a way to make armor. If you bring me 10 bones from the skeleton in the wild, I'll make one for you."
-        - "Well played, here's for you. Don't tell anyone, I don't want to get too much attention..."
-      spawn_pos: [-369.0, -387.0]
-      scale: 0.6
-      quest_dialogues:
-        - quest_id: "quest_jamato"
-          stage: 0
-          lines:
-            - "Don't tell anyone but I found a way to make armor. If you bring me 10 bones from the skeleton in the wild, I'll make one for you."
-        - quest_id: "quest_jamato"
-          stage: 1
-          lines:
-            - "Still looking for those 10 bones ? The skeleton in the wild should drop them."
-        - quest_id: "quest_jamato"
-          stage: 254
-          lines:
-            - "Well played, here's for you. Don't tell anyone, I don't want to get too much attention..."
-        - quest_id: "quest_jamato"
-          stage: 255
-          lines:
-            - "Don't tell anyone about the armor, I don't want to get too much attention..."
-
-    - id: "Fatih"
-      name: "Fatih"
-      role: "None"
-      sprite: "../skin/Fatih"
-      hp: 50
-      dialogue:
-        - "Did you know there's been massive leaks from the archives of the 42 country ? That's the height of irony, they're known for forming security guards."
-      spawn_pos: [784.0, 474.0]
-      scale: 0.6
-
-    - id: "Zek"
-      name: "Zek"
-      role: "Quest_giver"
-      sprite: "../skin/Zek"
-      hp: 50
-      dialogue:
-        - "This region is dangerous, take those healing potions. I will feel guilty if you die."
-        - "Be aware, monsters here are strong."
-      spawn_pos: [360.0, 210.0]
-      scale: 0.6
-      quest_dialogues:
-        - quest_id: "quest_zek"
-          stage: 254
-          lines:
-            - "This region is dangerous, take those healing potions. I will feel guilty if you die."
-        - quest_id: "quest_zek"
-          stage: 255
-          lines:
-            - "Be aware, monsters here are strong."
-
-    - id: "Mage"
-      name: "Mage"
-      role: "None"
-      sprite: "../skin/Mage"
-      hp: 50
-      dialogue:
-        - "This cave has become really dangerous, stay on your guard in there."
-      spawn_pos: [-967.0, 182.0]
-      scale: 0.6
-
-    - id: "Anwar"
-      name: "Anwar"
-      role: "None"
-      sprite: "../skin/Anwar"
-      hp: 50
-      dialogue:
-        - "Hi, I rule this Oasis. I've made good friends with influent people of the city so they gave me this land."
-        - "There is a forge that sells goods here, you should go check it out."
-      spawn_pos: [173.0, -185.0]
-      scale: 0.6
-
-    - id: "Forgeon"
-      name: "Forgeon"
-      role: "None"
-      sprite: "../skin/Forgeon"
-      hp: 50
-      dialogue:
-        - "Welcome to our shop, take your time to look if something interests you."
-      spawn_pos: [860.0, 275.0]
-      scale: 0.6
-      shop:
-        - item_id: "PMsword"
-          price: 50
-        - item_id: "steel_sword"
-          price: 100
-        - item_id: "healing_potion"
-          price: 20
-        - item_id: "leather_armor"
-          price: 100
-        - item_id: "steel_armor"
-          price: 200
-
-    - id: "Axel"
-      name: "Axel"
-      role: "None"
-      sprite: "../skin/Axel"
-      hp: 50
-      dialogue:
-        - "Did you know our borders extend way further than this ? If you come back later you may be able to explore it, but only if the devs work harder for transcendence."
-      spawn_pos: [-1093.0, 180.0]
-      scale: 0.6
-
-    - id: "Elyesa"
-      name: "Elyesa"
-      role: "None"
-      sprite: "../skin/Elyesa"
-      hp: 50
-      dialogue:
-        - "I'm working on some projects for the neighbouring city. If they accept my proposition, I may be creating something way bigger."
-      spawn_pos: [420.0, 600.0]
-      scale: 0.6
-
-    - id: "Remy"
-      name: "Remy"
-      role: "Quest_giver"
-      sprite: "../skin/Remy"
-      hp: 50
-      dialogue:
-        - "I've been stuck looking for diamond. Could you help me to get some ? I definitely need to grind to not be stuck here forever."
-        - "Some sand monsters from here drop them."
-      spawn_pos: [519.0, 60.0]
-      scale: 0.6
-      quest_dialogues:
-        - quest_id: "quest_remy"
-          stage: 0
-          lines:
-            - "I've been stuck looking for diamond. Could you help me to get some ? I definitely need to grind to not be stuck here forever. Some sand monsters from here drop them."
-        - quest_id: "quest_remy"
-          stage: 1
-          lines:
-            - "Still no diamonds ? I need 4 of them. Some sand monsters drop them, you just need to grind."
-        - quest_id: "quest_remy"
-          stage: 254
-          lines:
-            - "Four diamonds ! You're a lifesaver. Here, take this, you earned it."
-        - quest_id: "quest_remy"
-          stage: 255
-          lines:
-            - "Thanks again for the diamonds, I might finally get out of here."
-
-    - id: "Final_boss"
-      name: "blank"
-      role: "enemy"
-      sprite: "SandMonster"
-      combat_sprite: "SandMonster"
-      spawn_pos: [0.0, 0.0]
-      scale: 1.2
-      hp: 300
-      damage: 20
-      defense: 8
-      exp_reward: 500
-      respawn_time: 9999
-      dialogue: ["..."]
-
+  - id: SandMonster
+    name: SandMonster
+    role: enemy
+    sprite: IdleSqueleton
+    combat_sprite: Squelette
+    spawn_pos:
+    - 300
+    - -200
+    scale: 0.8
+    hp: 50
+    damage: 1
+    defense: 2
+    special_damage: 3
+    special_defense: 1
+    exp_reward: 65
+    respawn_time: 10
+    dialogue:
+    - Grahhhh !
+    drops:
+    - item_id: bone
+      chance: 80
+    - item_id: diamond
+      chance: 20
+  - id: Guard1
+    name: guard
+    role: None
+    sprite: ../skin/Guard
+    hp: 50
+    dialogue:
+    - If you go through this gate you will enter the city
+    spawn_pos:
+    - -150.0
+    - 595.0
+    scale: 0.6
+  - id: Guard2
+    name: guard
+    role: None
+    sprite: ../skin/Guard
+    hp: 50
+    dialogue:
+    - If you go through this gate you will enter the city
+    spawn_pos:
+    - 150.0
+    - 595.0
+    scale: 0.6
+  - id: Guard3
+    name: guard
+    role: None
+    sprite: ../skin/Guard
+    hp: 50
+    dialogue:
+    - Did you have an audience with the queen ?
+    - I'll let you pass go on
+    spawn_pos:
+    - -39.0
+    - 339.0
+    scale: 0.6
+  - id: Guard4
+    name: guard
+    role: None
+    sprite: ../skin/Guard
+    hp: 50
+    dialogue:
+    - Did you have an audience with the queen ?
+    - I'll let you pass go on
+    spawn_pos:
+    - 139.0
+    - 339.0
+    scale: 0.6
+  - id: Gragas
+    name: Sir Gragas
+    role: Quest_giver
+    sprite: ../skin/Chief1
+    hp: 50
+    dialogue:
+    - Hey, I have something for you to do.
+    - There is trouble in the city and the queen is asking for someone strong so I recommended you. The temple has been taken by some kind of monster. Most of the informations are confidential but you need to hurry to the city. It's at the north east So go to the east first from here. Good luck and come back safe
+    - So that's what they want you to do ? Their hopes are high I hope you can do it. Here you go, you should go the the Oasis in the south, it's at the south of the city, there's a shop there so you can get some equipment, good luck
+    - You can go train north from here there is some monsters you could defeat
+    spawn_pos:
+    - -275.0
+    - 474.0
+    scale: 0.6
+    quest_dialogues:
+    - quest_id: quest_gragas
+      stage: 0
+      lines:
+      - Hey, I have something for you to do.
+      - There is trouble in the city and the queen is asking for someone strong so I recommended you. The temple has been taken by some kind of monster. Most of the informations are confidential but you need to hurry to the city. It's at the north east So go to the east first from here. Good luck and come back safe
+    - quest_id: quest_gragas
+      stage: 1
+      lines:
+      - Have you been to see the Queen yet ? She is in the city, at the north east. Go to the east first from here, then come back and tell me what she wants.
+    - quest_id: quest_gragas
+      stage: 254
+      lines:
+      - So that's what they want you to do ? Their hopes are high I hope you can do it. Here you go, you should go the the Oasis in the south, it's at the south of the city, there's a shop there so you can get some equipment, good luck
+    - quest_id: quest_gragas
+      stage: 255
+      lines:
+      - You can go train north from here there is some monsters you could defeat
+  - id: Queen
+    name: The Queen
+    role: Quest_giver
+    sprite: ../skin/Queen
+    hp: 60
+    dialogue:
+    - You're the one Sir Gragas sent to help ?
+    - I'm glad that you are here, we need your help. Before taking down the temple, you need to go look for our treasure, it has been stolen and taken to the cave in the south west.
+    - You succeeded to retrieve it ? Thank you, you're stronger than what Sir Gragas was telling us. Here is a pass to the temple. Be aware, there is a lot of monsters and our enemy is truly strong.
+    - Y-You did it ! Thank you so much. I don't know how to repay you.
+    spawn_pos:
+    - 46.0
+    - 406.0
+    scale: 0.6
+    quest_dialogues:
+    - quest_id: main_quest
+      stage: 0
+      lines:
+      - You're the one Sir Gragas sent to help ?
+      - I'm glad that you are here, we need your help. Before taking down the temple, you need to go look for our treasure, it has been stolen and taken to the cave in the south west.
+    - quest_id: main_quest
+      stage: 1
+      lines:
+      - I'm glad that you are here, we need your help. Before taking down the temple, you need to go look for our treasure, it has been stolen and taken to the cave in the south west.
+    - quest_id: main_quest
+      stage: 2
+      lines:
+      - You succeeded to retrieve it ? Thank you, you're stronger than what Sir Gragas was telling us. Here is a pass to the temple. Be aware, there is a lot of monsters and our enemy is truly strong.
+    - quest_id: main_quest
+      stage: 255
+      lines:
+      - Y-You did it ! Thank you so much. I don't know how to repay you.
+  - id: Dory
+    name: Dory
+    role: Quest_giver
+    sprite: ../skin/Dory
+    hp: 50
+    dialogue:
+    - Did you know I made this city ?
+    - If you go check poiscapute on instagram I'll give you an item...
+    - Thank you so much ! Here you go, it's for you.
+    - You little selfish peasant, nothing for you then...
+    spawn_pos:
+    - 980.0
+    - 298.0
+    scale: 0.6
+    quest_dialogues:
+    - quest_id: quest_dory
+      stage: 0
+      lines:
+      - Did you know I made this city ?
+      - If you go check poiscapute on instagram I'll give you an item...
+      choices:
+      - text: I checked it out!
+        answer: yes
+      - text: Not interested.
+        answer: no
+    - quest_id: quest_dory
+      stage: 1
+      lines:
+      - Did you know I made this city ?
+      - If you go check poiscapute on instagram I'll give you an item...
+      choices:
+      - text: I checked it out!
+        answer: yes
+      - text: Not interested.
+        answer: no
+    - quest_id: quest_dory
+      stage: 255
+      lines:
+      - Thank you so much ! Here you go, it's for you.
+  - id: Oguzhan
+    name: Oguzhan
+    role: None
+    sprite: ../skin/Oguzhan
+    hp: 50
+    dialogue:
+    - The temple can't be accessed because it's been taken by some monster.
+    - I'll go free it easily but I still have work to do...
+    spawn_pos:
+    - -466.0
+    - 351.0
+    scale: 0.6
+  - id: Soufiane
+    name: Soufiane
+    role: Quest_giver
+    sprite: ../skin/Soufiane
+    hp: 50
+    dialogue:
+    - Do you know about Pocket monsters ? They are famous in my country.
+    - There is new merch, a sword has been released in the oasis of the south, if you go get it for me I'll give you something
+    - Thank you so much, here you go. I bought it from a strange merchant a long time ago, you may have a better use for it than me.
+    spawn_pos:
+    - 214.0
+    - -302.0
+    scale: 0.6
+    quest_dialogues:
+    - quest_id: quest_soufiane
+      stage: 0
+      lines:
+      - Do you know about Pocket monsters ? They are famous in my country.
+      - There is new merch, a sword has been released in the oasis of the south, if you go get it for me I'll give you something
+    - quest_id: quest_soufiane
+      stage: 1
+      lines:
+      - Did you find the Pocket Monsters sword in the oasis of the south ? I'll give you something if you bring it to me.
+    - quest_id: quest_soufiane
+      stage: 254
+      lines:
+      - Thank you so much, here you go. I bought it from a strange merchant a long time ago, you may have a better use for it than me
+    - quest_id: quest_soufiane
+      stage: 255
+      lines:
+      - Thank you again for the sword, it looks great on my shelf.
+  - id: Jamato
+    name: Jamato
+    role: Quest_giver
+    sprite: ../skin/Jamato
+    hp: 50
+    dialogue:
+    - Don't tell anyone but I found a way to make armor. If you bring me 10 bones from the skeleton in the wild, I'll make one for you.
+    - Well played, here's for you. Don't tell anyone, I don't want to get too much attention...
+    spawn_pos:
+    - -369.0
+    - -387.0
+    scale: 0.6
+    quest_dialogues:
+    - quest_id: quest_jamato
+      stage: 0
+      lines:
+      - Don't tell anyone but I found a way to make armor. If you bring me 10 bones from the skeleton in the wild, I'll make one for you.
+    - quest_id: quest_jamato
+      stage: 1
+      lines:
+      - Still looking for those 10 bones ? The skeleton in the wild should drop them.
+    - quest_id: quest_jamato
+      stage: 254
+      lines:
+      - Well played, here's for you. Don't tell anyone, I don't want to get too much attention...
+    - quest_id: quest_jamato
+      stage: 255
+      lines:
+      - Don't tell anyone about the armor, I don't want to get too much attention...
+  - id: Fatih
+    name: Fatih
+    role: None
+    sprite: ../skin/Fatih
+    hp: 50
+    dialogue:
+    - Did you know there's been massive leaks from the archives of the 42 country ? That's the height of irony, they're known for forming security guards.
+    spawn_pos:
+    - 784.0
+    - 474.0
+    scale: 0.6
+  - id: Zek
+    name: Zek
+    role: Quest_giver
+    sprite: ../skin/Zek
+    hp: 50
+    dialogue:
+    - This region is dangerous, take those healing potions. I will feel guilty if you die.
+    - Be aware, monsters here are strong.
+    spawn_pos:
+    - 360.0
+    - 210.0
+    scale: 0.6
+    quest_dialogues:
+    - quest_id: quest_zek
+      stage: 254
+      lines:
+      - This region is dangerous, take those healing potions. I will feel guilty if you die.
+    - quest_id: quest_zek
+      stage: 255
+      lines:
+      - Be aware, monsters here are strong.
+  - id: Mage
+    name: Mage
+    role: None
+    sprite: ../skin/Mage
+    hp: 50
+    dialogue:
+    - This cave has become really dangerous, stay on your guard in there.
+    spawn_pos:
+    - -967.0
+    - 182.0
+    scale: 0.6
+  - id: Anwar
+    name: Anwar
+    role: None
+    sprite: ../skin/Anwar
+    hp: 50
+    dialogue:
+    - Hi, I rule this Oasis. I've made good friends with influent people of the city so they gave me this land.
+    - There is a forge that sells goods here, you should go check it out.
+    spawn_pos:
+    - 173.0
+    - -185.0
+    scale: 0.6
+  - id: Forgeon
+    name: Forgeon
+    role: None
+    sprite: ../skin/Forgeon
+    hp: 50
+    dialogue:
+    - Welcome to our shop, take your time to look if something interests you.
+    spawn_pos:
+    - 860.0
+    - 275.0
+    scale: 0.6
+    shop:
+    - item_id: PMsword
+      price: 50
+    - item_id: steel_sword
+      price: 100
+    - item_id: healing_potion
+      price: 20
+    - item_id: leather_armor
+      price: 100
+    - item_id: steel_armor
+      price: 200
+  - id: Axel
+    name: Axel
+    role: None
+    sprite: ../skin/Axel
+    hp: 50
+    dialogue:
+    - Did you know our borders extend way further than this ? If you come back later you may be able to explore it, but only if the devs work harder for transcendence.
+    spawn_pos:
+    - -1093.0
+    - 180.0
+    scale: 0.6
+  - id: Elyesa
+    name: Elyesa
+    role: None
+    sprite: ../skin/Elyesa
+    hp: 50
+    dialogue:
+    - I'm working on some projects for the neighbouring city. If they accept my proposition, I may be creating something way bigger.
+    spawn_pos:
+    - 420.0
+    - 600.0
+    scale: 0.6
+  - id: Remy
+    name: Remy
+    role: Quest_giver
+    sprite: ../skin/Remy
+    hp: 50
+    dialogue:
+    - I've been stuck looking for diamond. Could you help me to get some ? I definitely need to grind to not be stuck here forever.
+    - Some sand monsters from here drop them.
+    spawn_pos:
+    - 519.0
+    - 60.0
+    scale: 0.6
+    quest_dialogues:
+    - quest_id: quest_remy
+      stage: 0
+      lines:
+      - I've been stuck looking for diamond. Could you help me to get some ? I definitely need to grind to not be stuck here forever. Some sand monsters from here drop them.
+    - quest_id: quest_remy
+      stage: 1
+      lines:
+      - Still no diamonds ? I need 4 of them. Some sand monsters drop them, you just need to grind.
+    - quest_id: quest_remy
+      stage: 254
+      lines:
+      - Four diamonds ! You're a lifesaver. Here, take this, you earned it.
+    - quest_id: quest_remy
+      stage: 255
+      lines:
+      - Thanks again for the diamonds, I might finally get out of here.
+  - id: Final_boss
+    name: blank
+    role: enemy
+    sprite: SandMonster
+    combat_sprite: SandMonster
+    spawn_pos:
+    - 0.0
+    - 0.0
+    scale: 1.2
+    hp: 300
+    damage: 20
+    defense: 8
+    exp_reward: 500
+    respawn_time: 9999
+    dialogue:
+    - '...'
+  - id: Panneau
+    name: Notice Board
+    role: board
+    hp: 1
+    dialogue:
+    - Browse the board to find kill quests.
+    spawn_pos:
+    - -195.0
+    - -400.0
+    scale: 0.6
+  - id: Panneau2
+    name: Notice Board
+    role: board
+    hp: 1
+    dialogue:
+    - Browse the board to find kill quests.
+    spawn_pos:
+    - 360.0
+    - -125.0
+    scale: 0.6
   items:
-    - id: "Excalibur"
-      name: "Excalibur"
-      damage: 999
-      slot: "weapon"
-      obtainable: true
-      description: "A legendary sword."
-      sprite: "sword/Excalibur"
-    - id: "Dague"
-      name: "Dague"
-      damage: 1
-      slot: "weapon"
-      obtainable: true
-      description: "Simple dague"
-    - id: "urbosas_cimeter"
-      name: "Urbosa's Cimeter"
-      obtainable: true
-      type: "quest"
-      description: "A sacred blade stolen from the royal treasury. The Queen needs it back."
-      sprite: "sword_icone"
-    - id: "magical_strength_medaillon"
-      name: "Magical Strength Medaillon"
-      obtainable: true
-      type: "quest"
-      slot: "medaillon"
-      description: "A mysterious medaillon that radiates magical power. Dory gave it to you as a reward."
-      sprite: "QuestUI"
-    - id: "bone"
-      name: "Bone"
-      obtainable: true
-      description: "A bone from a skeleton. Jamato is looking for these."
-    - id: "bone_armor"
-      name: "Bone Armor"
-      defense: 5
-      slot: "chest"
-      obtainable: true
-      description: "A chestplate Jamato crafted out of ten bones."
-    - id: "diamond"
-      name: "Diamond"
-      obtainable: true
-      description: "A rare diamond. Remy would love to get his hands on some."
-    - id: "PMsword"
-      name: "PM Sword"
-      damage: 5
-      slot: "weapon"
-      obtainable: true
-      type: "quest"
-      description: "A sword from the new Pocket Monsters merch. Soufiane wants it."
-    - id: "strength_medaillon"
-      name: "Strength Medaillon"
-      obtainable: true
-      type: "quest"
-      slot: "medaillon"
-      damage: 5
-      special_damage: 3
-      description: "A medaillon Soufiane bought from a strange merchant a long time ago."
-    - id: "healing_potion"
-      name: "Healing Potion"
-      obtainable: true
-      consumable: true
-      heal_percent: 50
-      description: "A potion that restores 50% of your max health."
-    - id: "steel_sword"
-      name: "Steel Sword"
-      damage: 12
-      slot: "weapon"
-      obtainable: true
-      description: "A solid steel blade from the forge."
-    - id: "leather_armor"
-      name: "Leather Armor"
-      defense: 3
-      slot: "chest"
-      obtainable: true
-      description: "Light leather armor, better than nothing."
-    - id: "steel_armor"
-      name: "Steel Armor"
-      defense: 7
-      slot: "chest"
-      obtainable: true
-      description: "Heavy steel armor from the forge."
+  - id: Excalibur
+    name: Excalibur
+    damage: 999
+    slot: weapon
+    obtainable: true
+    description: A legendary sword.
+    sprite: sword/Excalibur
+  - id: Dague
+    name: Dague
+    damage: 1
+    slot: weapon
+    obtainable: true
+    description: Simple dague
+  - id: urbosas_cimeter
+    name: Urbosa's Cimeter
+    obtainable: true
+    type: quest
+    description: A sacred blade stolen from the royal treasury. The Queen needs it back.
+    sprite: sword_icone
+  - id: magical_strength_medaillon
+    name: Magical Strength Medaillon
+    obtainable: true
+    type: quest
+    slot: medaillon
+    description: A mysterious medaillon that radiates magical power. Dory gave it to you as a reward.
+    sprite: QuestUI
+  - id: bone
+    name: Bone
+    obtainable: true
+    description: A bone from a skeleton. Jamato is looking for these.
+  - id: bone_armor
+    name: Bone Armor
+    defense: 5
+    slot: chest
+    obtainable: true
+    description: A chestplate Jamato crafted out of ten bones.
+  - id: diamond
+    name: Diamond
+    obtainable: true
+    description: A rare diamond. Remy would love to get his hands on some.
+  - id: PMsword
+    name: PM Sword
+    damage: 5
+    slot: weapon
+    obtainable: true
+    type: quest
+    description: A sword from the new Pocket Monsters merch. Soufiane wants it.
+  - id: strength_medaillon
+    name: Strength Medaillon
+    obtainable: true
+    type: quest
+    slot: medaillon
+    damage: 5
+    special_damage: 3
+    description: A medaillon Soufiane bought from a strange merchant a long time ago.
+  - id: healing_potion
+    name: Healing Potion
+    obtainable: true
+    consumable: true
+    heal_percent: 50
+    description: A potion that restores 50% of your max health.
+  - id: steel_sword
+    name: Steel Sword
+    damage: 12
+    slot: weapon
+    obtainable: true
+    description: A solid steel blade from the forge.
+  - id: leather_armor
+    name: Leather Armor
+    defense: 3
+    slot: chest
+    obtainable: true
+    description: Light leather armor, better than nothing.
+  - id: steel_armor
+    name: Steel Armor
+    defense: 7
+    slot: chest
+    obtainable: true
+    description: Heavy steel armor from the forge.
+  - id: gold_coin
+    name: Gold Coin
+    obtainable: true
+    description: A shiny gold coin. Someone must have dropped it.
+    sprite: UI/XPUI
+  - id: iron_scrap
+    name: Iron Scrap
+    obtainable: true
+    description: A rusted piece of iron. Could be useful someday.
+  - id: old_flask
+    name: Old Flask
+    obtainable: true
+    description: An empty, scratched flask. Still smells faintly of something.
+  - id: herb_bundle
+    name: Herb Bundle
+    obtainable: true
+    description: A bundle of dried medicinal herbs found along the path.
+  - id: dusty_scroll
+    name: Dusty Scroll
+    obtainable: true
+    description: A rolled-up scroll covered in dust. The ink is faded.
+  - id: cracked_gem
+    name: Cracked Gem
+    obtainable: true
+    description: A small gemstone, cracked but still somewhat pretty.
+    sprite: UI/HealthBarUI
+  - id: leather_pouch
+    name: Leather Pouch
+    obtainable: true
+    description: A worn leather pouch, empty inside.
+  - id: worn_key
+    name: Worn Key
+    obtainable: true
+    description: A weathered iron key. Hard to tell what it once opened.
+  - id: cave_crystal
+    name: Cave Crystal
+    obtainable: true
+    description: A pale crystal that glows faintly in the dark.
+  - id: temple_relic
+    name: Temple Relic
+    obtainable: true
+    description: A small carved stone bearing an ancient symbol.
   quests:
-    - id: "main_quest"
-      name: "The Answer Protocol"
-      description: "Help the Queen reclaim the royal treasure and defeat the evil that has taken the temple."
-      giver_id: "Queen"
+  - id: main_quest
+    name: The Answer Protocol
+    description: Help the Queen reclaim the royal treasure and defeat the evil that has taken the temple.
+    giver_id: Queen
+    objective:
+      type: talk_to_npc
+      npc: Queen
+    stages:
+    - stage: 1
+      objective:
+        type: fetch_item
+        item: urbosas_cimeter
+    - stage: 2
+      objective:
+        type: kill_mob
+        npc: Final_boss
+        count: 1
+    reward_exp: 1000
+  - id: quest_dory
+    name: Dory's Gift
+    description: Did you know Dory made this city? Check poiscapute on instagram and he might give you something.
+    giver_id: Dory
+    objective:
+      type: talk_to_npc
+      npc: Dory
+    stages:
+    - stage: 1
+      objective:
+        type: answer_dialogue
+        npc: Dory
+        expected_answer: yes
+      on_wrong_answer:
+        dialogue:
+        - You little selfish peasant, nothing for you then...
+        reset: true
+    reward_item: magical_strength_medaillon
+    reward_exp: 50
+  - id: quest_gragas
+    name: Sir Gragas' Errand
+    description: Sir Gragas sent you to the Queen in the city. Go see her, then report back to him.
+    giver_id: Gragas
+    objective:
+      type: talk_to_npc
+      npc: Gragas
+    stages:
+    - stage: 1
       objective:
         type: talk_to_npc
-        npc: "Queen"
-      stages:
-        - stage: 1
-          objective:
-            type: fetch_item
-            item: "urbosas_cimeter"
-        - stage: 2
-          objective:
-            type: kill_mob
-            npc: "Final_boss"
-            count: 1
-      reward_exp: 1000
-    - id: "quest_dory"
-      name: "Dory's Gift"
-      description: "Did you know Dory made this city? Check poiscapute on instagram and he might give you something."
-      giver_id: "Dory"
+        npc: Queen
+    - stage: 2
       objective:
         type: talk_to_npc
-        npc: "Dory"
-      stages:
-        - stage: 1
-          objective:
-            type: answer_dialogue
-            npc: "Dory"
-            expected_answer: "yes"
-          on_wrong_answer:
-            dialogue:
-              - "You little selfish peasant, nothing for you then..."
-            reset: true
-      reward_item: "magical_strength_medaillon"
-      reward_exp: 50
-    - id: "quest_gragas"
-      name: "Sir Gragas' Errand"
-      description: "Sir Gragas sent you to the Queen in the city. Go see her, then report back to him."
-      giver_id: "Gragas"
-      objective:
-        type: talk_to_npc
-        npc: "Gragas"
-      stages:
-        - stage: 1
-          objective:
-            type: talk_to_npc
-            npc: "Queen"
-        - stage: 2
-          objective:
-            type: talk_to_npc
-            npc: "Gragas"
-      reward_gold: 200
-    - id: "quest_soufiane"
-      name: "Soufiane's Merch"
-      description: "Soufiane collects Pocket Monsters merch. Bring him the PM Sword from the oasis in the south and he will give you something in return."
-      giver_id: "Soufiane"
-      objective:
-        type: deliver_item
-        item: "PMsword"
-        to: "Soufiane"
-      reward_item: "strength_medaillon"
-    - id: "quest_jamato"
-      name: "Jamato's Armor"
-      description: "Jamato found a way to make armor. Bring him 10 bones from the skeletons in the wild."
-      giver_id: "Jamato"
-      objective:
-        type: deliver_items
-        items: ["bone", "bone", "bone", "bone", "bone", "bone", "bone", "bone", "bone", "bone"]
-        to: "Jamato"
-      reward_item: "bone_armor"
-    - id: "quest_remy"
-      name: "Remy's Diamonds"
-      description: "Remy is stuck looking for diamonds. Bring him 4 of them, the sand monsters drop them."
-      giver_id: "Remy"
-      objective:
-        type: deliver_items
-        items: ["diamond", "diamond", "diamond", "diamond"]
-        to: "Remy"
-      reward_exp: 250
-    - id: "quest_zek"
-      name: "Zek's Potions"
-      description: "Zek hands out healing potions to travelers of the dangerous region."
-      giver_id: "Zek"
-      objective:
-        type: talk_to_npc
-        npc: "Zek"
-      reward_items: ["healing_potion", "healing_potion", "healing_potion"]
+        npc: Gragas
+    reward_gold: 200
+  - id: quest_soufiane
+    name: Soufiane's Merch
+    description: Soufiane collects Pocket Monsters merch. Bring him the PM Sword from the oasis in the south and he will give you something in return.
+    giver_id: Soufiane
+    objective:
+      type: deliver_item
+      item: PMsword
+      to: Soufiane
+    reward_item: strength_medaillon
+  - id: quest_jamato
+    name: Jamato's Armor
+    description: Jamato found a way to make armor. Bring him 10 bones from the skeletons in the wild.
+    giver_id: Jamato
+    objective:
+      type: deliver_items
+      items:
+      - bone
+      - bone
+      - bone
+      - bone
+      - bone
+      - bone
+      - bone
+      - bone
+      - bone
+      - bone
+      to: Jamato
+    reward_item: bone_armor
+  - id: quest_remy
+    name: Remy's Diamonds
+    description: Remy is stuck looking for diamonds. Bring him 4 of them, the sand monsters drop them.
+    giver_id: Remy
+    objective:
+      type: deliver_items
+      items:
+      - diamond
+      - diamond
+      - diamond
+      - diamond
+      to: Remy
+    reward_exp: 250
+  - id: quest_zek
+    name: Zek's Potions
+    description: Zek hands out healing potions to travelers of the dangerous region.
+    giver_id: Zek
+    objective:
+      type: talk_to_npc
+      npc: Zek
+    reward_items:
+    - healing_potion
+    - healing_potion
+    - healing_potion
   locations:
     Wild1:
-      name: "Wild1"
-      description: ""
+      name: Wild1
+      description: ''
       exits:
-        south: "Wild3"
-        east: "Wild2"
+        south: Wild3
+        east: Wild2
       npcs: []
-      items: []
+      items:
+      - gold_coin
     Wild2:
-      name: "Wild2"
-      description: ""
+      name: Wild2
+      description: ''
       exits:
-        west: "Wild1"
-        south: "Start_oasis"
+        west: Wild1
+        south: Start_oasis
       npcs: []
-      items: []
+      items:
+      - iron_scrap
     City:
-      name: "City"
-      description: ""
+      name: City
+      description: ''
       exits:
-        south: "Wild4"
-        east: "Castle"
-      npcs: ["Guard3", "Guard4", "Dory", "Oguzhan", "Soufiane", "Queen"]
-      items: []
+        south: Wild4
+        east: Castle
+      npcs:
+      - Guard3
+      - Guard4
+      - Dory
+      - Oguzhan
+      - Soufiane
+      - Queen
+      items:
+      - dusty_scroll
     Castle:
-      name: "Castle"
-      description: ""
+      name: Castle
+      description: ''
       exits:
-        west: "City"
-        east: "Temple1"
+        west: City
+        east: Temple1
       npcs: []
-      items: []
+      items:
+      - worn_key
     Wild3:
-      name: "Wild3"
-      description: ""
+      name: Wild3
+      description: ''
       exits:
-        north: "Wild1"
-        east: "Start_oasis"
-      npcs: ["SandMonster"]
-      items: []
+        north: Wild1
+        east: Start_oasis
+      npcs:
+      - SandMonster
+      items:
+      - bone
+      - bone
+      - bone
+      - bone
     Start_oasis:
-      name: "Start_oasis"
-      description: ""
+      name: Start_oasis
+      description: ''
       exits:
-        north: "Wild2"
-        east: "Wild4"
-        south: "Wild6"
-        west: "Wild3"
-      npcs: ["Gragas", "Jamato", "Fatih"]
-      items: ["Excalibur", "Dague"]
+        north: Wild2
+        east: Wild4
+        south: Wild6
+        west: Wild3
+      npcs:
+      - Gragas
+      - Jamato
+      - Fatih
+      - Panneau
+      items:
+      - Excalibur
+      - Dague
     Wild4:
-      name: "Wild4"
-      description: ""
+      name: Wild4
+      description: ''
       exits:
-        north: "City"
-        east: "Wild5"
-        south: "Oasis2"
-        west: "Start_oasis"
-      npcs: ["Guard1", "Guard2"]
-      items: []
+        north: City
+        east: Wild5
+        south: Oasis2
+        west: Start_oasis
+      npcs:
+      - Guard1
+      - Guard2
+      items:
+      - leather_pouch
     Wild5:
-      name: "Wild5"
-      description: ""
+      name: Wild5
+      description: ''
       exits:
-        west: "Wild4"
-      npcs: ["Zek"]
-      items: []
+        west: Wild4
+      npcs:
+      - Zek
+      items:
+      - old_flask
     Wild6:
-      name: "Wild6"
-      description: ""
+      name: Wild6
+      description: ''
       exits:
-        west: "Cave1"
-        north: "Start_oasis"
-      npcs: ["Mage"]
-      items: []
+        west: Cave1
+        north: Start_oasis
+      npcs:
+      - Mage
+      items:
+      - cave_crystal
     Oasis2:
-      name: "Oasis2"
-      description: ""
+      name: Oasis2
+      description: ''
       exits:
-        north: "Wild4"
-        east: "Wild7"
-      npcs: ["Anwar", "Forgeon", "Axel", "Elyesa"]
-      items: ["PMsword"]
+        north: Wild4
+        east: Wild7
+      npcs:
+      - Anwar
+      - Forgeon
+      - Axel
+      - Elyesa
+      - Panneau2
+      items:
+      - PMsword
+      - gold_coin
     Wild7:
-      name: "Wild7"
-      description: ""
+      name: Wild7
+      description: ''
       exits:
-        west: "Oasis2"
-      npcs: ["Remy"]
-      items: []
+        west: Oasis2
+      npcs:
+      - Remy
+      items:
+      - iron_scrap
     Cave1:
-      name: "Cave1"
-      description: ""
+      name: Cave1
+      description: ''
       exits:
-        west: "Cave2"
-        east: "Wild6"
+        west: Cave2
+        east: Wild6
       npcs: []
-      items: []
+      items:
+      - cave_crystal
     Cave2:
-      name: "Cave2"
-      description: ""
+      name: Cave2
+      description: ''
       exits:
-        south: "Cave3"
-        east: "Cave1"
+        south: Cave3
+        east: Cave1
       npcs: []
-      items: []
+      items:
+      - cave_crystal
     Cave3:
-      name: "Cave3"
-      description: ""
+      name: Cave3
+      description: ''
       exits:
-        south: "Cave4"
-        north: "Cave2"
+        south: Cave4
+        north: Cave2
       npcs: []
-      items: []
+      items:
+      - cracked_gem
     Cave4:
-      name: "Cave4"
-      description: ""
+      name: Cave4
+      description: ''
       exits:
-        north: "Cave3"
+        north: Cave3
       npcs: []
-      items: ["urbosas_cimeter"]
+      items:
+      - urbosas_cimeter
+      - cracked_gem
     Temple1:
-      name: "Temple1"
-      description: ""
+      name: Temple1
+      description: ''
       exits:
-        west: "Castle"
-        east: "Temple2"
+        west: Castle
+        east: Temple2
       npcs: []
-      items: []
+      items:
+      - temple_relic
     Temple2:
-      name: "Temple2"
-      description: ""
+      name: Temple2
+      description: ''
       exits:
-        west: "Temple1"
-        east: "Temple3"
+        west: Temple1
+        east: Temple3
       npcs: []
-      items: []
+      items:
+      - temple_relic
     Temple3:
-      name: "Temple3"
-      description: ""
+      name: Temple3
+      description: ''
       exits:
-        west: "Temple2"
-        east: "Temple4"
+        west: Temple2
+        east: Temple4
       npcs: []
-      items: []
+      items:
+      - cracked_gem
     Temple4:
-      name: "Temple4"
-      description: ""
+      name: Temple4
+      description: ''
       exits:
-        west: "Temple3"
-      npcs: ["Final_boss"]
-      items: []
+        west: Temple3
+      npcs:
+      - Final_boss
+      items:
+      - temple_relic

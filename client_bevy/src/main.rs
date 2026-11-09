@@ -16,6 +16,7 @@ mod shop;
 mod ui;
 mod minimap;
 mod combat;
+mod board_quest_ui;
 
 #[derive(States, Default, Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
@@ -56,5 +57,6 @@ fn main() {
         .add_plugins(interaction::InteractionPlugin)
         .add_plugins(quest::QuestTrackerPlugin)
         .add_plugins(shop::ShopPlugin)
+        .add_plugins(board_quest_ui::BoardQuestPlugin)
         .run();
 }

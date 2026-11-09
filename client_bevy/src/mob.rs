@@ -13,11 +13,22 @@ pub struct MobPlugin;
 impl Plugin for MobPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<InteractableTarget>()
+            .init_resource::<GroundItemTarget>()
             .add_systems(Startup, setup_interaction_ui)
             .add_systems(OnEnter(AppState::MainMenu), clear_mobs_on_logout)
             .add_systems(
                 Update,
-                (handle_mob_events, animate_mobs, cleanup_mobs_on_room_change, interaction_system, handle_interaction_input)
+                (
+                    handle_mob_events,
+                    handle_board_spawn_events,
+                    animate_mobs,
+                    cleanup_mobs_on_room_change,
+                    handle_ground_item_events,
+                    cleanup_items_on_room_change,
+                    update_ground_item_target_impl,
+                    interaction_system,
+                    handle_interaction_input,
+                )
                     .run_if(in_state(AppState::InGame)),
             );
     }
@@ -249,9 +260,12 @@ struct InteractionPromptSprites {
 
 fn interaction_system(
     player_q: Query<&Transform, With<LocalPlayer>>,
-    mob_q: Query<(&Transform, &Mob)>,
-    mut prompt_q: Query<(&mut Visibility, &mut Transform, &mut Handle<Image>), (With<InteractionPrompt>, Without<LocalPlayer>, Without<Mob>)>,
+    mob_q: Query<(&Transform, &Mob), Without<InteractionPrompt>>,
+    board_q: Query<(&Transform, &BoardNode), Without<InteractionPrompt>>,
+    items_q: Query<(&Transform, &GroundItem), Without<InteractionPrompt>>,
+    mut prompt_q: Query<(&mut Visibility, &mut Transform, &mut Handle<Image>), (With<InteractionPrompt>, Without<LocalPlayer>, Without<Mob>, Without<BoardNode>, Without<GroundItem>)>,
     mut interactable: ResMut<InteractableTarget>,
+    ground_target: Res<GroundItemTarget>,
     combat: Res<crate::combat::CombatResource>,
     dialogue: Res<crate::interaction::DialogueState>,
     prompt_sprites: Res<InteractionPromptSprites>,
@@ -279,18 +293,45 @@ fn interaction_system(
         }
     }
 
+    // Also check board nodes (notice boards — no enemy, use PNJ prompt icon).
+    for (board_transform, board) in &board_q {
+        let dist = player_transform.translation.distance(board_transform.translation);
+        if dist < 150.0 && dist < closest_dist {
+            closest_dist = dist;
+            closest_npc = Some(board.npc_id.clone());
+            closest_pos = board_transform.translation;
+            closest_is_enemy = false;
+        }
+    }
+
+    // Also show the prompt icon for nearby ground items (use PNJ bubble).
+    if closest_npc.is_none() {
+        if ground_target.0.is_some() {
+            // Find the item entity position to float the bubble over it.
+            for (tf, gi) in &items_q {
+                if ground_target.0.as_deref() == Some(&gi.item_id) {
+                    // Use only x/y from the item; override z so the bubble renders on top.
+                    closest_pos = Vec3::new(tf.translation.x, tf.translation.y, 0.0);
+                    closest_is_enemy = false;
+                    break;
+                }
+            }
+        }
+    }
+
+    let show_ground_prompt = closest_npc.is_none() && ground_target.0.is_some();
     interactable.0 = closest_npc;
 
     if let Ok((mut vis, mut prompt_transform, mut prompt_texture)) = prompt_q.get_single_mut() {
-        if interactable.0.is_some() {
+        if interactable.0.is_some() || show_ground_prompt {
             *vis = Visibility::Visible;
             *prompt_texture = if closest_is_enemy {
                 prompt_sprites.mob_texture.clone()
             } else {
                 prompt_sprites.pnj_texture.clone()
             };
-            // Float above the mob
-            prompt_transform.translation = closest_pos + Vec3::new(0.0, 100.0, 900.0);
+            // Float above the mob / board / item
+            prompt_transform.translation = closest_pos + Vec3::new(0.0, 60.0, 900.0);
         } else {
             *vis = Visibility::Hidden;
         }
@@ -300,6 +341,7 @@ fn interaction_system(
 fn handle_interaction_input(
     input: Res<ButtonInput<KeyCode>>,
     interactable: Res<InteractableTarget>,
+    ground_target: Res<GroundItemTarget>,
     combat: Res<crate::combat::CombatResource>,
     dialogue: Res<crate::interaction::DialogueState>,
     sender: Res<crate::net::NetworkSender>,
@@ -308,8 +350,179 @@ fn handle_interaction_input(
         return;
     }
     if input.just_pressed(KeyCode::KeyE) {
-        if let Some(ref npc_id) = interactable.0 {
+        if let Some(ref item_id) = ground_target.0 {
+            // Ground item takes priority if it is closer
+            let _ = sender.0.send(format!("TAKE {}\n", item_id));
+        } else if let Some(ref npc_id) = interactable.0 {
             let _ = sender.0.send(format!("INTERACT {}\n", npc_id));
+        }
+    }
+}
+
+// ── Notice Board ─────────────────────────────────────────────────────────────
+
+/// Marks an invisible board interaction point (no sprite, just a position).
+#[derive(Component)]
+pub struct BoardNode {
+    pub npc_id: String,
+}
+
+/// Spawn/despawn board nodes from `S: EVT ROOM BOARD_SPAWN <id> <x> <y>`.
+fn handle_board_spawn_events(
+    mut commands: Commands,
+    mut events: EventReader<crate::net::ServerMessageEvent>,
+    boards: Query<(Entity, &BoardNode)>,
+) {
+    for ev in events.read() {
+        let parts: Vec<&str> = ev.0.split_whitespace().collect();
+
+        // S: EVT ROOM BOARD_SPAWN <npc_id> <x> <y>
+        if parts.len() >= 7
+            && parts[0] == "S:" && parts[1] == "EVT"
+            && parts[2] == "ROOM" && parts[3] == "BOARD_SPAWN"
+        {
+            let npc_id = parts[4];
+            if boards.iter().any(|(_, b)| b.npc_id == npc_id) { continue; }
+            let x: f32 = parts[5].parse().unwrap_or(0.0);
+            let y: f32 = parts[6].parse().unwrap_or(0.0);
+            // No sprite — just an invisible transform node for interaction detection.
+            commands.spawn((
+                TransformBundle::from_transform(Transform::from_xyz(x, y, 0.0)),
+                VisibilityBundle::default(),
+                BoardNode { npc_id: npc_id.to_string() },
+            ));
+        }
+
+        // Clean up boards on room change.
+        if ev.0.starts_with("S: OK room=loc.") {
+            for (entity, _) in &boards {
+                commands.entity(entity).despawn_recursive();
+            }
+        }
+    }
+}
+
+// ── Ground Items ──────────────────────────────────────────────────────────────
+
+/// A ground item rendered in the game world.
+#[derive(Component)]
+pub struct GroundItem {
+    pub item_id: String,
+}
+
+/// The closest interactable ground item to the player, if any.
+#[derive(Resource, Default)]
+pub struct GroundItemTarget(pub Option<String>);
+
+const GROUND_ITEM_SIZE: f32 = 48.0;
+const GROUND_ITEM_Z: f32 = 400.0;
+const ITEM_INTERACT_DIST: f32 = 140.0;
+
+fn handle_ground_item_events(
+    mut commands: Commands,
+    mut events: EventReader<crate::net::ServerMessageEvent>,
+    asset_server: Res<AssetServer>,
+    existing: Query<(Entity, &GroundItem)>,
+    mut ground_target: ResMut<GroundItemTarget>,
+) {
+    for ev in events.read() {
+        let parts: Vec<&str> = ev.0.split_whitespace().collect();
+
+        // S: EVT ROOM ITEM_SPAWN <item_id> <name> <sprite> <x> <y>
+        if parts.len() >= 9
+            && parts[0] == "S:" && parts[1] == "EVT"
+            && parts[2] == "ROOM" && parts[3] == "ITEM_SPAWN"
+        {
+            let item_id = parts[4];
+            // Skip if already in scene
+            if existing.iter().any(|(_, gi)| gi.item_id == item_id) { continue; }
+
+            let sprite_path = parts[6];
+            let x: f32 = parts[7].parse().unwrap_or(0.0);
+            let y: f32 = parts[8].parse().unwrap_or(0.0);
+
+            let texture: Handle<Image> = if sprite_path != "none" {
+                asset_server.load(format!("{}.png", sprite_path))
+            } else {
+                asset_server.load("UI/QuestUI.png")
+            };
+
+            commands.spawn((
+                SpriteBundle {
+                    texture,
+                    sprite: Sprite {
+                        custom_size: Some(Vec2::splat(GROUND_ITEM_SIZE)),
+                        ..default()
+                    },
+                    transform: Transform::from_xyz(x, y, GROUND_ITEM_Z),
+                    ..default()
+                },
+                GroundItem { item_id: item_id.to_string() },
+            ));
+        }
+
+        // S: EVT ROOM ITEM_DESPAWN <item_id>
+        if parts.len() >= 5
+            && parts[0] == "S:" && parts[1] == "EVT"
+            && parts[2] == "ROOM" && parts[3] == "ITEM_DESPAWN"
+        {
+            let item_id = parts[4];
+            for (entity, gi) in &existing {
+                if gi.item_id == item_id {
+                    commands.entity(entity).despawn_recursive();
+                }
+            }
+            if ground_target.0.as_deref() == Some(item_id) {
+                ground_target.0 = None;
+            }
+        }
+    }
+}
+
+/// Separate system that runs after handle_ground_item_events to find the closest ground item.
+fn update_ground_item_target_impl(
+    player_q: Query<&Transform, With<crate::player::LocalPlayer>>,
+    items_q: Query<(&Transform, &GroundItem)>,
+    mut ground_target: ResMut<GroundItemTarget>,
+    combat: Res<crate::combat::CombatResource>,
+    dialogue: Res<crate::interaction::DialogueState>,
+) {
+    if combat.in_combat || dialogue.is_active() {
+        ground_target.0 = None;
+        return;
+    }
+    let Ok(player_tf) = player_q.get_single() else { return };
+    let player_xy = player_tf.translation.truncate(); // ignore z
+
+    let mut closest_dist = ITEM_INTERACT_DIST;
+    let mut closest_id: Option<String> = None;
+
+    for (tf, gi) in &items_q {
+        // Use 2-D distance so the item's render-layer z (400) does not inflate the gap.
+        let dist = player_xy.distance(tf.translation.truncate());
+        if dist < closest_dist {
+            closest_dist = dist;
+            closest_id = Some(gi.item_id.clone());
+        }
+    }
+    if ground_target.0 != closest_id {
+        ground_target.0 = closest_id;
+    }
+}
+
+/// Clear all ground items when entering a new room.
+fn cleanup_items_on_room_change(
+    mut commands: Commands,
+    mut events: EventReader<crate::net::ServerMessageEvent>,
+    items: Query<Entity, With<GroundItem>>,
+    mut ground_target: ResMut<GroundItemTarget>,
+) {
+    for ev in events.read() {
+        if ev.0.starts_with("S: OK room=loc.") {
+            for entity in &items {
+                commands.entity(entity).despawn_recursive();
+            }
+            ground_target.0 = None;
         }
     }
 }

@@ -146,8 +146,8 @@ pub async fn process_command(
         GameCommand::Equip(c)       => (handle_equip(addr, c, state, world), false),
         GameCommand::Unequip(c)     => (handle_unequip(addr, c, state, world), false),
         GameCommand::Equipment      => (handle_equipment(addr, state), false),
-        GameCommand::Take(c)        => (handle_take(addr, c, state, world), false),
-        GameCommand::Drop(c)        => (handle_drop(addr, c, state, world), false),
+        GameCommand::Take(c)        => (handle_take(addr, c, state, world, tx), false),
+        GameCommand::Drop(c)        => (handle_drop(addr, c, state, world, tx), false),
         GameCommand::Talk(c)        => (handle_talk(addr, c, state, world, tx), false),
         GameCommand::Interact(c)    => (handle_interact(addr, c, state, world, tx), false),
         GameCommand::Attack(c)      => (handle_attack(addr, c, state, world, tx), false),
@@ -170,6 +170,9 @@ pub async fn process_command(
         GameCommand::AttackMagic(target)    => (handle_attack_magic(addr, target, state, world, tx), false),
         GameCommand::AttackHeavy(target)     => (handle_attack_heavy(addr, target, false, state, world, tx), false),
         GameCommand::AttackMagicHeavy(target) => (handle_attack_heavy(addr, target, true, state, world, tx), false),
+        GameCommand::BoardQuests              => (handle_board_quests(addr, state), false),
+        GameCommand::BoardTake(slot)          => (handle_board_take(addr, slot, state), false),
+        GameCommand::BoardAbandon             => (handle_board_abandon(addr, state), false),
         GameCommand::Quit           => ("S: OK goodbye\n".to_string(), true),
         GameCommand::Unknown        => ("S: ERR malformed_command\n".to_string(), false),
     }
@@ -204,6 +207,11 @@ pub async fn save_player_to_db(pool: &DbPool, player: &Player) {
         player.pos_x as f64,
         player.pos_y as f64,
         player.stat_points,
+        player.stats.damage,
+        player.stats.defense,
+        player.stats.special_damage,
+        player.stats.special_defense,
+        player.max_hp - player.base_max_hp, // extra hp from STATUP only
     ).await;
 
     if let Err(e) = result {
@@ -226,19 +234,49 @@ fn format_exits(world: &WorldData, room: &RoomId) -> String {
     exits_str
 }
 
+/// Build the `MOB_SPAWN` events for NPCs visible in `room`.
+/// Board NPCs (role = "board") are omitted from the normal mob spawn roster
+/// and instead emitted as `BOARD_SPAWN` events so the client can render them
+/// as an interactive object (no character sprite).
 fn room_mob_roster(room: &RoomId, state: &ServerState, world: &WorldData) -> String {
     let mut out = String::new();
     if let Some(npc_ids) = state.room_npcs.get(room) {
         for npc_id in npc_ids {
             if let Some(npc) = world.world.npcs.iter().find(|n| &n.id == npc_id) {
-                let sprite = npc.map_sprite();
                 let (x, y) = npc.spawn_pos.map(|p| (p[0] as i64, p[1] as i64)).unwrap_or((0, 0));
-                let hp = state.npc_hps.get(npc_id).copied().unwrap_or(npc.hp);
-                let max_hp = npc.hp;
-                let scale = npc.scale.unwrap_or(1.0);
+                if npc.role == "board" {
+                    // Board NPC: send as BOARD_SPAWN (no sprite on the client side).
+                    out.push_str(&format!("S: EVT ROOM BOARD_SPAWN {} {} {}\n", npc_id, x, y));
+                } else {
+                    let sprite = npc.map_sprite();
+                    let hp = state.npc_hps.get(npc_id).copied().unwrap_or(npc.hp);
+                    let max_hp = npc.hp;
+                    let scale = npc.scale.unwrap_or(1.0);
+                    out.push_str(&format!(
+                        "S: EVT ROOM MOB_SPAWN {} {} {} {} {} {} {} {} {}\n",
+                        npc_id, sprite, x, y, hp, max_hp, scale, npc.name.replace(" ", "_"), npc.role
+                    ));
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Build the `ITEM_SPAWN` events for every item currently on the ground in `room`.
+fn room_item_roster(room: &RoomId, state: &ServerState, world: &WorldData) -> String {
+    let mut out = String::new();
+    if let Some(items_in_room) = state.room_items.get(room) {
+        for ri in items_in_room {
+            if let Some(item) = world.world.items.iter().find(|i| i.id == ri.item_id) {
+                let sprite = item.sprite.as_deref().unwrap_or("none");
                 out.push_str(&format!(
-                    "S: EVT ROOM MOB_SPAWN {} {} {} {} {} {} {} {} {}\n",
-                    npc_id, sprite, x, y, hp, max_hp, scale, npc.name.replace(" ", "_"), npc.role
+                    "S: EVT ROOM ITEM_SPAWN {} {} {} {} {}\n",
+                    item.id,
+                    item.name.replace(' ', "_"),
+                    sprite,
+                    ri.pos_x as i32,
+                    ri.pos_y as i32,
                 ));
             }
         }
@@ -301,6 +339,27 @@ async fn handle_connect(
             player.equipement = build_equipement(world, &data.equipment);
             player.skin = data.skin;
             player.stat_points = data.stat_points;
+            // Restore base stats allocated via STATUP.
+            player.stats.damage          = data.base_damage;
+            player.stats.defense         = data.base_defense;
+            player.stats.special_damage  = data.base_spe_dmg;
+            player.stats.special_defense = data.base_spe_def;
+            // base_max_hp stays at 100; actual max_hp = base + extra allocated
+            player.max_hp = player.base_max_hp + data.base_max_hp;
+            player.hp = player.hp.min(player.max_hp);
+            // One-time repair: pre-migration-6 accounts have all base stats = 0
+            // AND stat_points = 0 because every point was allocated before the
+            // columns existed. Give back level*3 points so the player can re-spend.
+            if player.level > 1
+                && data.stat_points == 0
+                && data.base_damage == 0
+                && data.base_defense == 0
+                && data.base_spe_dmg == 0
+                && data.base_spe_def == 0
+                && data.base_max_hp == 0
+            {
+                player.stat_points = player.level * 3;
+            }
             // Restore equipped medaillon from equipment map
             if let Some(mid) = data.equipment.get("medaillon") {
                 player.equipped_medaillon_id = Some(mid.clone());
@@ -337,10 +396,11 @@ async fn handle_connect(
                 .unwrap_or_default();
             let p = state.players.get(&addr).unwrap();
             format!(
-                "S: OK connected skin={} name={} room={}{}{}\n{}{}\nS: EVT PLAYER_STATS {} {} {} {} {}\nS: EVT GOLD {}\nS: EVT STAT_POINTS {}\n{}{}{}\n",
+                "S: OK connected skin={} name={} room={}{}{}\n{}{}{}\nS: EVT PLAYER_STATS {} {} {} {} {}\nS: EVT GOLD {}\nS: EVT STAT_POINTS {}\n{}{}{}\n",
                 skin, pseudo, enter_room, exits, pos_str,
                 room_presence_roster(addr, state, &enter_room),
                 room_mob_roster(&enter_room, state, world),
+                room_item_roster(&enter_room, state, world),
                 p.hp, p.max_hp, p.xp_bar.current, p.xp_bar.requiered, p.level,
                 p.money, p.stat_points,
                 get_inv_data_event(p, world),
@@ -393,10 +453,11 @@ async fn handle_connect(
             let exits = format_exits(world, &enter_room);
             let player = state.players.get(&addr).unwrap();
             format!(
-                "S: OK connected skin={} name={} room={}{}\n{}{}\nS: EVT PLAYER_STATS {} {} {} {} {}\n",
+                "S: OK connected skin={} name={} room={}{}\n{}{}{}\nS: EVT PLAYER_STATS {} {} {} {} {}\n",
                 skin, pseudo, enter_room, exits,
                 room_presence_roster(addr, state, &enter_room),
                 room_mob_roster(&enter_room, state, world),
+                room_item_roster(&enter_room, state, world),
                 player.hp, player.max_hp, player.xp_bar.current, player.xp_bar.requiered, player.level
             )
         }
@@ -539,7 +600,7 @@ fn handle_move(addr: SocketAddr, dir: String, state: &mut ServerState, world: &W
             target_player: None,
     });
     let exits = format_exits(world, &next_room);
-    format!("S: OK room=loc.{}{}\n{}{}", next_room, exits, room_presence_roster(addr, state, &next_room), room_mob_roster(&next_room, state, world))
+    format!("S: OK room=loc.{}{}\n{}{}{}", next_room, exits, room_presence_roster(addr, state, &next_room), room_mob_roster(&next_room, state, world), room_item_roster(&next_room, state, world))
 }
 
 fn get_inv_data_event(player: &crate::state::Player, world: &WorldData) -> String {
@@ -700,7 +761,7 @@ fn handle_equipment(addr: SocketAddr, state: &ServerState) -> String {
     } else { "S: ERR utilize_connect_first\n".to_string() }
 }
 
-fn handle_take(addr: SocketAddr, cible: String, state: &mut ServerState, world: &WorldData) -> String {
+fn handle_take(addr: SocketAddr, cible: String, state: &mut ServerState, world: &WorldData, tx: &Sender<GlobalEvent>) -> String {
     if let Some(player) = state.players.get_mut(&addr) {
         let current_room_id = player.current_room.clone();
         if let Some(item) = world.world.items.iter().find(|i| ci_eq(i.id.as_str(), &cible) || ci_eq(&i.name, &cible)) {
@@ -732,6 +793,16 @@ fn handle_take(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
                                 }
                             }
                         }
+                        // Broadcast despawn to all players in the room (standard items disappear).
+                        if item.r#type == crate::world::ItemType::Standard {
+                            let _ = tx.send(GlobalEvent {
+                                sender_addr: None,
+                                message: format!("S: EVT ROOM ITEM_DESPAWN {}\n", item.id),
+                                target_room: Some(current_room_id),
+                                target_group: None,
+                                target_player: None,
+                            });
+                        }
                         format!("S: OK taken={}{}\n", item.id, quest_msg)
                     }
                 } else { "S: ERR This item is not here.\n".to_string() }
@@ -740,22 +811,38 @@ fn handle_take(addr: SocketAddr, cible: String, state: &mut ServerState, world: 
     } else { "S: ERR utilize_connect_first\n".to_string() }
 }
 
-fn handle_drop(addr: SocketAddr, cible: String, state: &mut ServerState, world: &WorldData) -> String {
+fn handle_drop(addr: SocketAddr, cible: String, state: &mut ServerState, world: &WorldData, tx: &Sender<GlobalEvent>) -> String {
     if let Some(player) = state.players.get_mut(&addr) {
         if let Some(item) = world.world.items.iter().find(|i| ci_eq(i.id.as_str(), &cible) || ci_eq(&i.name, &cible)) {
             if player.inventory.contains(&item.id) {
                 if item.r#type == crate::world::ItemType::Quest {
                     "S: ERR You cannot get rid of a quest item!\n".to_string()
                 } else {
+                    let drop_x = player.pos_x;
+                    let drop_y = player.pos_y;
                     player.inventory.remove_one(&item.id);
                     let current_room_id = player.current_room.clone();
-                    state.room_items.entry(current_room_id).or_default().push(crate::state::RuntimeItem {
-                        item_id: item.id.clone(),
+                    let sprite = item.sprite.as_deref().unwrap_or("none").to_string();
+                    let item_name = item.name.replace(' ', "_");
+                    let item_id = item.id.clone();
+                    state.room_items.entry(current_room_id.clone()).or_default().push(crate::state::RuntimeItem {
+                        item_id: item_id.clone(),
                         source: crate::state::ItemSource::PlayerDrop,
                         collected_by: std::collections::HashSet::new(),
+                        pos_x: drop_x,
+                        pos_y: drop_y,
                     });
-                    log_event("DROP", &player.username, json!({"item_id": item.id}));
-                    format!("S: OK dropped={}\n", item.id)
+                    log_event("DROP", &player.username, json!({"item_id": item_id}));
+                    // Broadcast spawn to all players in the room.
+                    let _ = tx.send(GlobalEvent {
+                        sender_addr: None,
+                        message: format!("S: EVT ROOM ITEM_SPAWN {} {} {} {} {}\n",
+                            item_id, item_name, sprite, drop_x as i32, drop_y as i32),
+                        target_room: Some(current_room_id),
+                        target_group: None,
+                        target_player: None,
+                    });
+                    format!("S: OK dropped={}\n", item_id)
                 }
             } else { format!("S: ERR You don't have the item \"{}\".\n", item.name) }
         } else { "S: ERR Unknown item.\n".to_string() }
@@ -1324,7 +1411,12 @@ fn handle_interact(addr: SocketAddr, cible: String, state: &mut ServerState, wor
             "S: ERR There is nobody by that name here.\n".to_string()
         }
     } else if !role.is_empty() {
-        handle_talk(addr, cible, state, world, tx)
+        // Check if this NPC is a board ("Panneau") → return board quest list.
+        if role == "board" || (found_npc.as_ref().map_or(false, |n| ci_eq(n.id.as_str(), "Panneau") || ci_eq(n.id.as_str(), "panneau"))) {
+            handle_board_quests(addr, state)
+        } else {
+            handle_talk(addr, cible, state, world, tx)
+        }
     } else {
         "S: ERR There is nothing to interact with here.\n".to_string()
     }
@@ -1539,8 +1631,15 @@ fn handle_attack_magic(addr: SocketAddr, cible: String, state: &mut ServerState,
                 }
                 stat_str = format!("S: EVT PLAYER_STATS {} {} {} {} {}\n", player.hp, player.max_hp, player.xp_bar.current, player.xp_bar.requiered, player.level);
             }
-            let _ = tx.send(GlobalEvent { sender_addr: None, message: format!("S: EVT ROOM {} MOB_DESPAWN {}\n", current_room_id, m_id), target_room: Some(current_room_id.clone()), target_group: None, target_player: None });
-            let mut msg = format!("S: EVT COMBAT END victory\nS: OK Magic deals {}. {} collapses! (+{} EXP)\n", final_damage, monster_name, exp_gained);
+            let _ = tx.send(GlobalEvent { sender_addr: None, message: format!("S: EVT ROOM MOB_DESPAWN {}\n", m_id), target_room: Some(current_room_id.clone()), target_group: None, target_player: None });
+            let board_bonus = process_board_quest_kill(&player_name, m_id.as_str(), state);
+            if !board_bonus.is_empty() {
+                if let Some(p) = state.players.get(&addr) {
+                    stat_str.push_str(&format!("S: EVT GOLD {}\n", p.money));
+                    stat_str.push_str("S: EVT QUEST_DATA empty\n");
+                }
+            }
+            let mut msg = format!("S: EVT COMBAT END victory\nS: OK Magic deals {}. {} collapses! (+{} EXP){}\n", final_damage, monster_name, exp_gained, board_bonus);
             if !drop_names.is_empty() { msg.push_str(&format!("You obtain: {}\n", drop_names.join(", "))); }
             msg.push_str(&stat_str);
             msg
@@ -1784,7 +1883,17 @@ fn handle_attack(addr: SocketAddr, cible: String, state: &mut ServerState, world
                 target_group: None,
                 target_player: None,
             });
-            let mut msg = format!("S: EVT COMBAT END victory\nS: OK You dealt {} damage. {} collapses! (+{} EXP)\n", final_damage, monster_name, exp_gained);
+            // Board quest kill tracking
+            let board_bonus = process_board_quest_kill(&player_name, m_id.as_str(), state);
+            // If a board quest completed, include an updated GOLD event so the client HUD reflects the reward.
+            if !board_bonus.is_empty() {
+                if let Some(p) = state.players.get(&addr) {
+                    stat_str.push_str(&format!("S: EVT GOLD {}\n", p.money));
+                    // Also refresh quest data to remove the completed board quest from the log.
+                    stat_str.push_str("S: EVT QUEST_DATA empty\n");
+                }
+            }
+            let mut msg = format!("S: EVT COMBAT END victory\nS: OK You dealt {} damage. {} collapses! (+{} EXP){}\n", final_damage, monster_name, exp_gained, board_bonus);
             if !drop_names.is_empty() { msg.push_str(&format!("You obtain: {}\n", drop_names.join(", "))); }
             msg.push_str(&stat_str);
             msg
@@ -2208,10 +2317,6 @@ fn handle_quests(addr: SocketAddr, state: &ServerState, world: &WorldData) -> St
         return "S: ERR utilize_connect_first\n".to_string();
     };
 
-    if player.quest_progress.is_empty() {
-        return "S: OK quests=0\nS: EVT QUEST_DATA empty\n".to_string();
-    }
-
     let mut parts = Vec::new();
     for prog in &player.quest_progress {
         if let Some(q) = world.world.quests.iter().find(|q| q.id == prog.quest_id) {
@@ -2224,9 +2329,117 @@ fn handle_quests(addr: SocketAddr, state: &ServerState, world: &WorldData) -> St
         }
     }
 
+    // Append active board quest if the player holds one.
+    if let Some(slot) = state.board_quests.player_slot(&player.username) {
+        let desc = format!("Kill {} {} {}. Reward: {} gold.", slot.kill_count, slot.mob_name, slot.location_hint, slot.gold_reward);
+        let objective = format!("Kill {} {} ({}/{})", slot.kill_count, slot.mob_name, slot.kills_done, slot.kill_count);
+        parts.push(format!("board_quest_{}:Board Quest:{}:{}:1", slot.slot_id + 1, desc, objective));
+    }
+
     if parts.is_empty() {
         "S: OK quests=0\nS: EVT QUEST_DATA empty\n".to_string()
     } else {
         format!("S: OK quests={}\nS: EVT QUEST_DATA {}\n", parts.len(), parts.join("|"))
     }
+}
+
+// ── Board quest handlers ──────────────────────────────────────────────────
+
+/// `BOARD_QUESTS` — return the 6 board quest slots to the requesting player.
+fn handle_board_quests(addr: SocketAddr, state: &ServerState) -> String {
+    if state.players.get(&addr).is_none() {
+        return "S: ERR utilize_connect_first\n".to_string();
+    }
+    let wire = state.board_quests.to_wire();
+    format!("S: EVT BOARD_QUESTS {}\n", wire)
+}
+
+/// `BOARD_TAKE <slot>` — player accepts the quest in the given 1-based slot.
+fn handle_board_take(addr: SocketAddr, slot: usize, state: &mut ServerState) -> String {
+    let player_name = match state.players.get(&addr) {
+        Some(p) => p.username.clone(),
+        None => return "S: ERR utilize_connect_first\n".to_string(),
+    };
+    // Player may only hold one board quest at a time.
+    if state.board_quests.player_slot(&player_name).is_some() {
+        return "S: ERR You already have an active board quest. Abandon it first.\n".to_string();
+    }
+    let idx = slot.wrapping_sub(1); // convert 1-based to 0-based
+    match state.board_quests.slots.get_mut(idx) {
+        Some(s) if s.is_available() => {
+            s.taken_by = Some(player_name.clone());
+            s.kills_done = 0;
+            let mob       = s.mob_name.clone();
+            let count     = s.kill_count;
+            let loc       = s.location_hint.clone();
+            let gold      = s.gold_reward;
+            let slot_idx  = s.slot_id;
+            log_event("BOARD_TAKE", &player_name, serde_json::json!({"slot": slot, "mob": mob, "count": count}));
+            let wire = state.board_quests.to_wire();
+            // Build quest data entry so the quest log updates immediately.
+            let quest_desc = format!("Kill {} {} {}. Reward: {} gold.", count, mob, loc, gold);
+            let quest_obj  = format!("Kill {} {} (0/{})", count, mob, count);
+            let quest_data = format!("board_quest_{}:Board Quest:{}:{}:1", slot_idx + 1, quest_desc, quest_obj);
+            format!(
+                "S: OK Board quest accepted: kill {} {} {}.\nS: EVT BOARD_QUESTS {}\nS: EVT QUEST_DATA {}\n",
+                count, mob, loc, wire, quest_data
+            )
+        }
+        Some(_) => "S: ERR This quest is already taken by another player.\n".to_string(),
+        None    => "S: ERR Invalid slot number (1-6).\n".to_string(),
+    }
+}
+
+/// `BOARD_ABANDON` — player abandons their current board quest; slot becomes available again.
+fn handle_board_abandon(addr: SocketAddr, state: &mut ServerState) -> String {
+    let player_name = match state.players.get(&addr) {
+        Some(p) => p.username.clone(),
+        None => return "S: ERR utilize_connect_first\n".to_string(),
+    };
+    if let Some(slot) = state.board_quests.player_slot_mut(&player_name) {
+        slot.taken_by = None;
+        slot.kills_done = 0;
+        let wire = state.board_quests.to_wire();
+        log_event("BOARD_ABANDON", &player_name, serde_json::json!({}));
+        // Empty QUEST_DATA so the board quest disappears from the quest log.
+        format!("S: OK Board quest abandoned.\nS: EVT BOARD_QUESTS {}\nS: EVT QUEST_DATA empty\n", wire)
+    } else {
+        "S: ERR You have no active board quest.\n".to_string()
+    }
+}
+
+/// Called whenever a player kills a mob. Updates board quest progress and,
+/// if the quest is complete, gives the gold reward and regenerates the slot.
+/// Returns an extra message to append to the attack result (empty if not applicable).
+pub fn process_board_quest_kill(
+    player_name: &str,
+    mob_id: &str,
+    state: &mut ServerState,
+) -> String {
+    let mut extra = String::new();
+    let mut completed_slot_idx: Option<usize> = None;
+    let mut gold_reward = 0i32;
+
+    if let Some(slot) = state.board_quests.player_slot_mut(player_name) {
+        if ci_eq(&slot.mob_id, mob_id) {
+            slot.kills_done += 1;
+            if slot.kills_done >= slot.kill_count {
+                completed_slot_idx = Some(slot.slot_id);
+                gold_reward = slot.gold_reward;
+            }
+        }
+    }
+
+    if let Some(idx) = completed_slot_idx {
+        // Give gold to player.
+        if let Some(player) = state.players.values_mut().find(|p| p.username == player_name) {
+            player.add_money(gold_reward);
+            extra = format!(" [BOARD QUEST COMPLETE] +{} gold!", gold_reward);
+        }
+        // Regenerate the slot.
+        state.board_quests.slots[idx] = crate::board_quests::BoardQuestSlot::generate(idx);
+        log_event("BOARD_COMPLETE", player_name, serde_json::json!({"gold": gold_reward}));
+    }
+
+    extra
 }

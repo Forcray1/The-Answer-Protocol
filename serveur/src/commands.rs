@@ -42,6 +42,12 @@ pub enum GameCommand {
     AttackHeavy(String),
     /// Heavy magic (1.75× damage, 1-turn cooldown): `ATTACK_MAGIC_HEAVY <target>`
     AttackMagicHeavy(String),
+    /// View notice board quests: `BOARD_QUESTS`
+    BoardQuests,
+    /// Accept a board quest by slot number: `BOARD_TAKE <1-6>`
+    BoardTake(usize),
+    /// Abandon the player's current board quest: `BOARD_ABANDON`
+    BoardAbandon,
     Unknown,
 }
 
@@ -98,6 +104,15 @@ impl GameCommand {
             "ATTACK_MAGIC" if parts.len() > 1 => GameCommand::AttackMagic(parts[1..].join(" ")),
             "ATTACK_HEAVY" if parts.len() > 1 => GameCommand::AttackHeavy(parts[1..].join(" ")),
             "ATTACK_MAGIC_HEAVY" if parts.len() > 1 => GameCommand::AttackMagicHeavy(parts[1..].join(" ")),
+            "BOARD_QUESTS" => GameCommand::BoardQuests,
+            "BOARD_TAKE" if parts.len() > 1 => {
+                if let Ok(n) = parts[1].parse::<usize>() {
+                    GameCommand::BoardTake(n)
+                } else {
+                    GameCommand::Unknown
+                }
+            }
+            "BOARD_ABANDON" => GameCommand::BoardAbandon,
             "BUY" if parts.len() > 2 => GameCommand::Buy {
                 npc: parts[1].to_string(),
                 item: parts[2].to_string(),

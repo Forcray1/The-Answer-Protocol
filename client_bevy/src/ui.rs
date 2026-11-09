@@ -34,6 +34,7 @@ impl Plugin for InventoryPlugin {
                 handle_equip_data,
                 handle_slot_interactions,
                 handle_action_btn,
+                handle_drop_btn,
                 handle_char_stats,
                 handle_tab_click,
                 update_tab_highlight,
@@ -121,6 +122,10 @@ pub struct EquipmentSlot(pub String);
 
 #[derive(Component)]
 pub struct InventoryActionBtn;
+
+/// The "Drop" button in the inventory item detail panel.
+#[derive(Component)]
+pub struct InventoryDropBtn;
 
 #[derive(Component)]
 pub struct InventoryActionText;
@@ -459,6 +464,27 @@ fn setup_inventory_ui(mut commands: Commands) {
                                     TextBundle::from_section("Equip", TextStyle { font_size: 14.0, color: TITLE_COLOR, ..default() }),
                                     InventoryActionText,
                                 ));
+                            });
+                            // Drop button — always shown when an item is selected
+                            bar.spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        width: Val::Px(80.0),
+                                        height: Val::Px(34.0),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        display: Display::None,
+                                        border: UiRect::all(Val::Px(2.0)),
+                                        margin: UiRect::left(Val::Px(6.0)),
+                                        ..default()
+                                    },
+                                    background_color: Color::rgba(0.35, 0.12, 0.12, 1.0).into(),
+                                    border_color: Color::rgba(0.7, 0.2, 0.2, 1.0).into(),
+                                    ..default()
+                                },
+                                InventoryDropBtn,
+                            )).with_children(|b| {
+                                b.spawn(TextBundle::from_section("Drop", TextStyle { font_size: 14.0, color: Color::rgb(1.0, 0.5, 0.5), ..default() }));
                             });
                         });
 
@@ -836,7 +862,8 @@ fn handle_slot_interactions(
         (Changed<Interaction>, With<Button>),
     >,
     mut text_query: Query<&mut Text, With<InventoryDescriptionText>>,
-    mut action_btn_q: Query<&mut Style, With<InventoryActionBtn>>,
+    mut action_btn_q: Query<&mut Style, (With<InventoryActionBtn>, Without<InventoryDropBtn>)>,
+    mut drop_btn_q: Query<&mut Style, (With<InventoryDropBtn>, Without<InventoryActionBtn>)>,
     mut action_txt_q: Query<&mut Text, (With<InventoryActionText>, Without<InventoryDescriptionText>)>,
     mut selected_item: ResMut<SelectedItem>,
 ) {
@@ -847,8 +874,6 @@ fn handle_slot_interactions(
 
         match *interaction {
             Interaction::Pressed => {
-                // On click: update description + action button, but don't persist a
-                // color resets on the next Hovered/None frame — no persistent tint.
                 *color  = Color::rgba(0.40, 0.35, 0.20, 1.0).into();
                 *border = BORDER_GOLD.into();
 
@@ -863,7 +888,6 @@ fn handle_slot_interactions(
                 selected_item.slot        = info.slot.clone();
 
                 if let Ok(mut style) = action_btn_q.get_single_mut() {
-                    // Show action button for: equippable items OR consumables
                     let show = info.slot != "none" || info.consumable;
                     style.display = if show { Display::Flex } else { Display::None };
                     if let Ok(mut btn_txt) = action_txt_q.get_single_mut() {
@@ -876,13 +900,16 @@ fn handle_slot_interactions(
                         };
                     }
                 }
+                // Always show the Drop button when an item is selected
+                if let Ok(mut style) = drop_btn_q.get_single_mut() {
+                    style.display = Display::Flex;
+                }
             }
             Interaction::Hovered => {
                 *color  = Color::rgba(0.32, 0.26, 0.16, 1.0).into();
                 *border = BORDER_GOLD.into();
             }
             Interaction::None => {
-                // Fully restore to base — this also fires when the mouse leaves the window.
                 *color  = base_bg.into();
                 *border = base_border.into();
             }
@@ -917,6 +944,28 @@ fn handle_action_btn(
             Interaction::None => {
                 *color = Color::rgba(0.35, 0.28, 0.18, 1.0).into();
             }
+        }
+    }
+}
+
+fn handle_drop_btn(
+    mut interaction_query: Query<
+        (&Interaction, &mut BackgroundColor),
+        (Changed<Interaction>, With<InventoryDropBtn>),
+    >,
+    selected_item: Res<SelectedItem>,
+    sender: Res<crate::net::NetworkSender>,
+) {
+    for (interaction, mut color) in &mut interaction_query {
+        match *interaction {
+            Interaction::Pressed => {
+                *color = Color::rgba(0.55, 0.15, 0.15, 1.0).into();
+                if let Some(id) = &selected_item.id {
+                    let _ = sender.0.send(format!("DROP {}\n", id));
+                }
+            }
+            Interaction::Hovered => { *color = Color::rgba(0.45, 0.15, 0.15, 1.0).into(); }
+            Interaction::None    => { *color = Color::rgba(0.35, 0.12, 0.12, 1.0).into(); }
         }
     }
 }
@@ -2840,6 +2889,10 @@ fn toggle_quest_ui(
     inventory: Res<InventoryState>,
     sender: Res<crate::net::NetworkSender>,
     combat: Option<Res<CombatResource>>,
+    mut selected: ResMut<SelectedQuest>,
+    mut title_q: Query<&mut Text, With<QuestDetailTitle>>,
+    mut desc_q: Query<&mut Text, (With<QuestDetailDescription>, Without<QuestDetailTitle>, Without<QuestDetailObjective>)>,
+    mut obj_q: Query<&mut Text, (With<QuestDetailObjective>, Without<QuestDetailTitle>, Without<QuestDetailDescription>)>,
 ) {
     if let Some(ref combat) = combat {
         if combat.in_combat && state.open {
@@ -2859,6 +2912,11 @@ fn toggle_quest_ui(
         state.open = !state.open;
         if state.open {
             let _ = sender.0.send("QUESTS\n".to_string());
+            // Reset detail panel to default "Select a quest" view.
+            selected.id = None;
+            if let Ok(mut t) = title_q.get_single_mut() { t.sections[0].value = "Select a quest".to_string(); }
+            if let Ok(mut t) = desc_q.get_single_mut() { t.sections[0].value = String::new(); }
+            if let Ok(mut t) = obj_q.get_single_mut()  { t.sections[0].value = String::new(); }
         }
     }
 
@@ -2903,11 +2961,12 @@ fn handle_quest_data(
             }
 
             for item in data.trim().split('|') {
-                let parts: Vec<&str> = item.splitn(4, ':').collect();
+                let parts: Vec<&str> = item.splitn(5, ':').collect();
                 if parts.len() >= 4 {
                     let quest_id = parts[0].to_string();
                     let quest_name = parts[1].to_string();
                     let quest_desc = parts[2].to_string();
+                    // parts[3] = objective text, parts[4] = stage wire (drop it from display)
                     let quest_obj = parts[3].to_string();
 
                     let entry_entity = commands.spawn((
