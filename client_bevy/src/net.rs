@@ -1,12 +1,12 @@
 use bevy::prelude::*;
-use crossbeam_channel::{bounded, Receiver, Sender, TryRecvError};
+use crossbeam_channel::{Receiver, Sender, TryRecvError, bounded};
 use std::thread;
 use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
 
-use crate::menu::LoginData;
 use crate::AppState;
+use crate::menu::LoginData;
 
 const SERVER_ADDR: &str = "127.0.0.1:4243";
 
@@ -47,7 +47,10 @@ impl Plugin for NetworkPlugin {
             .add_systems(PreUpdate, read_network_messages)
             .add_systems(
                 Update,
-                (return_to_login_on_disconnect, retry_connection_on_login_screen),
+                (
+                    return_to_login_on_disconnect,
+                    retry_connection_on_login_screen,
+                ),
             );
     }
 }
@@ -68,7 +71,14 @@ fn spawn_connection(commands: &mut Commands) {
     commands.insert_resource(NetworkSender(tx_to_server));
 
     thread::spawn(move || {
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = match tokio::runtime::Runtime::new() {
+            Ok(rt) => rt,
+            Err(e) => {
+                eprintln!("[NETWORK] Failed to create async runtime: {}", e);
+                let _ = tx_to_bevy.send(MSG_UNREACHABLE.to_string());
+                return;
+            }
+        };
         rt.block_on(async move {
             let Ok(stream) = TcpStream::connect(SERVER_ADDR).await else {
                 println!("[NETWORK] Unable to reach the server.");

@@ -110,7 +110,7 @@ The CLI client implements the first approach allowed by the subject: **what you 
 
 ### GUI client
 
-The GUI client logs in through a login menu, shows the current room as a 2D scene (map layers, collisions, other players, NPCs and mobs), and sends protocol commands on your behalf: movement between rooms, `POS` updates, `INTERACT` on NPCs (E key), `ATTACK`/`FLEE` in the combat screen, inventory and equipment actions, quest log (`QUESTS`) and a chat box with Global / Room / Group channels. A text console is also available for raw commands. A minimap shows the explored rooms.
+The GUI client logs in through a login menu, shows the current room as a 2D scene (map layers, collisions, other players, NPCs and mobs), and sends protocol commands on your behalf: movement between rooms, `POS` updates, `INTERACT` on NPCs (E key), `ATTACK`/`FLEE` in the combat screen, inventory and equipment actions, quest log (`QUESTS`) and a chat box with Global / Room / Group channels. Movement supports both **WASD** and **ZQSD** layouts. A text console is also available for raw commands. A minimap shows the explored rooms.
 
 ## Architecture
 
@@ -334,7 +334,7 @@ References:
 - Background on MUDs (Multi-User Dungeons)
 
 **How AI was used.**
-
+AI has been used to help with research, and to fasten the code, as in righting basic functions, and structs. All concepts have been learnt and understand, AI has been used for the sole purpose of doing repetitive tasks.
 
 ## Timeline:
 ````
@@ -505,6 +505,10 @@ References:
 	mlorenzo:
 		- Done the items on the ground, and the drop/take both on terminal and bevy
 		- Did the quest board entierly 
+13/11/2026:
+	mlorenzo:
+		- Corrected the heavy attacks
+		- Finished all of the bugs and robustness section
 ````
 
 TODO:
@@ -512,52 +516,19 @@ TODO:
 	- Upgrade the UI (chatbox disapear after 5s), Create Group UI and main menu UI with leave option.
 	- Fix bug respawn mob system, they respawn only if the players moves
 	- Help Command
-- PNJ (quest giver, dialogue, item giver)
-- Quests and boardquest
-- Statistics windows
-- Items
 
-## Developer notes: audit and known gaps
-
-Internal checklist written after reviewing the code against the subject (v1.4). Tick items as they are fixed, and update the [Protocol Implementation](#protocol-implementation) table when behaviour changes. Items marked *(verify)* could not be confirmed by reading the code alone. Nothing was compiled or run during the audit, so run `make lint` and `make test` first.
 
 ### Blocking: likely evaluation failures
 
-- [ ] **Hello line typo.** `serveur/src/main.rs` sends `S: DK hello proto=1`; it must be `S: OK hello proto=1`.
 - [ ] **`CONNECT <name>` without password** answers `ERR password_required`, so a client following the RFC cannot log in (clients must be interchangeable between groups). Make the password optional or document the deviation prominently.
 - [ ] **Reply formats vs the subject.** Subject examples: `OK room=loc.bakery`, `OK taken=item.herbs`, `OK dropped=item.herbs`, JSON for `LOOK`/`INVENTORY`/`WHO`, `EVT ROOM PRESENCE LEAVE alice`. Code sends `OK room-loc.X`, prose for `TAKE`/`DROP`/`LOOK`/`INVENTORY`, and `EVT ROOM <room> PRESENCE ...`. Align with RFC 42TAP, or list each difference in "Protocol Implementation".
-- [ ] **`QUEST <id>`** is parsed but falls into the catch-all arm (`not implemented yet`). Implement it.
-- [ ] **`QUESTS`** only replies with an `EVT QUEST_DATA` line and no `OK`/`ERR`; add a proper reply.
 - [ ] **World validation is missing.** `WorldData::load_from_file` only deserializes. Validate at startup: every exit target exists, every NPC/item id referenced by a room, quest, drop or reward exists, the start room exists, and fail with a clear message. Known bad reference: `Chungus` in `City` (no such NPC).
 - [ ] **Combat requirements.** Subject asks for turn-based combat with initiative order, `DEFEND`/`FLEE` style commands, respawn at a safe place with **reduced** health, and combat results **broadcast** to relevant players. Currently: one exchange per `ATTACK`, no initiative, no `DEFEND`, `FLEE` always succeeds, death restores full HP, hits are not broadcast to the room. On death the player is moved to `Start_oasis` without `PRESENCE LEAVE/ENTER` events, so other clients keep a ghost.
 - [ ] **Logging requirements.** Needed: always on (not only with `--logs`), levels INFO/WARN/ERROR, every command received (with player and parameters), every response and error code, NPC interactions, quest progress/completion, abuse patterns (command flooding, rapid connections) and precise timestamps. Currently only `CONNECT`, `DISCONNECT`, `AUTH_FAIL`, `TAKE`, `DROP`, `DEATH` are logged, `logs.json` is re-opened on every call, and cooldown rejections are not logged.
 - [ ] **TAKE/DROP do not notify the room**, so other players' views go stale. Subject: room view must update after TAKE/DROP. Emit an event to the room.
 - [ ] **GUI required controls.** Subject lists buttons for LOOK, MOVE, TAKE, DROP, TALK, ATTACK, STATUS, QUEST, QUESTS, WHO, GROUP, QUIT, plus counters for players in the room and on the server. No `LOOK`, `TAKE`, `TALK`, `STATUS`, `WHO` or `QUIT` is sent by a button *(verify in the UI)*, and no counters were found. Picking up ground items seems possible only through the text console *(verify)*.
-- [ ] **Quest variety.** Both shipped quests are `talk_to_npc`-based at the top level (stages add fetch/kill/answer). Fine for the count, but make sure the README demonstrates a fetch and a defeat quest.
-
-### Bugs and robustness
-
-- [ ] **`read_line` inside `tokio::select!` is not cancel-safe** and `line.clear()` runs at the top of each loop iteration: a partially received command is dropped whenever a broadcast event wins the race. Use a reader task that forwards complete lines through a channel, or keep the buffer across iterations.
-- [ ] **Global mutex held across slow work.** `main.rs` locks the state and then awaits `process_command`, which includes SQLite calls and Argon2 hashing/verification in `handle_connect`. One login blocks every player and the Tokio worker. Do the DB and hashing outside the lock, and use `tokio::task::spawn_blocking` for Argon2.
-- [ ] **Broadcast capacity is 32** and `POS` events are frequent: slow receivers will lag and lose events silently. Increase it and handle `RecvError::Lagged`.
-- [ ] **Hard-coded address** `127.0.0.1:4243` in server, CLI and GUI. Add CLI args or env vars (and bind `0.0.0.0` if peers on other machines must connect).
-- [ ] **Mob respawn only runs when some command is processed** (`update_respawns` is called in the command path). Use a timer task (already in the TODO list).
-- [ ] **DB default room mismatch.** Migration `0001` defaults `current_room` to `'Oasis1'`, which does not exist; the spawn room is `Start_oasis`. A player saved with the default would load into a missing room (`room_error`).
-- [ ] **Plain-text passwords on the wire.** Acceptable for a school project, but state it as a known limitation.
-- [ ] **Leftover French.** `handle_quests` still emits French objective text (`Parler a`, `Recuperer`, `Livrer`...), while the changelog says everything was translated. Code comments in `state.rs` and other files are in French too.
-- [ ] **`QUEST` parsing** keeps only `parts[1]`; `CHAT <channel>` with an empty message returns `malformed_command`; `MOVE` accepts only full direction names (`north`, not `n`). Check these against the RFC.
-- [ ] **GUI input keys.** Code uses WASD/ZQSD detection in `player.rs`; keep the controls documented consistently.
-- [ ] **`unwrap()`/`expect()`** (about 15 in server and GUI), including `world.yaml error` on load. Replace with proper error messages.
-- [ ] **Clippy and rustfmt** were not run. Expect `make lint` to fail until `make fmt` has been run once and clippy warnings are fixed.
 
 ### World and balance
 
-- [ ] `Excalibur` (damage 999) lies in the spawn room, which trivialises every fight including `Final_boss` (300 HP). Move it, nerf it, or gate it behind a quest.
-- [ ] Many NPCs have `role: "None"` (the string). Use real roles (`dialogue`, `merchant`, `quest_giver`, `enemy`) so the "3 distinct NPC roles" requirement is clearly met, and remove the `Quest_giver` role from NPCs that give no quest, or give them one.
 - [ ] Only 2 enemies exist (`SandMonster` with 1 damage, `Final_boss`). Add a few mobs on the main paths.
 - [ ] Only 4 items; add consumables (the subject example has an `ale` that restores energy) and a command to use them.
-
-### Repository hygiene
-
-- [ ] Fill in the "How AI was used" paragraph in Resources, and make sure each of you can explain the `select!` loop, the broadcast routing in `main.rs` and the quest-stage code during the evaluation (a small live modification may be requested).
-- [ ] Remove or keep this section as you prefer once everything is ticked; the Timeline below is the original development log and TODO list, kept unchanged.

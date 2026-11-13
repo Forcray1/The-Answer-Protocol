@@ -2,10 +2,10 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
+use crate::AppState;
 use crate::loading::{RoomTransition, RoomTransitionRequest};
 use crate::map::YSort;
 use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::AppState;
 
 pub struct PlayerPlugin;
 
@@ -14,7 +14,10 @@ impl Plugin for PlayerPlugin {
         app.init_resource::<HeldDirections>()
             .init_resource::<LocalPlayerName>()
             .init_resource::<LocalPlayerSkin>()
-            .insert_resource(PosSendTimer(Timer::from_seconds(POS_SEND_INTERVAL, TimerMode::Repeating)))
+            .insert_resource(PosSendTimer(Timer::from_seconds(
+                POS_SEND_INTERVAL,
+                TimerMode::Repeating,
+            )))
             .add_systems(Update, spawn_local_player_on_connect)
             .add_systems(OnEnter(AppState::MainMenu), clear_players_on_logout)
             .add_systems(
@@ -25,7 +28,8 @@ impl Plugin for PlayerPlugin {
                     handle_presence_events,
                     update_remote_players,
                     update_player_combat_visibility,
-                ).run_if(in_state(AppState::InGame)),
+                )
+                    .run_if(in_state(AppState::InGame)),
             );
     }
 }
@@ -101,13 +105,24 @@ impl Dir {
         }
     }
 
-    fn key(self) -> KeyCode {
-        match self {
-            Dir::North => KeyCode::KeyW,
-            Dir::South => KeyCode::KeyS,
-            Dir::West => KeyCode::KeyA,
-            Dir::East => KeyCode::KeyD,
-        }
+    fn is_just_pressed(self, keys: &ButtonInput<KeyCode>) -> bool {
+        let (primary, secondary) = match self {
+            Dir::North => (KeyCode::KeyW, KeyCode::KeyZ),
+            Dir::South => (KeyCode::KeyS, KeyCode::KeyS),
+            Dir::West => (KeyCode::KeyA, KeyCode::KeyQ),
+            Dir::East => (KeyCode::KeyD, KeyCode::KeyD),
+        };
+        keys.just_pressed(primary) || keys.just_pressed(secondary)
+    }
+
+    fn is_pressed(self, keys: &ButtonInput<KeyCode>) -> bool {
+        let (primary, secondary) = match self {
+            Dir::North => (KeyCode::KeyW, KeyCode::KeyZ),
+            Dir::South => (KeyCode::KeyS, KeyCode::KeyS),
+            Dir::West => (KeyCode::KeyA, KeyCode::KeyQ),
+            Dir::East => (KeyCode::KeyD, KeyCode::KeyD),
+        };
+        keys.pressed(primary) || keys.pressed(secondary)
     }
 }
 
@@ -189,7 +204,11 @@ fn spawn_player_visual(
             parent.spawn(Text2dBundle {
                 text: Text::from_section(
                     name,
-                    TextStyle { font_size: 40.0, color: Color::WHITE, ..default() },
+                    TextStyle {
+                        font_size: 40.0,
+                        color: Color::WHITE,
+                        ..default()
+                    },
                 ),
                 transform: Transform::from_xyz(0.0, NAME_Y_OFFSET, NAME_Z_OFFSET),
                 ..default()
@@ -203,7 +222,10 @@ fn load_skin_textures(asset_server: &AssetServer, skin: &str) -> [[Handle<Image>
         std::array::from_fn(|frame| {
             asset_server.load(format!(
                 "{}/{}/{}/f{}.png",
-                SKIN_FOLDER, skin, DIR_FOLDERS[dir], frame + 1
+                SKIN_FOLDER,
+                skin,
+                DIR_FOLDERS[dir],
+                frame + 1
             ))
         })
     })
@@ -227,16 +249,15 @@ const T3_TO_T2: Vec2 = Vec2::new(1255.0, 427.0);
 const T2_TO_T1: Vec2 = Vec2::new(1255.0, 427.0);
 const T1_TO_T: Vec2 = Vec2::new(1255.0, 106.0);
 
-
 fn arrival_point(from_room: &str, dir: &str) -> Vec2 {
     match (from_room, dir) {
         ("Cave1", "east") => C_TO_W6,
-		("City", "east") => C_TO_C,
-		("Castle", "west") => T_TO_C,
-		("Temple4", "west") => T4_TO_T3,
-		("Temple3", "west") => T3_TO_T2,
-		("Temple2", "west") => T2_TO_T1,
-		("Temple1", "west") => T1_TO_T,
+        ("City", "east") => C_TO_C,
+        ("Castle", "west") => T_TO_C,
+        ("Temple4", "west") => T4_TO_T3,
+        ("Temple3", "west") => T3_TO_T2,
+        ("Temple2", "west") => T2_TO_T1,
+        ("Temple1", "west") => T1_TO_T,
         _ => default_arrival(dir),
     }
 }
@@ -260,7 +281,11 @@ fn update_local_player(
     };
 
     // Freeze player during transitions or combat.
-    if transition.is_active() || combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None || dialogue.is_active() {
+    if transition.is_active()
+        || combat.in_combat
+        || combat.phase != crate::combat::CombatTransitionPhase::None
+        || dialogue.is_active()
+    {
         held.0.clear();
         animate(&mut anim, &mut texture, time.delta(), false, Vec2::ZERO);
         return;
@@ -270,11 +295,11 @@ fn update_local_player(
         held.0.clear();
     } else {
         for d in MOVE_KEYS {
-            if keys.just_pressed(d.key()) && !held.0.contains(&d) {
+            if d.is_just_pressed(&keys) && !held.0.contains(&d) {
                 held.0.push(d);
             }
         }
-        held.0.retain(|d| keys.pressed(d.key()));
+        held.0.retain(|d| d.is_pressed(&keys));
     }
 
     if let Some(&d) = held.0.first() {
@@ -286,9 +311,17 @@ fn update_local_player(
         let foot = |x: f32, y: f32| Vec2::new(x, y + FOOT_OFFSET_Y);
 
         let try_x = cur_x + delta.x;
-        let res_x = if collision.blocks_box(foot(try_x, cur_y), half) { cur_x } else { try_x };
+        let res_x = if collision.blocks_box(foot(try_x, cur_y), half) {
+            cur_x
+        } else {
+            try_x
+        };
         let try_y = cur_y + delta.y;
-        let res_y = if collision.blocks_box(foot(res_x, try_y), half) { cur_y } else { try_y };
+        let res_y = if collision.blocks_box(foot(res_x, try_y), half) {
+            cur_y
+        } else {
+            try_y
+        };
 
         let mut new_x = res_x;
         let mut new_y = res_y;
@@ -378,7 +411,11 @@ fn send_local_position(
         return; // position inchangée : rien à envoyer
     }
     *last_sent = Some(pos);
-    let _ = sender.0.send(format!("POS {} {}\n", pos.x.round() as i64, pos.y.round() as i64));
+    let _ = sender.0.send(format!(
+        "POS {} {}\n",
+        pos.x.round() as i64,
+        pos.y.round() as i64
+    ));
 }
 
 /// Back to the login screen (QUIT or lost connection): remove the local avatar and the
@@ -427,16 +464,21 @@ fn handle_presence_events(
                 match p[4] {
                     "ENTER" | "ROSTER" if p.len() >= 9 => {
                         let skin = p[6];
-                        let pos = Vec2::new(p[7].parse().unwrap_or(0.0), p[8].parse().unwrap_or(0.0));
+                        let pos =
+                            Vec2::new(p[7].parse().unwrap_or(0.0), p[8].parse().unwrap_or(0.0));
                         if remotes.iter().any(|(_, r)| r.name == name) {
                             continue; // déjà présent
                         }
-                        let entity = spawn_player_visual(&mut commands, &asset_server, skin, name, pos);
+                        let entity =
+                            spawn_player_visual(&mut commands, &asset_server, skin, name, pos);
                         commands.entity(entity).insert(RemotePlayer {
                             name: name.to_string(),
                             target: pos,
                         });
-                        println!("[PLAYER] Remote player '{}' appeared (skin '{}').", name, skin);
+                        println!(
+                            "[PLAYER] Remote player '{}' appeared (skin '{}').",
+                            name, skin
+                        );
                     }
                     "LEAVE" => {
                         for (entity, r) in &remotes {
@@ -467,7 +509,12 @@ fn handle_presence_events(
 
 fn update_remote_players(
     time: Res<Time>,
-    mut query: Query<(&mut Transform, &RemotePlayer, &mut PlayerAnimation, &mut Handle<Image>)>,
+    mut query: Query<(
+        &mut Transform,
+        &RemotePlayer,
+        &mut PlayerAnimation,
+        &mut Handle<Image>,
+    )>,
 ) {
     for (mut transform, remote, mut anim, mut texture) in &mut query {
         let current = transform.translation.truncate();

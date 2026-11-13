@@ -9,13 +9,28 @@
 // JSON columns now store: the full inventory (3 bags) as one
 // object, equipment as slot -> id map, and quests as id list.
 
+use argon2::password_hash::{rand_core::OsRng, PasswordHash, SaltString};
+use argon2::{Argon2, PasswordHasher, PasswordVerifier};
+use sqlx::{sqlite::SqliteConnectOptions, sqlite::SqlitePoolOptions, SqlitePool};
 use std::collections::HashMap;
 use std::str::FromStr;
-use sqlx::{SqlitePool, sqlite::SqlitePoolOptions, sqlite::SqliteConnectOptions};
-use argon2::{Argon2, PasswordHasher, PasswordVerifier};
-use argon2::password_hash::{rand_core::OsRng, SaltString, PasswordHash};
 
 use domain::{Inventory, ItemId, QuestId, RoomId};
+
+type PlayerRow = (
+    i32,
+    i32,
+    i32,
+    i32,
+    String,
+    String,
+    String,
+    String,
+    String,
+    Option<f64>,
+    Option<f64>,
+    i32,
+);
 
 pub struct PlayerData {
     pub hp: i32,
@@ -49,8 +64,7 @@ pub struct PlayerData {
 
 pub async fn init_db(database_url: &str) -> Result<SqlitePool, sqlx::Error> {
     // create_if_missing: creates game.db if it doesn't exist yet
-    let options = SqliteConnectOptions::from_str(database_url)?
-        .create_if_missing(true);
+    let options = SqliteConnectOptions::from_str(database_url)?.create_if_missing(true);
 
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
@@ -73,12 +87,11 @@ pub async fn register_player(
     username: &str,
     password: &str,
 ) -> Result<bool, sqlx::Error> {
-    let existing: Option<(String,)> = sqlx::query_as(
-        "SELECT username FROM players WHERE username = ?"
-    )
-    .bind(username)
-    .fetch_optional(pool)
-    .await?;
+    let existing: Option<(String,)> =
+        sqlx::query_as("SELECT username FROM players WHERE username = ?")
+            .bind(username)
+            .fetch_optional(pool)
+            .await?;
 
     if existing.is_some() {
         return Ok(false); // Username already taken
@@ -91,13 +104,12 @@ pub async fn register_player(
         .expect("hash failed")
         .to_string();
 
-    sqlx::query(
-        "INSERT INTO players (username, password_hash) VALUES (?, ?)"
-    )
-    .bind(username)
-    .bind(&hash)
-    .execute(pool)
-    .await?;
+    sqlx::query("INSERT INTO players (username, password_hash, current_room) VALUES (?, ?, ?)")
+        .bind(username)
+        .bind(&hash)
+        .bind("Start_oasis")
+        .execute(pool)
+        .await?;
 
     Ok(true)
 }
@@ -111,12 +123,11 @@ pub async fn verify_player(
     username: &str,
     password: &str,
 ) -> Result<bool, sqlx::Error> {
-    let row: Option<(String,)> = sqlx::query_as(
-        "SELECT password_hash FROM players WHERE username = ?"
-    )
-    .bind(username)
-    .fetch_optional(pool)
-    .await?;
+    let row: Option<(String,)> =
+        sqlx::query_as("SELECT password_hash FROM players WHERE username = ?")
+            .bind(username)
+            .fetch_optional(pool)
+            .await?;
 
     match row {
         None => Ok(false), // Player not found
@@ -139,7 +150,7 @@ pub async fn load_player(
     pool: &SqlitePool,
     username: &str,
 ) -> Result<Option<PlayerData>, sqlx::Error> {
-    let row: Option<(i32, i32, i32, i32, String, String, String, String, String, Option<f64>, Option<f64>, i32)> = sqlx::query_as(
+    let row: Option<PlayerRow> = sqlx::query_as(
         "SELECT hp, exp, level, money, current_room, inventory, equipment, completed_quests, skin, pos_x, pos_y, stat_points
          FROM players WHERE username = ?"
     )
@@ -150,7 +161,7 @@ pub async fn load_player(
     // Load base stats separately to avoid tuple-size limits in sqlx.
     let stats_row: Option<(i32, i32, i32, i32, i32)> = sqlx::query_as(
         "SELECT base_damage, base_defense, base_spe_dmg, base_spe_def, base_max_hp
-         FROM players WHERE username = ?"
+         FROM players WHERE username = ?",
     )
     .bind(username)
     .fetch_optional(pool)
@@ -158,9 +169,21 @@ pub async fn load_player(
 
     match row {
         None => Ok(None),
-        Some((hp, exp, level, money, current_room, inv_json, equip_json, quests_json, skin, pos_x, pos_y, stat_points)) => {
-            let inventory: Inventory =
-                serde_json::from_str(&inv_json).unwrap_or_default();
+        Some((
+            hp,
+            exp,
+            level,
+            money,
+            current_room,
+            inv_json,
+            equip_json,
+            quests_json,
+            skin,
+            pos_x,
+            pos_y,
+            stat_points,
+        )) => {
+            let inventory: Inventory = serde_json::from_str(&inv_json).unwrap_or_default();
             let equipment: HashMap<String, ItemId> =
                 serde_json::from_str(&equip_json).unwrap_or_default();
             let completed_quests: Vec<QuestId> =
@@ -231,7 +254,7 @@ pub async fn save_player(
              inventory = ?, equipment = ?, completed_quests = ?, skin = ?,
              pos_x = ?, pos_y = ?, stat_points = ?,
              base_damage = ?, base_defense = ?, base_spe_dmg = ?, base_spe_def = ?, base_max_hp = ?
-         WHERE username = ?"
+         WHERE username = ?",
     )
     .bind(hp)
     .bind(exp)

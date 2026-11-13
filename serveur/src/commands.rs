@@ -2,7 +2,10 @@
 
 #[derive(Debug, PartialEq)]
 pub enum GameCommand {
-    Connect { username: String, password: String },
+    Connect {
+        username: String,
+        password: String,
+    },
     Look,
     Move(String),
     Take(String),
@@ -17,10 +20,16 @@ pub enum GameCommand {
     Talk(String),
     Quests,
     Quest(String),
-    Chat { channel: String, message: String },
+    Chat {
+        channel: String,
+        message: String,
+    },
     Interact(String),
     Who,
-    Pos { x: f32, y: f32 },
+    Pos {
+        x: f32,
+        y: f32,
+    },
     GroupCreate,
     GroupInvite(String),
     GroupAccept,
@@ -29,9 +38,15 @@ pub enum GameCommand {
     Quit,
     Flee,
     /// Reply to a multiple-choice dialogue: `ANSWER <npc_id> <answer>`
-    Answer { npc: String, answer: String },
+    Answer {
+        npc: String,
+        answer: String,
+    },
     /// Buy an item from an NPC's shop: `BUY <npc_id> <item_id>`
-    Buy { npc: String, item: String },
+    Buy {
+        npc: String,
+        item: String,
+    },
     /// Use a consumable item: `USE <item_id>`
     Use(String),
     /// Spend a stat point: `STATUP <stat>` (damage|special_damage|defense|special_defense|max_hp)
@@ -67,25 +82,25 @@ impl GameCommand {
                 password: parts.get(2).map(|s| s.to_string()).unwrap_or_default(),
             },
             "LOOK" => GameCommand::Look,
-            
+
             "MOVE" if parts.len() > 1 => GameCommand::Move(parts[1].to_lowercase()),
 
             "TAKE" if parts.len() > 1 => GameCommand::Take(parts[1..].join(" ")),
             "DROP" if parts.len() > 1 => GameCommand::Drop(parts[1..].join(" ")),
-            
+
             "INVENTORY" => GameCommand::Inventory,
             "EQUIP" if parts.len() > 1 => GameCommand::Equip(parts[1..].join(" ")),
             "UNEQUIP" if parts.len() > 1 => GameCommand::Unequip(parts[1..].join(" ")),
             "EQUIPMENT" => GameCommand::Equipment,
             "INFO" if parts.len() > 1 => GameCommand::Info(parts[1..].join(" ")),
             "STATUS" => GameCommand::Status,
-            
+
             "ATTACK" if parts.len() > 1 => GameCommand::Attack(parts[1..].join(" ")),
             "TALK" if parts.len() > 1 => GameCommand::Talk(parts[1..].join(" ")),
             "INTERACT" if parts.len() > 1 => GameCommand::Interact(parts[1..].join(" ")),
             "QUESTS" => GameCommand::Quests,
             "QUEST" if parts.len() > 1 => GameCommand::Quest(parts[1..].join(" ")),
-            
+
             "WHO" => GameCommand::Who,
 
             "POS" if parts.len() > 2 => match (parts[1].parse::<f32>(), parts[2].parse::<f32>()) {
@@ -103,7 +118,9 @@ impl GameCommand {
             "STATUP" if parts.len() > 1 => GameCommand::StatUp(parts[1].to_lowercase()),
             "ATTACK_MAGIC" if parts.len() > 1 => GameCommand::AttackMagic(parts[1..].join(" ")),
             "ATTACK_HEAVY" if parts.len() > 1 => GameCommand::AttackHeavy(parts[1..].join(" ")),
-            "ATTACK_MAGIC_HEAVY" if parts.len() > 1 => GameCommand::AttackMagicHeavy(parts[1..].join(" ")),
+            "ATTACK_MAGIC_HEAVY" if parts.len() > 1 => {
+                GameCommand::AttackMagicHeavy(parts[1..].join(" "))
+            }
             "BOARD_QUESTS" => GameCommand::BoardQuests,
             "BOARD_TAKE" if parts.len() > 1 => {
                 if let Ok(n) = parts[1].parse::<usize>() {
@@ -128,7 +145,9 @@ impl GameCommand {
                 if parts.len() > 1 {
                     match parts[1].to_uppercase().as_str() {
                         "CREATE" => GameCommand::GroupCreate,
-                        "INVITE" if parts.len() > 2 => GameCommand::GroupInvite(parts[2].to_string()),
+                        "INVITE" if parts.len() > 2 => {
+                            GameCommand::GroupInvite(parts[2].to_string())
+                        }
                         "ACCEPT" => GameCommand::GroupAccept,
                         "LEAVE" => GameCommand::GroupLeave,
                         _ => GameCommand::Unknown,
@@ -137,7 +156,7 @@ impl GameCommand {
                     GameCommand::GroupInfo
                 }
             }
-            
+
             _ => GameCommand::Unknown,
         }
     }

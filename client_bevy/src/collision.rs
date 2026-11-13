@@ -1,17 +1,16 @@
 use bevy::prelude::*;
 
-use crate::game::GameState;
 use crate::AppState;
+use crate::game::GameState;
 
 pub struct CollisionPlugin;
 
 impl Plugin for CollisionPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<CollisionMask>()
-            .add_systems(
-                Update,
-                load_mask_on_room_change.run_if(in_state(AppState::InGame)),
-            );
+        app.init_resource::<CollisionMask>().add_systems(
+            Update,
+            load_mask_on_room_change.run_if(in_state(AppState::InGame)),
+        );
     }
 }
 

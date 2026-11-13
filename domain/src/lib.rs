@@ -37,7 +37,10 @@ macro_rules! id_type {
 
 id_type!(PlayerId, "Unique identifier for a player (their username).");
 id_type!(RoomId, "Unique identifier for a room / location.");
-id_type!(ItemId, "Unique identifier for an item (item, weapon or key item).");
+id_type!(
+    ItemId,
+    "Unique identifier for an item (item, weapon or key item)."
+);
 id_type!(NpcId, "Unique identifier for an NPC.");
 id_type!(QuestId, "Unique identifier for a quest.");
 id_type!(GroupId, "Unique identifier for a player group.");
@@ -72,23 +75,12 @@ impl Direction {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Stats {
     pub damage: i32,
     pub special_damage: i32,
     pub defense: i32,
     pub special_defense: i32,
-}
-
-impl Default for Stats {
-    fn default() -> Self {
-        Stats {
-            damage: 0,
-            special_damage: 0,
-            defense: 0,
-            special_defense: 0,
-        }
-    }
 }
 
 pub fn xp_required_for_level(level: i32) -> i32 {
@@ -131,17 +123,12 @@ pub struct Medaillon {
     pub description: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum WeaponType {
     Magic,
+    #[default]
     Melee,
     Range,
-}
-
-impl Default for WeaponType {
-    fn default() -> Self {
-        WeaponType::Melee
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -300,17 +287,12 @@ pub struct KeyItem {
     pub quest: Option<QuestId>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum CombatState {
+    #[default]
     Idle,
     InCombat { target: NpcId },
     Defeated,
-}
-
-impl Default for CombatState {
-    fn default() -> Self {
-        CombatState::Idle
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -325,5 +307,3 @@ pub struct Group {
     pub id: GroupId,
     pub members: Vec<PlayerId>,
 }
-
-

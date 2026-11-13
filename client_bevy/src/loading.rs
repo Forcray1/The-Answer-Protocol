@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
+use crate::AppState;
 use crate::game::GameState;
 use crate::net::NetworkSender;
 use crate::player::LocalPlayer;
-use crate::AppState;
 
 pub struct LoadingPlugin;
 
@@ -14,8 +14,7 @@ impl Plugin for LoadingPlugin {
             .add_systems(Startup, spawn_overlay)
             .add_systems(
                 Update,
-                (start_transition, animate_transition)
-                    .run_if(in_state(AppState::InGame)),
+                (start_transition, animate_transition).run_if(in_state(AppState::InGame)),
             );
     }
 }
@@ -54,14 +53,9 @@ pub enum TransitionPhase {
         arrival: Vec2,
     },
     /// Screen is black, waiting for GameState.current_room to change.
-    WaitingForRoom {
-        from_room: String,
-        arrival: Vec2,
-    },
+    WaitingForRoom { from_room: String, arrival: Vec2 },
     /// Fading from black back to normal. `progress` goes 1 → 0.
-    FadingIn {
-        timer: f32,
-    },
+    FadingIn { timer: f32 },
 }
 
 impl RoomTransition {
@@ -174,7 +168,10 @@ fn animate_transition(
             // Check if the room has changed in GameState.
             if game_state.current_room != *from_room {
                 transition.phase = TransitionPhase::FadingIn { timer: 0.0 };
-                println!("[LOADING] Room '{}' loaded, starting fade-in.", game_state.current_room);
+                println!(
+                    "[LOADING] Room '{}' loaded, starting fade-in.",
+                    game_state.current_room
+                );
             }
         }
         TransitionPhase::FadingIn { timer } => {

@@ -11,11 +11,11 @@ use std::net::SocketAddr;
 use std::time::Duration;
 use std::time::Instant;
 
-use crate::world::WorldData;
 use crate::board_quests::BoardQuestPool;
+use crate::world::WorldData;
 use domain::{
-    xp_required_for_level, CombatState, Equipement, Group, GroupId, Inventory, ItemId, Medaillon, NpcId,
-    PlayerId, RoomId, Stats, XpBar,
+    xp_required_for_level, CombatState, Equipement, Group, GroupId, Inventory, ItemId, Medaillon,
+    NpcId, PlayerId, RoomId, Stats, XpBar,
 };
 
 pub const START_ROOM: &str = "Start_oasis";
@@ -37,6 +37,7 @@ pub struct RuntimeItem {
     pub pos_y: f32,
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, Clone, PartialEq)]
 pub enum CombatPhase {
     WaitingForPlayerAction,
@@ -95,6 +96,8 @@ pub struct Player {
     pub last_move: Option<Instant>,
     pub last_attack: Option<Instant>,
     pub last_chat: Option<Instant>,
+    /// Number of turns the player must skip in combat (heavy attack drawback).
+    pub stunned_turns: u32,
     /// Guest session (CONNECT without password): not backed by an account, never saved.
     pub guest: bool,
 }
@@ -129,6 +132,7 @@ impl Player {
             last_move: None,
             last_attack: None,
             last_chat: None,
+            stunned_turns: 0,
             guest: false,
         }
     }
@@ -213,7 +217,10 @@ impl ServerState {
         for (npc_id, room_id) in to_respawn {
             if let Some(npc) = world_data.world.npcs.iter().find(|n| n.id == npc_id) {
                 self.npc_hps.insert(npc_id.clone(), npc.hp);
-                self.room_npcs.entry(room_id.clone()).or_default().push(npc_id.clone());
+                self.room_npcs
+                    .entry(room_id.clone())
+                    .or_default()
+                    .push(npc_id.clone());
                 respawned.push((npc_id, room_id));
             }
         }
@@ -246,7 +253,8 @@ impl ServerState {
                 .collect();
 
             self.room_items.insert(room_id.clone(), runtime_items);
-            self.room_npcs.insert(room_id.clone(), location.npcs.clone());
+            self.room_npcs
+                .insert(room_id.clone(), location.npcs.clone());
         }
 
         for npc in &world_data.world.npcs {

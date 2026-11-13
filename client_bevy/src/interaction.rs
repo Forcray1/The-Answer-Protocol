@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
-use crate::net::{NetworkSender, ServerMessageEvent};
 use crate::AppState;
+use crate::net::{NetworkSender, ServerMessageEvent};
 
 pub struct InteractionPlugin;
 
@@ -145,17 +145,27 @@ fn show_npc_dialogue_popup(
     mut text_q: Query<&mut Text, With<NpcDialogueText>>,
     mut dialogue_state: ResMut<DialogueState>,
 ) {
-    let Ok(mut popup_visibility) = popup_q.get_single_mut() else { return; };
-    let Ok((mut portrait_visibility, mut portrait_image)) = portrait_q.get_single_mut() else { return; };
-    let Ok(mut dialogue_text) = text_q.get_single_mut() else { return; };
+    let Ok(mut popup_visibility) = popup_q.get_single_mut() else {
+        return;
+    };
+    let Ok((mut portrait_visibility, mut portrait_image)) = portrait_q.get_single_mut() else {
+        return;
+    };
+    let Ok(mut dialogue_text) = text_q.get_single_mut() else {
+        return;
+    };
 
     for ev in events.read() {
         // ── Choice dialogue ───────────────────────────────────────────────
         // Format: `S: EVT DIALOGUE_CHOICE <npc_key> <pages>||CHOICES||<text>:<ans>|…`
         if let Some(rest) = ev.0.strip_prefix("S: EVT DIALOGUE_CHOICE ") {
             let mut split = rest.splitn(2, ' ');
-            let Some(speaker) = split.next() else { continue; };
-            let Some(payload) = split.next() else { continue; };
+            let Some(speaker) = split.next() else {
+                continue;
+            };
+            let Some(payload) = split.next() else {
+                continue;
+            };
 
             let (pages_part, choices_part) = if let Some(idx) = payload.find("||CHOICES||") {
                 (&payload[..idx], &payload[idx + 11..])
@@ -183,12 +193,14 @@ fn show_npc_dialogue_popup(
                 .filter_map(|c| {
                     let mut it = c.splitn(2, ':');
                     let text = it.next()?.replace('_', " ");
-                    let ans  = it.next()?.to_string();
+                    let ans = it.next()?.to_string();
                     Some((text, ans))
                 })
                 .collect();
 
-            if lines.is_empty() { continue; }
+            if lines.is_empty() {
+                continue;
+            }
             if let Some(sprite) = speaker_sprite {
                 portrait_image.texture = sprite;
                 *portrait_visibility = Visibility::Inherited;
@@ -205,11 +217,17 @@ fn show_npc_dialogue_popup(
         }
 
         // ── Dialogue simple ───────────────────────────────────────────────
-        let Some(rest) = ev.0.strip_prefix("S: EVT DIALOGUE ") else { continue; };
+        let Some(rest) = ev.0.strip_prefix("S: EVT DIALOGUE ") else {
+            continue;
+        };
 
         let mut split = rest.splitn(2, ' ');
-        let Some(speaker) = split.next() else { continue; };
-        let Some(dialogue_payload) = split.next() else { continue; };
+        let Some(speaker) = split.next() else {
+            continue;
+        };
+        let Some(dialogue_payload) = split.next() else {
+            continue;
+        };
         let normalized_speaker = speaker.replace('_', " ").trim().to_lowercase();
 
         let mut speaker_sprite: Option<Handle<Image>> = None;
@@ -227,7 +245,9 @@ fn show_npc_dialogue_popup(
             .map(ToOwned::to_owned)
             .collect();
 
-        if lines.is_empty() { continue; }
+        if lines.is_empty() {
+            continue;
+        }
 
         if let Some(sprite) = speaker_sprite {
             portrait_image.texture = sprite;
@@ -254,14 +274,23 @@ fn handle_dialogue_advance_input(
 ) {
     if let Some(ref combat) = combat {
         if combat.in_combat && dialogue_state.active {
-            close_dialogue(&mut dialogue_state, &mut popup_q, &mut portrait_q, &mut text_q);
+            close_dialogue(
+                &mut dialogue_state,
+                &mut popup_q,
+                &mut portrait_q,
+                &mut text_q,
+            );
             return;
         }
     }
 
     // Do not advance while showing choices (handled by handle_choice_click).
-    if dialogue_state.showing_choices { return; }
-    if !dialogue_state.active || !input.just_pressed(KeyCode::KeyE) { return; }
+    if dialogue_state.showing_choices {
+        return;
+    }
+    if !dialogue_state.active || !input.just_pressed(KeyCode::KeyE) {
+        return;
+    }
 
     if dialogue_state.current_index + 1 < dialogue_state.lines.len() {
         dialogue_state.current_index += 1;
@@ -281,12 +310,20 @@ fn handle_dialogue_advance_input(
         return;
     }
 
-    close_dialogue(&mut dialogue_state, &mut popup_q, &mut portrait_q, &mut text_q);
+    close_dialogue(
+        &mut dialogue_state,
+        &mut popup_q,
+        &mut portrait_q,
+        &mut text_q,
+    );
 }
 
 fn close_dialogue(
     dialogue_state: &mut DialogueState,
-    popup_q: &mut Query<&mut Visibility, (With<NpcDialoguePopupRoot>, Without<NpcDialoguePortrait>)>,
+    popup_q: &mut Query<
+        &mut Visibility,
+        (With<NpcDialoguePopupRoot>, Without<NpcDialoguePortrait>),
+    >,
     portrait_q: &mut Query<&mut Visibility, With<NpcDialoguePortrait>>,
     text_q: &mut Query<&mut Text, With<NpcDialogueText>>,
 ) {
@@ -296,9 +333,15 @@ fn close_dialogue(
     dialogue_state.choices.clear();
     dialogue_state.showing_choices = false;
     dialogue_state.current_npc.clear();
-    if let Ok(mut v) = popup_q.get_single_mut()   { *v = Visibility::Hidden; }
-    if let Ok(mut v) = portrait_q.get_single_mut() { *v = Visibility::Hidden; }
-    if let Ok(mut t) = text_q.get_single_mut()     { t.sections[0].value.clear(); }
+    if let Ok(mut v) = popup_q.get_single_mut() {
+        *v = Visibility::Hidden;
+    }
+    if let Ok(mut v) = portrait_q.get_single_mut() {
+        *v = Visibility::Hidden;
+    }
+    if let Ok(mut t) = text_q.get_single_mut() {
+        t.sections[0].value.clear();
+    }
 }
 
 /// Spawns / despawns choice buttons based on `showing_choices`.
@@ -307,7 +350,9 @@ fn render_dialogue_choices(
     dialogue_state: Res<DialogueState>,
     existing_root: Query<Entity, With<DialogueChoicesRoot>>,
 ) {
-    if !dialogue_state.is_changed() { return; }
+    if !dialogue_state.is_changed() {
+        return;
+    }
 
     // Clean up old buttons.
     for entity in &existing_root {
@@ -349,7 +394,10 @@ fn render_dialogue_choices(
                             background_color: Color::rgba(0.15, 0.15, 0.2, 0.95).into(),
                             ..default()
                         },
-                        DialogueChoiceBtn { answer: answer.clone(), npc },
+                        DialogueChoiceBtn {
+                            answer: answer.clone(),
+                            npc,
+                        },
                     ))
                     .with_children(|btn| {
                         btn.spawn(TextBundle::from_section(
@@ -384,7 +432,12 @@ fn handle_choice_click(
         if *interaction == Interaction::Pressed {
             let msg = format!("ANSWER {} {}\n", btn.npc, btn.answer);
             let _ = sender.0.try_send(msg);
-            close_dialogue(&mut dialogue_state, &mut popup_q, &mut portrait_q, &mut text_q);
+            close_dialogue(
+                &mut dialogue_state,
+                &mut popup_q,
+                &mut portrait_q,
+                &mut text_q,
+            );
         }
     }
 }

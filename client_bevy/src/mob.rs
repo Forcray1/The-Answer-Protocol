@@ -2,11 +2,11 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
+use crate::AppState;
 use crate::map::YSort;
 use crate::net::ServerMessageEvent;
-use crate::player::PlayerName;
 use crate::player::LocalPlayer;
-use crate::AppState;
+use crate::player::PlayerName;
 
 pub struct MobPlugin;
 
@@ -86,7 +86,10 @@ fn handle_mob_events(
             let x: f32 = parts[6].parse().unwrap_or(0.0);
             let y: f32 = parts[7].parse().unwrap_or(0.0);
             let scale: f32 = parts.get(10).and_then(|s| s.parse().ok()).unwrap_or(1.0);
-            let npc_name = parts.get(11).map(|s| s.replace("_", " ")).unwrap_or_else(|| npc_id.to_string());
+            let npc_name = parts
+                .get(11)
+                .map(|s| s.replace("_", " "))
+                .unwrap_or_else(|| npc_id.to_string());
             let is_enemy = parts.get(12).map(|s| *s == "enemy").unwrap_or(false);
 
             // Don't duplicate if already spawned
@@ -127,7 +130,10 @@ fn handle_mob_events(
                 },
                 YSort,
             ));
-            println!("[MOB] Spawned '{}' (name '{}', sprite '{}') at ({}, {}) scale: {}", npc_id, npc_name, sprite_clean, x, y, scale);
+            println!(
+                "[MOB] Spawned '{}' (name '{}', sprite '{}') at ({}, {}) scale: {}",
+                npc_id, npc_name, sprite_clean, x, y, scale
+            );
         }
 
         // S: EVT ROOM MOB_DESPAWN <npc_id>
@@ -178,7 +184,8 @@ fn animate_mobs(
                 }
             } else {
                 // Image statique / pleine (ex: IdleSqueleton.png 500x500)
-                anim.frames.push(Rect::from_corners(Vec2::ZERO, Vec2::new(img_w, img_h)));
+                anim.frames
+                    .push(Rect::from_corners(Vec2::ZERO, Vec2::new(img_w, img_h)));
             }
 
             // Set initial frame rect
@@ -226,10 +233,7 @@ fn cleanup_mobs_on_room_change(
     }
 }
 
-fn setup_interaction_ui(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-) {
+fn setup_interaction_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
     let pnj_texture = asset_server.load(INTERACTION_PROMPT_PNJ_SPRITE);
     let mob_texture = asset_server.load(INTERACTION_PROMPT_MOB_SPRITE);
     commands.insert_resource(InteractionPromptSprites {
@@ -263,7 +267,16 @@ fn interaction_system(
     mob_q: Query<(&Transform, &Mob), Without<InteractionPrompt>>,
     board_q: Query<(&Transform, &BoardNode), Without<InteractionPrompt>>,
     items_q: Query<(&Transform, &GroundItem), Without<InteractionPrompt>>,
-    mut prompt_q: Query<(&mut Visibility, &mut Transform, &mut Handle<Image>), (With<InteractionPrompt>, Without<LocalPlayer>, Without<Mob>, Without<BoardNode>, Without<GroundItem>)>,
+    mut prompt_q: Query<
+        (&mut Visibility, &mut Transform, &mut Handle<Image>),
+        (
+            With<InteractionPrompt>,
+            Without<LocalPlayer>,
+            Without<Mob>,
+            Without<BoardNode>,
+            Without<GroundItem>,
+        ),
+    >,
     mut interactable: ResMut<InteractableTarget>,
     ground_target: Res<GroundItemTarget>,
     combat: Res<crate::combat::CombatResource>,
@@ -277,14 +290,18 @@ fn interaction_system(
         interactable.0 = None;
         return;
     }
-    let Ok(player_transform) = player_q.get_single() else { return; };
+    let Ok(player_transform) = player_q.get_single() else {
+        return;
+    };
     let mut closest_dist = f32::MAX;
     let mut closest_npc = None;
     let mut closest_pos = Vec3::ZERO;
     let mut closest_is_enemy = false;
 
     for (mob_transform, mob) in &mob_q {
-        let dist = player_transform.translation.distance(mob_transform.translation);
+        let dist = player_transform
+            .translation
+            .distance(mob_transform.translation);
         if dist < 150.0 && dist < closest_dist {
             closest_dist = dist;
             closest_npc = Some(mob.npc_id.clone());
@@ -295,7 +312,9 @@ fn interaction_system(
 
     // Also check board nodes (notice boards — no enemy, use PNJ prompt icon).
     for (board_transform, board) in &board_q {
-        let dist = player_transform.translation.distance(board_transform.translation);
+        let dist = player_transform
+            .translation
+            .distance(board_transform.translation);
         if dist < 150.0 && dist < closest_dist {
             closest_dist = dist;
             closest_npc = Some(board.npc_id.clone());
@@ -346,7 +365,10 @@ fn handle_interaction_input(
     dialogue: Res<crate::interaction::DialogueState>,
     sender: Res<crate::net::NetworkSender>,
 ) {
-    if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None || dialogue.is_active() {
+    if combat.in_combat
+        || combat.phase != crate::combat::CombatTransitionPhase::None
+        || dialogue.is_active()
+    {
         return;
     }
     if input.just_pressed(KeyCode::KeyE) {
@@ -378,18 +400,24 @@ fn handle_board_spawn_events(
 
         // S: EVT ROOM BOARD_SPAWN <npc_id> <x> <y>
         if parts.len() >= 7
-            && parts[0] == "S:" && parts[1] == "EVT"
-            && parts[2] == "ROOM" && parts[3] == "BOARD_SPAWN"
+            && parts[0] == "S:"
+            && parts[1] == "EVT"
+            && parts[2] == "ROOM"
+            && parts[3] == "BOARD_SPAWN"
         {
             let npc_id = parts[4];
-            if boards.iter().any(|(_, b)| b.npc_id == npc_id) { continue; }
+            if boards.iter().any(|(_, b)| b.npc_id == npc_id) {
+                continue;
+            }
             let x: f32 = parts[5].parse().unwrap_or(0.0);
             let y: f32 = parts[6].parse().unwrap_or(0.0);
             // No sprite — just an invisible transform node for interaction detection.
             commands.spawn((
                 TransformBundle::from_transform(Transform::from_xyz(x, y, 0.0)),
                 VisibilityBundle::default(),
-                BoardNode { npc_id: npc_id.to_string() },
+                BoardNode {
+                    npc_id: npc_id.to_string(),
+                },
             ));
         }
 
@@ -430,12 +458,16 @@ fn handle_ground_item_events(
 
         // S: EVT ROOM ITEM_SPAWN <item_id> <name> <sprite> <x> <y>
         if parts.len() >= 9
-            && parts[0] == "S:" && parts[1] == "EVT"
-            && parts[2] == "ROOM" && parts[3] == "ITEM_SPAWN"
+            && parts[0] == "S:"
+            && parts[1] == "EVT"
+            && parts[2] == "ROOM"
+            && parts[3] == "ITEM_SPAWN"
         {
             let item_id = parts[4];
             // Skip if already in scene
-            if existing.iter().any(|(_, gi)| gi.item_id == item_id) { continue; }
+            if existing.iter().any(|(_, gi)| gi.item_id == item_id) {
+                continue;
+            }
 
             let sprite_path = parts[6];
             let x: f32 = parts[7].parse().unwrap_or(0.0);
@@ -457,14 +489,18 @@ fn handle_ground_item_events(
                     transform: Transform::from_xyz(x, y, GROUND_ITEM_Z),
                     ..default()
                 },
-                GroundItem { item_id: item_id.to_string() },
+                GroundItem {
+                    item_id: item_id.to_string(),
+                },
             ));
         }
 
         // S: EVT ROOM ITEM_DESPAWN <item_id>
         if parts.len() >= 5
-            && parts[0] == "S:" && parts[1] == "EVT"
-            && parts[2] == "ROOM" && parts[3] == "ITEM_DESPAWN"
+            && parts[0] == "S:"
+            && parts[1] == "EVT"
+            && parts[2] == "ROOM"
+            && parts[3] == "ITEM_DESPAWN"
         {
             let item_id = parts[4];
             for (entity, gi) in &existing {
@@ -491,7 +527,9 @@ fn update_ground_item_target_impl(
         ground_target.0 = None;
         return;
     }
-    let Ok(player_tf) = player_q.get_single() else { return };
+    let Ok(player_tf) = player_q.get_single() else {
+        return;
+    };
     let player_xy = player_tf.translation.truncate(); // ignore z
 
     let mut closest_dist = ITEM_INTERACT_DIST;

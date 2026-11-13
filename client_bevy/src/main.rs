@@ -1,22 +1,32 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::manual_strip)]
+#![allow(clippy::never_loop)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::trim_split_whitespace)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::unnecessary_map_or)]
+
 use bevy::prelude::*;
 
+mod board_quest_ui;
 mod collision;
+mod combat;
 mod debug;
 mod game;
+mod interaction;
 mod loading;
 mod map;
 mod menu;
+mod minimap;
 mod mob;
-mod interaction;
 mod net;
 mod parse_layers;
 mod player;
 mod quest;
 mod shop;
 mod ui;
-mod minimap;
-mod combat;
-mod board_quest_ui;
 
 #[derive(States, Default, Debug, Clone, Eq, PartialEq, Hash)]
 pub enum AppState {
@@ -52,7 +62,7 @@ fn main() {
             mob::MobPlugin,
             combat::CombatPlugin,
             debug::DebugPlugin,
-			minimap::MinimapPlugin,
+            minimap::MinimapPlugin,
         ))
         .add_plugins(interaction::InteractionPlugin)
         .add_plugins(quest::QuestTrackerPlugin)

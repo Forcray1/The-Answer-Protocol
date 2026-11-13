@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
+use crate::AppState;
 use crate::combat::CombatResource;
 use crate::net::{NetworkSender, ServerMessageEvent};
 use crate::player::LocalPlayerName;
-use crate::AppState;
 
 const MAX_CHAT_LINES: usize = 10;
 
@@ -28,22 +28,26 @@ impl Plugin for InventoryPlugin {
         app.init_resource::<InventoryState>()
             .init_resource::<SelectedItem>()
             .add_systems(Startup, setup_inventory_ui)
-            .add_systems(Update, (
-                toggle_inventory,
-                handle_inventory_data,
-                handle_equip_data,
-                handle_slot_interactions,
-                handle_action_btn,
-                handle_drop_btn,
-                handle_char_stats,
-                handle_tab_click,
-                update_tab_highlight,
-                update_silhouette,
-                handle_gold_event,
-                handle_stat_points_event,
-                handle_statup_click,
-                handle_use_item_btn,
-            ).run_if(in_state(AppState::InGame)));
+            .add_systems(
+                Update,
+                (
+                    toggle_inventory,
+                    handle_inventory_data,
+                    handle_equip_data,
+                    handle_slot_interactions,
+                    handle_action_btn,
+                    handle_drop_btn,
+                    handle_char_stats,
+                    handle_tab_click,
+                    update_tab_highlight,
+                    update_silhouette,
+                    handle_gold_event,
+                    handle_stat_points_event,
+                    handle_statup_click,
+                    handle_use_item_btn,
+                )
+                    .run_if(in_state(AppState::InGame)),
+            );
     }
 }
 
@@ -63,22 +67,22 @@ pub enum InventoryTab {
 impl InventoryTab {
     fn label(&self) -> &'static str {
         match self {
-            InventoryTab::All        => "All",
-            InventoryTab::Weapons    => "Weapons",
-            InventoryTab::Armor      => "Armor",
-            InventoryTab::Medaillon  => "Medaillon",
+            InventoryTab::All => "All",
+            InventoryTab::Weapons => "Weapons",
+            InventoryTab::Armor => "Armor",
+            InventoryTab::Medaillon => "Medaillon",
             InventoryTab::Consumables => "Consumables",
-            InventoryTab::KeyItems   => "Other",
+            InventoryTab::KeyItems => "Other",
         }
     }
     fn matches(&self, slot: &str, consumable: bool) -> bool {
         match self {
-            InventoryTab::All        => true,
-            InventoryTab::Weapons    => slot == "weapon",
-            InventoryTab::Armor      => matches!(slot, "head" | "chest" | "legs" | "boot"),
-            InventoryTab::Medaillon  => slot == "medaillon",
+            InventoryTab::All => true,
+            InventoryTab::Weapons => slot == "weapon",
+            InventoryTab::Armor => matches!(slot, "head" | "chest" | "legs" | "boot"),
+            InventoryTab::Medaillon => slot == "medaillon",
             InventoryTab::Consumables => consumable,
-            InventoryTab::KeyItems   => slot == "none" && !consumable,
+            InventoryTab::KeyItems => slot == "none" && !consumable,
         }
     }
 }
@@ -174,72 +178,84 @@ pub struct SelectedItem {
 }
 
 // ── Color palette ──────────────────────────────────────────────────────────
-const BG_DARK:       Color = Color::rgba(0.12, 0.09, 0.07, 0.97);
-const BG_PANEL:      Color = Color::rgba(0.18, 0.14, 0.10, 0.95);
-const BORDER_GOLD:   Color = Color::rgba(0.72, 0.58, 0.30, 1.0);
-const BORDER_INNER:  Color = Color::rgba(0.40, 0.32, 0.20, 0.8);
-const SLOT_BG:       Color = Color::rgba(0.22, 0.18, 0.14, 1.0);
-const SLOT_BORDER:   Color = Color::rgba(0.50, 0.42, 0.28, 0.7);
-const TITLE_COLOR:   Color = Color::rgba(0.90, 0.80, 0.55, 1.0);
-const TEXT_LIGHT:    Color = Color::rgba(0.85, 0.82, 0.75, 1.0);
-const TEXT_DIM:      Color = Color::rgba(0.55, 0.50, 0.42, 1.0);
-const STAT_GREEN:    Color = Color::rgba(0.40, 0.80, 0.35, 1.0);
-const STAT_RED:      Color = Color::rgba(0.85, 0.30, 0.25, 1.0);
-const BTN_BG:        Color = Color::rgba(0.35, 0.28, 0.18, 1.0);
-const BTN_BORDER:    Color = Color::rgba(0.60, 0.50, 0.30, 1.0);
+const BG_DARK: Color = Color::rgba(0.12, 0.09, 0.07, 0.97);
+const BG_PANEL: Color = Color::rgba(0.18, 0.14, 0.10, 0.95);
+const BORDER_GOLD: Color = Color::rgba(0.72, 0.58, 0.30, 1.0);
+const BORDER_INNER: Color = Color::rgba(0.40, 0.32, 0.20, 0.8);
+const SLOT_BG: Color = Color::rgba(0.22, 0.18, 0.14, 1.0);
+const SLOT_BORDER: Color = Color::rgba(0.50, 0.42, 0.28, 0.7);
+const TITLE_COLOR: Color = Color::rgba(0.90, 0.80, 0.55, 1.0);
+const TEXT_LIGHT: Color = Color::rgba(0.85, 0.82, 0.75, 1.0);
+const TEXT_DIM: Color = Color::rgba(0.55, 0.50, 0.42, 1.0);
+const STAT_GREEN: Color = Color::rgba(0.40, 0.80, 0.35, 1.0);
+const STAT_RED: Color = Color::rgba(0.85, 0.30, 0.25, 1.0);
+const BTN_BG: Color = Color::rgba(0.35, 0.28, 0.18, 1.0);
+const BTN_BORDER: Color = Color::rgba(0.60, 0.50, 0.30, 1.0);
 const TAB_ACTIVE_BG: Color = Color::rgba(0.45, 0.36, 0.20, 1.0);
-const TAB_IDLE_BG:   Color = Color::rgba(0.22, 0.18, 0.14, 0.0);
+const TAB_IDLE_BG: Color = Color::rgba(0.22, 0.18, 0.14, 0.0);
 
 // ── Helper: spawn one equipment slot ──────────────────────────────────────
 
 fn spawn_equip_slot(parent: &mut ChildBuilder, slot: &str, label: &str) {
-    parent.spawn((
-        ButtonBundle {
-            style: Style {
-                width: Val::Px(70.0),
-                height: Val::Px(70.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                border: UiRect::all(Val::Px(2.0)),
+    parent
+        .spawn((
+            ButtonBundle {
+                style: Style {
+                    width: Val::Px(70.0),
+                    height: Val::Px(70.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    border: UiRect::all(Val::Px(2.0)),
+                    ..default()
+                },
+                background_color: SLOT_BG.into(),
+                border_color: SLOT_BORDER.into(),
                 ..default()
             },
-            background_color: SLOT_BG.into(),
-            border_color: SLOT_BORDER.into(),
-            ..default()
-        },
-        EquipmentSlot(slot.to_string()),
-    )).with_children(|btn| {
-        btn.spawn(TextBundle::from_section(
-            label,
-            TextStyle { font_size: 11.0, color: TEXT_DIM, ..default() },
-        ));
-    });
+            EquipmentSlot(slot.to_string()),
+        ))
+        .with_children(|btn| {
+            btn.spawn(TextBundle::from_section(
+                label,
+                TextStyle {
+                    font_size: 11.0,
+                    color: TEXT_DIM,
+                    ..default()
+                },
+            ));
+        });
 }
 
 // ── Helper: spawn one tab button ──────────────────────────────────────────
 
 fn spawn_tab_btn(parent: &mut ChildBuilder, tab: InventoryTab, active: bool) {
     let bg: Color = if active { TAB_ACTIVE_BG } else { TAB_IDLE_BG };
-    parent.spawn((
-        ButtonBundle {
-            style: Style {
-                padding: UiRect::axes(Val::Px(14.0), Val::Px(6.0)),
-                border: UiRect::bottom(Val::Px(2.0)),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
+    parent
+        .spawn((
+            ButtonBundle {
+                style: Style {
+                    padding: UiRect::axes(Val::Px(14.0), Val::Px(6.0)),
+                    border: UiRect::bottom(Val::Px(2.0)),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    ..default()
+                },
+                background_color: bg.into(),
+                border_color: if active { BORDER_GOLD } else { Color::NONE }.into(),
                 ..default()
             },
-            background_color: bg.into(),
-            border_color: if active { BORDER_GOLD } else { Color::NONE }.into(),
-            ..default()
-        },
-        InventoryTabBtn(tab.clone()),
-    )).with_children(|btn| {
-        btn.spawn(TextBundle::from_section(
-            tab.label(),
-            TextStyle { font_size: 15.0, color: if active { TITLE_COLOR } else { TEXT_DIM }, ..default() },
-        ));
-    });
+            InventoryTabBtn(tab.clone()),
+        ))
+        .with_children(|btn| {
+            btn.spawn(TextBundle::from_section(
+                tab.label(),
+                TextStyle {
+                    font_size: 15.0,
+                    color: if active { TITLE_COLOR } else { TEXT_DIM },
+                    ..default()
+                },
+            ));
+        });
 }
 
 fn setup_inventory_ui(mut commands: Commands) {
@@ -273,359 +289,507 @@ fn setup_inventory_ui(mut commands: Commands) {
                 background_color: BG_DARK.into(),
                 border_color: BORDER_GOLD.into(),
                 ..default()
-            }).with_children(|frame| {
-
+            })
+            .with_children(|frame| {
                 // ── Title bar ─────────────────────────────────────────────
-                frame.spawn(NodeBundle {
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        height: Val::Px(45.0),
-                        justify_content: JustifyContent::SpaceBetween,
-                        align_items: AlignItems::Center,
-                        border: UiRect::bottom(Val::Px(2.0)),
-                        padding: UiRect::horizontal(Val::Px(16.0)),
-                        ..default()
-                    },
-                    background_color: Color::rgba(0.15, 0.12, 0.08, 1.0).into(),
-                    border_color: BORDER_GOLD.into(),
-                    ..default()
-                }).with_children(|tb| {
-                    tb.spawn(NodeBundle { style: Style { width: Val::Px(24.0), ..default() }, ..default() });
-                    tb.spawn(TextBundle::from_section(
-                        "CHARACTER",
-                        TextStyle { font_size: 26.0, color: TITLE_COLOR, ..default() },
-                    ));
-                    tb.spawn((
-                        ButtonBundle {
-                            style: Style {
-                                width: Val::Px(24.0), height: Val::Px(24.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                ..default()
-                            },
-                            background_color: Color::NONE.into(),
+                frame
+                    .spawn(NodeBundle {
+                        style: Style {
+                            width: Val::Percent(100.0),
+                            height: Val::Px(45.0),
+                            justify_content: JustifyContent::SpaceBetween,
+                            align_items: AlignItems::Center,
+                            border: UiRect::bottom(Val::Px(2.0)),
+                            padding: UiRect::horizontal(Val::Px(16.0)),
                             ..default()
                         },
-                        CloseButton("inventory".to_string()),
-                    )).with_children(|b| {
-                        b.spawn(TextBundle::from_section("X", TextStyle { font_size: 20.0, color: TITLE_COLOR, ..default() }));
+                        background_color: Color::rgba(0.15, 0.12, 0.08, 1.0).into(),
+                        border_color: BORDER_GOLD.into(),
+                        ..default()
+                    })
+                    .with_children(|tb| {
+                        tb.spawn(NodeBundle {
+                            style: Style {
+                                width: Val::Px(24.0),
+                                ..default()
+                            },
+                            ..default()
+                        });
+                        tb.spawn(TextBundle::from_section(
+                            "CHARACTER",
+                            TextStyle {
+                                font_size: 26.0,
+                                color: TITLE_COLOR,
+                                ..default()
+                            },
+                        ));
+                        tb.spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    width: Val::Px(24.0),
+                                    height: Val::Px(24.0),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    ..default()
+                                },
+                                background_color: Color::NONE.into(),
+                                ..default()
+                            },
+                            CloseButton("inventory".to_string()),
+                        ))
+                        .with_children(|b| {
+                            b.spawn(TextBundle::from_section(
+                                "X",
+                                TextStyle {
+                                    font_size: 20.0,
+                                    color: TITLE_COLOR,
+                                    ..default()
+                                },
+                            ));
+                        });
                     });
-                });
 
                 // ── Main content ─────────────────────────────────────────
-                frame.spawn(NodeBundle {
-                    style: Style {
-                        flex_grow: 1.0,
-                        flex_direction: FlexDirection::Row,
-                        padding: UiRect::all(Val::Px(14.0)),
-                        column_gap: Val::Px(14.0),
-                        ..default()
-                    },
-                    ..default()
-                }).with_children(|content| {
-
-                    // ════════════════════════════════════════════════════
-                    // LEFT PANEL — Silhouette + 3 equipment slots
-                    // ════════════════════════════════════════════════════
-                    content.spawn(NodeBundle {
+                frame
+                    .spawn(NodeBundle {
                         style: Style {
-                            width: Val::Px(340.0),
-                            flex_direction: FlexDirection::Column,
-                            border: UiRect::all(Val::Px(2.0)),
-                            padding: UiRect::all(Val::Px(10.0)),
-                            row_gap: Val::Px(8.0),
+                            flex_grow: 1.0,
+                            flex_direction: FlexDirection::Row,
+                            padding: UiRect::all(Val::Px(14.0)),
+                            column_gap: Val::Px(14.0),
                             ..default()
                         },
-                        background_color: BG_PANEL.into(),
-                        border_color: BORDER_INNER.into(),
                         ..default()
-                    }).with_children(|left| {
-
-                        // ── Equipment area: slot | silhouette | slot ────
-                        left.spawn(NodeBundle {
-                            style: Style {
-                                flex_grow: 1.0,
-                                flex_direction: FlexDirection::Row,
-                                align_items: AlignItems::Center,
-                                justify_content: JustifyContent::SpaceBetween,
-                                ..default()
-                            },
-                            ..default()
-                        }).with_children(|row| {
-
-                            // Left: Weapon slot
-                            row.spawn(NodeBundle {
+                    })
+                    .with_children(|content| {
+                        // ════════════════════════════════════════════════════
+                        // LEFT PANEL — Silhouette + 3 equipment slots
+                        // ════════════════════════════════════════════════════
+                        content
+                            .spawn(NodeBundle {
                                 style: Style {
+                                    width: Val::Px(340.0),
                                     flex_direction: FlexDirection::Column,
-                                    align_items: AlignItems::Center,
-                                    justify_content: JustifyContent::Center,
+                                    border: UiRect::all(Val::Px(2.0)),
+                                    padding: UiRect::all(Val::Px(10.0)),
                                     row_gap: Val::Px(8.0),
-                                    width: Val::Px(80.0),
                                     ..default()
                                 },
+                                background_color: BG_PANEL.into(),
+                                border_color: BORDER_INNER.into(),
                                 ..default()
-                            }).with_children(|col| {
-                                col.spawn(TextBundle::from_section(
-                                    "Weapon",
-                                    TextStyle { font_size: 11.0, color: TEXT_DIM, ..default() },
-                                ));
-                                spawn_equip_slot(col, "weapon", "");
+                            })
+                            .with_children(|left| {
+                                // ── Equipment area: slot | silhouette | slot ────
+                                left.spawn(NodeBundle {
+                                    style: Style {
+                                        flex_grow: 1.0,
+                                        flex_direction: FlexDirection::Row,
+                                        align_items: AlignItems::Center,
+                                        justify_content: JustifyContent::SpaceBetween,
+                                        ..default()
+                                    },
+                                    ..default()
+                                })
+                                .with_children(|row| {
+                                    // Left: Weapon slot
+                                    row.spawn(NodeBundle {
+                                        style: Style {
+                                            flex_direction: FlexDirection::Column,
+                                            align_items: AlignItems::Center,
+                                            justify_content: JustifyContent::Center,
+                                            row_gap: Val::Px(8.0),
+                                            width: Val::Px(80.0),
+                                            ..default()
+                                        },
+                                        ..default()
+                                    })
+                                    .with_children(|col| {
+                                        col.spawn(TextBundle::from_section(
+                                            "Weapon",
+                                            TextStyle {
+                                                font_size: 11.0,
+                                                color: TEXT_DIM,
+                                                ..default()
+                                            },
+                                        ));
+                                        spawn_equip_slot(col, "weapon", "");
+                                    });
+
+                                    // Center: player silhouette
+                                    row.spawn(NodeBundle {
+                                        style: Style {
+                                            flex_grow: 1.0,
+                                            align_items: AlignItems::Center,
+                                            justify_content: JustifyContent::Center,
+                                            height: Val::Px(200.0),
+                                            ..default()
+                                        },
+                                        ..default()
+                                    })
+                                    .with_children(|center| {
+                                        center.spawn((
+                                            ImageBundle {
+                                                style: Style {
+                                                    width: Val::Px(128.0),
+                                                    height: Val::Px(128.0),
+                                                    ..default()
+                                                },
+                                                ..default()
+                                            },
+                                            PlayerSilhouette,
+                                        ));
+                                    });
+
+                                    // Right: Armor + Medaillon
+                                    row.spawn(NodeBundle {
+                                        style: Style {
+                                            flex_direction: FlexDirection::Column,
+                                            align_items: AlignItems::Center,
+                                            justify_content: JustifyContent::Center,
+                                            row_gap: Val::Px(12.0),
+                                            width: Val::Px(80.0),
+                                            ..default()
+                                        },
+                                        ..default()
+                                    })
+                                    .with_children(|col| {
+                                        col.spawn(TextBundle::from_section(
+                                            "Armor",
+                                            TextStyle {
+                                                font_size: 11.0,
+                                                color: TEXT_DIM,
+                                                ..default()
+                                            },
+                                        ));
+                                        spawn_equip_slot(col, "chest", "");
+                                        col.spawn(TextBundle::from_section(
+                                            "Medaillon",
+                                            TextStyle {
+                                                font_size: 11.0,
+                                                color: TEXT_DIM,
+                                                ..default()
+                                            },
+                                        ));
+                                        spawn_equip_slot(col, "medaillon", "");
+                                    });
+                                });
+
+                                // ── Action bar ────────────────────────────────────
+                                left.spawn(NodeBundle {
+                                    style: Style {
+                                        width: Val::Percent(100.0),
+                                        height: Val::Px(50.0),
+                                        flex_direction: FlexDirection::Row,
+                                        justify_content: JustifyContent::SpaceBetween,
+                                        align_items: AlignItems::Center,
+                                        padding: UiRect::horizontal(Val::Px(6.0)),
+                                        border: UiRect::top(Val::Px(1.0)),
+                                        ..default()
+                                    },
+                                    border_color: BORDER_INNER.into(),
+                                    ..default()
+                                })
+                                .with_children(|bar| {
+                                    bar.spawn((
+                                        TextBundle::from_section(
+                                            "Select an item...",
+                                            TextStyle {
+                                                font_size: 13.0,
+                                                color: TEXT_LIGHT,
+                                                ..default()
+                                            },
+                                        )
+                                        .with_style(
+                                            Style {
+                                                max_width: Val::Px(180.0),
+                                                ..default()
+                                            },
+                                        ),
+                                        InventoryDescriptionText,
+                                    ));
+                                    bar.spawn((
+                                        ButtonBundle {
+                                            style: Style {
+                                                width: Val::Px(110.0),
+                                                height: Val::Px(34.0),
+                                                justify_content: JustifyContent::Center,
+                                                align_items: AlignItems::Center,
+                                                display: Display::None,
+                                                border: UiRect::all(Val::Px(2.0)),
+                                                ..default()
+                                            },
+                                            background_color: BTN_BG.into(),
+                                            border_color: BTN_BORDER.into(),
+                                            ..default()
+                                        },
+                                        InventoryActionBtn,
+                                    ))
+                                    .with_children(|b| {
+                                        b.spawn((
+                                            TextBundle::from_section(
+                                                "Equip",
+                                                TextStyle {
+                                                    font_size: 14.0,
+                                                    color: TITLE_COLOR,
+                                                    ..default()
+                                                },
+                                            ),
+                                            InventoryActionText,
+                                        ));
+                                    });
+                                    // Drop button — always shown when an item is selected
+                                    bar.spawn((
+                                        ButtonBundle {
+                                            style: Style {
+                                                width: Val::Px(80.0),
+                                                height: Val::Px(34.0),
+                                                justify_content: JustifyContent::Center,
+                                                align_items: AlignItems::Center,
+                                                display: Display::None,
+                                                border: UiRect::all(Val::Px(2.0)),
+                                                margin: UiRect::left(Val::Px(6.0)),
+                                                ..default()
+                                            },
+                                            background_color: Color::rgba(0.35, 0.12, 0.12, 1.0)
+                                                .into(),
+                                            border_color: Color::rgba(0.7, 0.2, 0.2, 1.0).into(),
+                                            ..default()
+                                        },
+                                        InventoryDropBtn,
+                                    ))
+                                    .with_children(|b| {
+                                        b.spawn(TextBundle::from_section(
+                                            "Drop",
+                                            TextStyle {
+                                                font_size: 14.0,
+                                                color: Color::rgb(1.0, 0.5, 0.5),
+                                                ..default()
+                                            },
+                                        ));
+                                    });
+                                });
+
+                                // ── Stat block ────────────────────────────────────
+                                left.spawn(NodeBundle {
+                                    style: Style {
+                                        flex_direction: FlexDirection::Column,
+                                        row_gap: Val::Px(4.0),
+                                        padding: UiRect::horizontal(Val::Px(4.0)),
+                                        ..default()
+                                    },
+                                    ..default()
+                                })
+                                .with_children(|stats| {
+                                    // Gold row
+                                    stats
+                                        .spawn(NodeBundle {
+                                            style: Style {
+                                                flex_direction: FlexDirection::Row,
+                                                justify_content: JustifyContent::SpaceBetween,
+                                                width: Val::Percent(100.0),
+                                                margin: UiRect::bottom(Val::Px(6.0)),
+                                                ..default()
+                                            },
+                                            ..default()
+                                        })
+                                        .with_children(|r| {
+                                            r.spawn(TextBundle::from_section(
+                                                "  Gold",
+                                                TextStyle {
+                                                    font_size: 14.0,
+                                                    color: Color::rgb(1.0, 0.88, 0.3),
+                                                    ..default()
+                                                },
+                                            ));
+                                            r.spawn((
+                                                TextBundle::from_section(
+                                                    "0",
+                                                    TextStyle {
+                                                        font_size: 14.0,
+                                                        color: Color::rgb(1.0, 0.88, 0.3),
+                                                        ..default()
+                                                    },
+                                                ),
+                                                InventoryGoldText,
+                                            ));
+                                        });
+                                    // Stat points row
+                                    stats
+                                        .spawn(NodeBundle {
+                                            style: Style {
+                                                flex_direction: FlexDirection::Row,
+                                                justify_content: JustifyContent::SpaceBetween,
+                                                width: Val::Percent(100.0),
+                                                margin: UiRect::bottom(Val::Px(6.0)),
+                                                ..default()
+                                            },
+                                            ..default()
+                                        })
+                                        .with_children(|r| {
+                                            r.spawn(TextBundle::from_section(
+                                                "  Points",
+                                                TextStyle {
+                                                    font_size: 14.0,
+                                                    color: Color::rgb(0.5, 0.8, 1.0),
+                                                    ..default()
+                                                },
+                                            ));
+                                            r.spawn((
+                                                TextBundle::from_section(
+                                                    "0",
+                                                    TextStyle {
+                                                        font_size: 14.0,
+                                                        color: Color::rgb(0.5, 0.8, 1.0),
+                                                        ..default()
+                                                    },
+                                                ),
+                                                StatPointsText,
+                                            ));
+                                        });
+                                    // Stat rows with + button
+                                    let rows: &[(&str, Color, usize, &str)] = &[
+                                        ("Damage", STAT_RED, 0, "damage"),
+                                        ("Spe. Damage", STAT_RED, 1, "special_damage"),
+                                        ("Defense", STAT_GREEN, 2, "defense"),
+                                        ("Spe. Defense", STAT_GREEN, 3, "special_defense"),
+                                        ("Max HP", STAT_GREEN, 4, "max_hp"),
+                                    ];
+                                    for (label, color, idx, stat_key) in rows {
+                                        stats
+                                            .spawn(NodeBundle {
+                                                style: Style {
+                                                    flex_direction: FlexDirection::Row,
+                                                    justify_content: JustifyContent::SpaceBetween,
+                                                    align_items: AlignItems::Center,
+                                                    width: Val::Percent(100.0),
+                                                    ..default()
+                                                },
+                                                ..default()
+                                            })
+                                            .with_children(|r| {
+                                                r.spawn(TextBundle::from_section(
+                                                    format!("  {}", label),
+                                                    TextStyle {
+                                                        font_size: 14.0,
+                                                        color: TEXT_LIGHT,
+                                                        ..default()
+                                                    },
+                                                ));
+                                                // Value + optional + button
+                                                r.spawn(NodeBundle {
+                                                    style: Style {
+                                                        flex_direction: FlexDirection::Row,
+                                                        align_items: AlignItems::Center,
+                                                        column_gap: Val::Px(4.0),
+                                                        ..default()
+                                                    },
+                                                    ..default()
+                                                })
+                                                .with_children(|rv| {
+                                                    rv.spawn((
+                                                        TextBundle::from_section(
+                                                            "0",
+                                                            TextStyle {
+                                                                font_size: 14.0,
+                                                                color: *color,
+                                                                ..default()
+                                                            },
+                                                        ),
+                                                        StatValueText(*idx),
+                                                    ));
+                                                    rv.spawn((
+                                                        ButtonBundle {
+                                                            style: Style {
+                                                                width: Val::Px(18.0),
+                                                                height: Val::Px(18.0),
+                                                                align_items: AlignItems::Center,
+                                                                justify_content:
+                                                                    JustifyContent::Center,
+                                                                ..default()
+                                                            },
+                                                            background_color: Color::rgba(
+                                                                0.2, 0.5, 0.2, 0.0,
+                                                            )
+                                                            .into(), // hidden by default
+                                                            visibility: Visibility::Hidden,
+                                                            ..default()
+                                                        },
+                                                        StatUpBtn(stat_key.to_string()),
+                                                    ))
+                                                    .with_children(|btn| {
+                                                        btn.spawn(TextBundle::from_section(
+                                                            "+",
+                                                            TextStyle {
+                                                                font_size: 14.0,
+                                                                color: Color::rgb(0.4, 1.0, 0.4),
+                                                                ..default()
+                                                            },
+                                                        ));
+                                                    });
+                                                });
+                                            });
+                                    }
+                                });
                             });
 
-                            // Center: player silhouette
-                            row.spawn(NodeBundle {
+                        // ════════════════════════════════════════════════════
+                        // RIGHT PANEL — Category tabs + item grid
+                        // ════════════════════════════════════════════════════
+                        content
+                            .spawn(NodeBundle {
                                 style: Style {
                                     flex_grow: 1.0,
-                                    align_items: AlignItems::Center,
-                                    justify_content: JustifyContent::Center,
-                                    height: Val::Px(200.0),
+                                    flex_direction: FlexDirection::Column,
+                                    border: UiRect::all(Val::Px(2.0)),
+                                    padding: UiRect::all(Val::Px(10.0)),
+                                    row_gap: Val::Px(10.0),
                                     ..default()
                                 },
+                                background_color: BG_PANEL.into(),
+                                border_color: BORDER_INNER.into(),
                                 ..default()
-                            }).with_children(|center| {
-                                center.spawn((
-                                    ImageBundle {
+                            })
+                            .with_children(|right| {
+                                // ── Tab bar ───────────────────────────────────────
+                                right
+                                    .spawn(NodeBundle {
                                         style: Style {
-                                            width: Val::Px(128.0),
-                                            height: Val::Px(128.0),
+                                            flex_direction: FlexDirection::Row,
+                                            column_gap: Val::Px(4.0),
+                                            border: UiRect::bottom(Val::Px(1.0)),
+                                            ..default()
+                                        },
+                                        border_color: BORDER_INNER.into(),
+                                        ..default()
+                                    })
+                                    .with_children(|tabs| {
+                                        spawn_tab_btn(tabs, InventoryTab::All, true);
+                                        spawn_tab_btn(tabs, InventoryTab::Weapons, false);
+                                        spawn_tab_btn(tabs, InventoryTab::Armor, false);
+                                        spawn_tab_btn(tabs, InventoryTab::Medaillon, false);
+                                        spawn_tab_btn(tabs, InventoryTab::Consumables, false);
+                                        spawn_tab_btn(tabs, InventoryTab::KeyItems, false);
+                                    });
+
+                                // ── Item grid (5 × 4) ─────────────────────────────
+                                right.spawn((
+                                    NodeBundle {
+                                        style: Style {
+                                            flex_grow: 1.0,
+                                            display: Display::Grid,
+                                            grid_template_columns: vec![GridTrack::flex(1.0); 5],
+                                            grid_template_rows: vec![GridTrack::flex(1.0); 4],
+                                            row_gap: Val::Px(6.0),
+                                            column_gap: Val::Px(6.0),
                                             ..default()
                                         },
                                         ..default()
                                     },
-                                    PlayerSilhouette,
+                                    InventoryGrid,
                                 ));
                             });
-
-                            // Right: Armor + Medaillon
-                            row.spawn(NodeBundle {
-                                style: Style {
-                                    flex_direction: FlexDirection::Column,
-                                    align_items: AlignItems::Center,
-                                    justify_content: JustifyContent::Center,
-                                    row_gap: Val::Px(12.0),
-                                    width: Val::Px(80.0),
-                                    ..default()
-                                },
-                                ..default()
-                            }).with_children(|col| {
-                                col.spawn(TextBundle::from_section(
-                                    "Armor",
-                                    TextStyle { font_size: 11.0, color: TEXT_DIM, ..default() },
-                                ));
-                                spawn_equip_slot(col, "chest", "");
-                                col.spawn(TextBundle::from_section(
-                                    "Medaillon",
-                                    TextStyle { font_size: 11.0, color: TEXT_DIM, ..default() },
-                                ));
-                                spawn_equip_slot(col, "medaillon", "");
-                            });
-                        });
-
-                        // ── Action bar ────────────────────────────────────
-                        left.spawn(NodeBundle {
-                            style: Style {
-                                width: Val::Percent(100.0),
-                                height: Val::Px(50.0),
-                                flex_direction: FlexDirection::Row,
-                                justify_content: JustifyContent::SpaceBetween,
-                                align_items: AlignItems::Center,
-                                padding: UiRect::horizontal(Val::Px(6.0)),
-                                border: UiRect::top(Val::Px(1.0)),
-                                ..default()
-                            },
-                            border_color: BORDER_INNER.into(),
-                            ..default()
-                        }).with_children(|bar| {
-                            bar.spawn((
-                                TextBundle::from_section(
-                                    "Select an item...",
-                                    TextStyle { font_size: 13.0, color: TEXT_LIGHT, ..default() },
-                                ).with_style(Style { max_width: Val::Px(180.0), ..default() }),
-                                InventoryDescriptionText,
-                            ));
-                            bar.spawn((
-                                ButtonBundle {
-                                    style: Style {
-                                        width: Val::Px(110.0),
-                                        height: Val::Px(34.0),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        display: Display::None,
-                                        border: UiRect::all(Val::Px(2.0)),
-                                        ..default()
-                                    },
-                                    background_color: BTN_BG.into(),
-                                    border_color: BTN_BORDER.into(),
-                                    ..default()
-                                },
-                                InventoryActionBtn,
-                            )).with_children(|b| {
-                                b.spawn((
-                                    TextBundle::from_section("Equip", TextStyle { font_size: 14.0, color: TITLE_COLOR, ..default() }),
-                                    InventoryActionText,
-                                ));
-                            });
-                            // Drop button — always shown when an item is selected
-                            bar.spawn((
-                                ButtonBundle {
-                                    style: Style {
-                                        width: Val::Px(80.0),
-                                        height: Val::Px(34.0),
-                                        justify_content: JustifyContent::Center,
-                                        align_items: AlignItems::Center,
-                                        display: Display::None,
-                                        border: UiRect::all(Val::Px(2.0)),
-                                        margin: UiRect::left(Val::Px(6.0)),
-                                        ..default()
-                                    },
-                                    background_color: Color::rgba(0.35, 0.12, 0.12, 1.0).into(),
-                                    border_color: Color::rgba(0.7, 0.2, 0.2, 1.0).into(),
-                                    ..default()
-                                },
-                                InventoryDropBtn,
-                            )).with_children(|b| {
-                                b.spawn(TextBundle::from_section("Drop", TextStyle { font_size: 14.0, color: Color::rgb(1.0, 0.5, 0.5), ..default() }));
-                            });
-                        });
-
-                        // ── Stat block ────────────────────────────────────
-                        left.spawn(NodeBundle {
-                            style: Style {
-                                flex_direction: FlexDirection::Column,
-                                row_gap: Val::Px(4.0),
-                                padding: UiRect::horizontal(Val::Px(4.0)),
-                                ..default()
-                            },
-                            ..default()
-                        }).with_children(|stats| {
-                            // Gold row
-                            stats.spawn(NodeBundle {
-                                style: Style {
-                                    flex_direction: FlexDirection::Row,
-                                    justify_content: JustifyContent::SpaceBetween,
-                                    width: Val::Percent(100.0),
-                                    margin: UiRect::bottom(Val::Px(6.0)),
-                                    ..default()
-                                },
-                                ..default()
-                            }).with_children(|r| {
-                                r.spawn(TextBundle::from_section("  Gold", TextStyle { font_size: 14.0, color: Color::rgb(1.0, 0.88, 0.3), ..default() }));
-                                r.spawn((TextBundle::from_section("0", TextStyle { font_size: 14.0, color: Color::rgb(1.0, 0.88, 0.3), ..default() }), InventoryGoldText));
-                            });
-                            // Stat points row
-                            stats.spawn(NodeBundle {
-                                style: Style {
-                                    flex_direction: FlexDirection::Row,
-                                    justify_content: JustifyContent::SpaceBetween,
-                                    width: Val::Percent(100.0),
-                                    margin: UiRect::bottom(Val::Px(6.0)),
-                                    ..default()
-                                },
-                                ..default()
-                            }).with_children(|r| {
-                                r.spawn(TextBundle::from_section("  Points", TextStyle { font_size: 14.0, color: Color::rgb(0.5, 0.8, 1.0), ..default() }));
-                                r.spawn((TextBundle::from_section("0", TextStyle { font_size: 14.0, color: Color::rgb(0.5, 0.8, 1.0), ..default() }), StatPointsText));
-                            });
-                            // Stat rows with + button
-                            let rows: &[(&str, Color, usize, &str)] = &[
-                                ("Damage",       STAT_RED,   0, "damage"),
-                                ("Spe. Damage",  STAT_RED,   1, "special_damage"),
-                                ("Defense",      STAT_GREEN, 2, "defense"),
-                                ("Spe. Defense", STAT_GREEN, 3, "special_defense"),
-                                ("Max HP",       STAT_GREEN, 4, "max_hp"),
-                            ];
-                            for (label, color, idx, stat_key) in rows {
-                                stats.spawn(NodeBundle {
-                                    style: Style {
-                                        flex_direction: FlexDirection::Row,
-                                        justify_content: JustifyContent::SpaceBetween,
-                                        align_items: AlignItems::Center,
-                                        width: Val::Percent(100.0),
-                                        ..default()
-                                    },
-                                    ..default()
-                                }).with_children(|r| {
-                                    r.spawn(TextBundle::from_section(
-                                        format!("  {}", label),
-                                        TextStyle { font_size: 14.0, color: TEXT_LIGHT, ..default() },
-                                    ));
-                                    // Value + optional + button
-                                    r.spawn(NodeBundle { style: Style { flex_direction: FlexDirection::Row, align_items: AlignItems::Center, column_gap: Val::Px(4.0), ..default() }, ..default() }).with_children(|rv| {
-                                        rv.spawn((
-                                            TextBundle::from_section("0", TextStyle { font_size: 14.0, color: *color, ..default() }),
-                                            StatValueText(*idx),
-                                        ));
-                                        rv.spawn((
-                                            ButtonBundle {
-                                                style: Style { width: Val::Px(18.0), height: Val::Px(18.0), align_items: AlignItems::Center, justify_content: JustifyContent::Center, ..default() },
-                                                background_color: Color::rgba(0.2, 0.5, 0.2, 0.0).into(), // hidden by default
-                                                visibility: Visibility::Hidden,
-                                                ..default()
-                                            },
-                                            StatUpBtn(stat_key.to_string()),
-                                        )).with_children(|btn| {
-                                            btn.spawn(TextBundle::from_section("+", TextStyle { font_size: 14.0, color: Color::rgb(0.4, 1.0, 0.4), ..default() }));
-                                        });
-                                    });
-                                });
-                            }
-                        });
                     });
-
-                    // ════════════════════════════════════════════════════
-                    // RIGHT PANEL — Category tabs + item grid
-                    // ════════════════════════════════════════════════════
-                    content.spawn(NodeBundle {
-                        style: Style {
-                            flex_grow: 1.0,
-                            flex_direction: FlexDirection::Column,
-                            border: UiRect::all(Val::Px(2.0)),
-                            padding: UiRect::all(Val::Px(10.0)),
-                            row_gap: Val::Px(10.0),
-                            ..default()
-                        },
-                        background_color: BG_PANEL.into(),
-                        border_color: BORDER_INNER.into(),
-                        ..default()
-                    }).with_children(|right| {
-
-                        // ── Tab bar ───────────────────────────────────────
-                        right.spawn(NodeBundle {
-                            style: Style {
-                                flex_direction: FlexDirection::Row,
-                                column_gap: Val::Px(4.0),
-                                border: UiRect::bottom(Val::Px(1.0)),
-                                ..default()
-                            },
-                            border_color: BORDER_INNER.into(),
-                            ..default()
-                        }).with_children(|tabs| {
-                            spawn_tab_btn(tabs, InventoryTab::All,         true);
-                            spawn_tab_btn(tabs, InventoryTab::Weapons,     false);
-                            spawn_tab_btn(tabs, InventoryTab::Armor,       false);
-                            spawn_tab_btn(tabs, InventoryTab::Medaillon,   false);
-                            spawn_tab_btn(tabs, InventoryTab::Consumables, false);
-                            spawn_tab_btn(tabs, InventoryTab::KeyItems,    false);
-                        });
-
-                        // ── Item grid (5 × 4) ─────────────────────────────
-                        right.spawn((
-                            NodeBundle {
-                                style: Style {
-                                    flex_grow: 1.0,
-                                    display: Display::Grid,
-                                    grid_template_columns: vec![GridTrack::flex(1.0); 5],
-                                    grid_template_rows: vec![GridTrack::flex(1.0); 4],
-                                    row_gap: Val::Px(6.0),
-                                    column_gap: Val::Px(6.0),
-                                    ..default()
-                                },
-                                ..default()
-                            },
-                            InventoryGrid,
-                        ));
-                    });
-                });
             });
         });
 }
@@ -652,7 +816,11 @@ fn toggle_inventory(
         }
     }
 
-    if !console.open && !console.terminal_open && !quest_state.open && keys.just_pressed(KeyCode::KeyI) {
+    if !console.open
+        && !console.terminal_open
+        && !quest_state.open
+        && keys.just_pressed(KeyCode::KeyI)
+    {
         state.open = !state.open;
         if state.open {
             let _ = sender.0.send("INVENTORY\n".to_string());
@@ -690,60 +858,91 @@ fn spawn_inv_slot(
     };
 
     // Equipped medaillons get a gold border; others get the standard slot border.
-    let border_col: Color = if item.is_equipped { BORDER_GOLD } else { SLOT_BORDER };
-    let bg_col:     Color = if item.is_equipped { Color::rgba(0.35, 0.28, 0.12, 1.0) } else { SLOT_BG };
+    let border_col: Color = if item.is_equipped {
+        BORDER_GOLD
+    } else {
+        SLOT_BORDER
+    };
+    let bg_col: Color = if item.is_equipped {
+        Color::rgba(0.35, 0.28, 0.12, 1.0)
+    } else {
+        SLOT_BG
+    };
 
-    let slot_entity = commands.spawn((
-        ButtonBundle {
-            style: Style {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                border: UiRect::all(Val::Px(if item.is_equipped { 3.0 } else { 1.0 })),
+    let slot_entity = commands
+        .spawn((
+            ButtonBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    border: UiRect::all(Val::Px(if item.is_equipped { 3.0 } else { 1.0 })),
+                    ..default()
+                },
+                background_color: bg_col.into(),
+                border_color: border_col.into(),
                 ..default()
             },
-            background_color: bg_col.into(),
-            border_color: border_col.into(),
-            ..default()
-        },
-        InventorySlot,
-        InventorySlotInfo {
-            id:          item.id.clone(),
-            name:        item.name.clone(),
-            damage:      item.damage,
-            slot:        item.slot.clone(),
-            is_equipped: item.is_equipped,
-            consumable:  item.consumable,
-        },
-    )).with_children(|slot| {
-        slot.spawn(ImageBundle {
-            style: Style { width: Val::Px(50.0), height: Val::Px(50.0), ..default() },
-            image: UiImage::new(icon),
-            ..default()
-        });
-        if item.count > 1 {
-            slot.spawn(TextBundle::from_section(
-                format!("x{}", item.count),
-                TextStyle { font_size: 16.0, color: TITLE_COLOR, ..default() },
-            ).with_style(Style {
-                position_type: PositionType::Absolute,
-                bottom: Val::Px(2.0), right: Val::Px(5.0),
+            InventorySlot,
+            InventorySlotInfo {
+                id: item.id.clone(),
+                name: item.name.clone(),
+                damage: item.damage,
+                slot: item.slot.clone(),
+                is_equipped: item.is_equipped,
+                consumable: item.consumable,
+            },
+        ))
+        .with_children(|slot| {
+            slot.spawn(ImageBundle {
+                style: Style {
+                    width: Val::Px(50.0),
+                    height: Val::Px(50.0),
+                    ..default()
+                },
+                image: UiImage::new(icon),
                 ..default()
-            }));
-        }
-        // Small "★" badge on equipped items
-        if item.is_equipped {
-            slot.spawn(TextBundle::from_section(
-                "★",
-                TextStyle { font_size: 14.0, color: BORDER_GOLD, ..default() },
-            ).with_style(Style {
-                position_type: PositionType::Absolute,
-                top: Val::Px(2.0), left: Val::Px(4.0),
-                ..default()
-            }));
-        }
-    }).id();
+            });
+            if item.count > 1 {
+                slot.spawn(
+                    TextBundle::from_section(
+                        format!("x{}", item.count),
+                        TextStyle {
+                            font_size: 16.0,
+                            color: TITLE_COLOR,
+                            ..default()
+                        },
+                    )
+                    .with_style(Style {
+                        position_type: PositionType::Absolute,
+                        bottom: Val::Px(2.0),
+                        right: Val::Px(5.0),
+                        ..default()
+                    }),
+                );
+            }
+            // Small "★" badge on equipped items
+            if item.is_equipped {
+                slot.spawn(
+                    TextBundle::from_section(
+                        "★",
+                        TextStyle {
+                            font_size: 14.0,
+                            color: BORDER_GOLD,
+                            ..default()
+                        },
+                    )
+                    .with_style(Style {
+                        position_type: PositionType::Absolute,
+                        top: Val::Px(2.0),
+                        left: Val::Px(4.0),
+                        ..default()
+                    }),
+                );
+            }
+        })
+        .id();
     commands.entity(grid).add_child(slot_entity);
 }
 
@@ -755,7 +954,9 @@ fn rebuild_grid(
     items: &[RawInvItem],
     tab: &InventoryTab,
 ) {
-    for e in existing.iter() { commands.entity(e).despawn_recursive(); }
+    for e in existing.iter() {
+        commands.entity(e).despawn_recursive();
+    }
     for item in items.iter().filter(|i| tab.matches(&i.slot, i.consumable)) {
         spawn_inv_slot(commands, asset_server, grid, item);
     }
@@ -770,8 +971,12 @@ fn handle_inventory_data(
     mut inv_state: ResMut<InventoryState>,
 ) {
     for ev in events.read() {
-        let Some(data) = ev.0.strip_prefix("S: EVT INV_DATA ") else { continue };
-        let Ok(grid) = grid_query.get_single() else { continue };
+        let Some(data) = ev.0.strip_prefix("S: EVT INV_DATA ") else {
+            continue;
+        };
+        let Ok(grid) = grid_query.get_single() else {
+            continue;
+        };
 
         inv_state.cached_items.clear();
 
@@ -780,21 +985,28 @@ fn handle_inventory_data(
                 let parts: Vec<&str> = item.split(':').collect();
                 if parts.len() >= 5 {
                     inv_state.cached_items.push(RawInvItem {
-                        id:          parts[0].to_string(),
-                        count:       parts[1].parse().unwrap_or(1),
-                        slot:        parts[2].to_string(),
-                        name:        parts[3].to_string(),
-                        damage:      parts[4].parse().unwrap_or(0),
-                        sprite:      parts.get(5).copied().unwrap_or("none").to_string(),
+                        id: parts[0].to_string(),
+                        count: parts[1].parse().unwrap_or(1),
+                        slot: parts[2].to_string(),
+                        name: parts[3].to_string(),
+                        damage: parts[4].parse().unwrap_or(0),
+                        sprite: parts.get(5).copied().unwrap_or("none").to_string(),
                         is_equipped: parts.get(6).copied().unwrap_or("0") == "1",
-                        consumable:  parts.get(7).copied().unwrap_or("0") == "1",
+                        consumable: parts.get(7).copied().unwrap_or("0") == "1",
                     });
                 }
             }
         }
 
         let tab = inv_state.active_tab.clone();
-        rebuild_grid(&mut commands, &asset_server, grid, &existing_slots, &inv_state.cached_items, &tab);
+        rebuild_grid(
+            &mut commands,
+            &asset_server,
+            grid,
+            &existing_slots,
+            &inv_state.cached_items,
+            &tab,
+        );
     }
 }
 
@@ -809,13 +1021,24 @@ fn handle_tab_click(
     mut inv_state: ResMut<InventoryState>,
 ) {
     for (interaction, tab_btn) in &tab_btns {
-        if *interaction != Interaction::Pressed { continue; }
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
 
         inv_state.active_tab = tab_btn.0.clone();
 
-        let Ok(grid) = grid_query.get_single() else { continue };
+        let Ok(grid) = grid_query.get_single() else {
+            continue;
+        };
         let tab = inv_state.active_tab.clone();
-        rebuild_grid(&mut commands, &asset_server, grid, &existing_slots, &inv_state.cached_items, &tab);
+        rebuild_grid(
+            &mut commands,
+            &asset_server,
+            grid,
+            &existing_slots,
+            &inv_state.cached_items,
+            &tab,
+        );
     }
 }
 
@@ -823,10 +1046,17 @@ fn handle_tab_click(
 /// the active tab is highlighted and every other tab goes back to idle.
 fn update_tab_highlight(
     inv_state: Res<InventoryState>,
-    mut tabs: Query<(&InventoryTabBtn, &mut BackgroundColor, &mut BorderColor, &Children)>,
+    mut tabs: Query<(
+        &InventoryTabBtn,
+        &mut BackgroundColor,
+        &mut BorderColor,
+        &Children,
+    )>,
     mut text_q: Query<&mut Text>,
 ) {
-    if !inv_state.is_changed() { return; }
+    if !inv_state.is_changed() {
+        return;
+    }
 
     for (tab, mut bg, mut border, children) in &mut tabs {
         let active = tab.0 == inv_state.active_tab;
@@ -850,42 +1080,66 @@ fn update_silhouette(
     asset_server: Res<AssetServer>,
     mut silhouette_q: Query<&mut UiImage, With<PlayerSilhouette>>,
 ) {
-    if !skin.is_changed() || skin.0.is_empty() { return; }
-    let Ok(mut img) = silhouette_q.get_single_mut() else { return };
+    if !skin.is_changed() || skin.0.is_empty() {
+        return;
+    }
+    let Ok(mut img) = silhouette_q.get_single_mut() else {
+        return;
+    };
     // Use the first forward-facing frame as a static portrait.
     img.texture = asset_server.load(format!("skin/{}/forward/f1.png", skin.0));
 }
 
 fn handle_slot_interactions(
     mut interaction_query: Query<
-        (&Interaction, &InventorySlotInfo, &mut BackgroundColor, &mut BorderColor),
+        (
+            &Interaction,
+            &InventorySlotInfo,
+            &mut BackgroundColor,
+            &mut BorderColor,
+        ),
         (Changed<Interaction>, With<Button>),
     >,
     mut text_query: Query<&mut Text, With<InventoryDescriptionText>>,
     mut action_btn_q: Query<&mut Style, (With<InventoryActionBtn>, Without<InventoryDropBtn>)>,
     mut drop_btn_q: Query<&mut Style, (With<InventoryDropBtn>, Without<InventoryActionBtn>)>,
-    mut action_txt_q: Query<&mut Text, (With<InventoryActionText>, Without<InventoryDescriptionText>)>,
+    mut action_txt_q: Query<
+        &mut Text,
+        (With<InventoryActionText>, Without<InventoryDescriptionText>),
+    >,
     mut selected_item: ResMut<SelectedItem>,
 ) {
     for (interaction, info, mut color, mut border) in &mut interaction_query {
         // Equipped items keep their gold border regardless of hover state.
-        let base_bg     = if info.is_equipped { Color::rgba(0.35, 0.28, 0.12, 1.0) } else { SLOT_BG };
-        let base_border = if info.is_equipped { BORDER_GOLD } else { SLOT_BORDER };
+        let base_bg = if info.is_equipped {
+            Color::rgba(0.35, 0.28, 0.12, 1.0)
+        } else {
+            SLOT_BG
+        };
+        let base_border = if info.is_equipped {
+            BORDER_GOLD
+        } else {
+            SLOT_BORDER
+        };
 
         match *interaction {
             Interaction::Pressed => {
-                *color  = Color::rgba(0.40, 0.35, 0.20, 1.0).into();
+                *color = Color::rgba(0.40, 0.35, 0.20, 1.0).into();
                 *border = BORDER_GOLD.into();
 
                 if let Ok(mut text) = text_query.get_single_mut() {
-                    let dmg_str = if info.damage > 0 { format!(" | Damage: +{}", info.damage) } else { String::new() };
+                    let dmg_str = if info.damage > 0 {
+                        format!(" | Damage: +{}", info.damage)
+                    } else {
+                        String::new()
+                    };
                     text.sections[0].value = format!("{}{}", info.name, dmg_str);
                 }
-                selected_item.id          = Some(info.id.clone());
-                selected_item.name        = Some(info.name.clone());
+                selected_item.id = Some(info.id.clone());
+                selected_item.name = Some(info.name.clone());
                 selected_item.is_equipped = info.is_equipped;
-                selected_item.consumable  = info.consumable;
-                selected_item.slot        = info.slot.clone();
+                selected_item.consumable = info.consumable;
+                selected_item.slot = info.slot.clone();
 
                 if let Ok(mut style) = action_btn_q.get_single_mut() {
                     let show = info.slot != "none" || info.consumable;
@@ -906,11 +1160,11 @@ fn handle_slot_interactions(
                 }
             }
             Interaction::Hovered => {
-                *color  = Color::rgba(0.32, 0.26, 0.16, 1.0).into();
+                *color = Color::rgba(0.32, 0.26, 0.16, 1.0).into();
                 *border = BORDER_GOLD.into();
             }
             Interaction::None => {
-                *color  = base_bg.into();
+                *color = base_bg.into();
                 *border = base_border.into();
             }
         }
@@ -933,7 +1187,11 @@ fn handle_action_btn(
                     if selected_item.consumable {
                         let _ = sender.0.send(format!("USE {}\n", id));
                     } else {
-                        let cmd = if selected_item.is_equipped { "UNEQUIP" } else { "EQUIP" };
+                        let cmd = if selected_item.is_equipped {
+                            "UNEQUIP"
+                        } else {
+                            "EQUIP"
+                        };
                         let _ = sender.0.send(format!("{} {}\n", cmd, id));
                     }
                 }
@@ -964,8 +1222,12 @@ fn handle_drop_btn(
                     let _ = sender.0.send(format!("DROP {}\n", id));
                 }
             }
-            Interaction::Hovered => { *color = Color::rgba(0.45, 0.15, 0.15, 1.0).into(); }
-            Interaction::None    => { *color = Color::rgba(0.35, 0.12, 0.12, 1.0).into(); }
+            Interaction::Hovered => {
+                *color = Color::rgba(0.45, 0.15, 0.15, 1.0).into();
+            }
+            Interaction::None => {
+                *color = Color::rgba(0.35, 0.12, 0.12, 1.0).into();
+            }
         }
     }
 }
@@ -983,11 +1245,11 @@ fn handle_equip_data(
                 if parts.len() >= 2 {
                     let slot_name = parts[0];
                     let id = parts[1];
-                    
+
                     let mut is_equipped = false;
                     let mut item_name = "Vide".to_string();
                     let mut damage = 0;
-                    
+
                     let mut sprite_name = "none";
                     if id != "none" && parts.len() >= 4 {
                         is_equipped = true;
@@ -997,7 +1259,7 @@ fn handle_equip_data(
                             sprite_name = parts[4];
                         }
                     }
-                    
+
                     for (entity, slot_cmp) in slots_query.iter_mut() {
                         if slot_cmp.0 == slot_name {
                             // Update slot UI
@@ -1011,14 +1273,15 @@ fn handle_equip_data(
                                     is_equipped: true,
                                     consumable: false,
                                 });
-                                
+
                                 let mut icon = None;
                                 if sprite_name != "none" && !sprite_name.is_empty() {
-                                    icon = Some(asset_server.load(format!("UI/{}.png", sprite_name)));
+                                    icon =
+                                        Some(asset_server.load(format!("UI/{}.png", sprite_name)));
                                 } else if slot_name == "weapon" {
                                     icon = Some(asset_server.load("UI/sword_icone.png"));
                                 }
-                                
+
                                 if let Some(texture) = icon {
                                     commands.entity(entity).with_children(|p| {
                                         p.spawn(ImageBundle {
@@ -1035,7 +1298,11 @@ fn handle_equip_data(
                                     commands.entity(entity).with_children(|p| {
                                         p.spawn(TextBundle::from_section(
                                             &item_name,
-                                            TextStyle { font_size: 12.0, color: Color::rgba(0.85, 0.82, 0.75, 1.0), ..default() },
+                                            TextStyle {
+                                                font_size: 12.0,
+                                                color: Color::rgba(0.85, 0.82, 0.75, 1.0),
+                                                ..default()
+                                            },
                                         ));
                                     });
                                 }
@@ -1043,14 +1310,18 @@ fn handle_equip_data(
                                 commands.entity(entity).remove::<InventorySlotInfo>();
                                 commands.entity(entity).with_children(|p| {
                                     let label = match slot_name {
-                                        "weapon"    => "",
-                                        "chest"     => "",
+                                        "weapon" => "",
+                                        "chest" => "",
                                         "medaillon" => "",
-                                        _           => "",
+                                        _ => "",
                                     };
                                     p.spawn(TextBundle::from_section(
                                         label,
-                                        TextStyle { font_size: 12.0, color: TEXT_DIM, ..default() },
+                                        TextStyle {
+                                            font_size: 12.0,
+                                            color: TEXT_DIM,
+                                            ..default()
+                                        },
                                     ));
                                 });
                             }
@@ -1087,8 +1358,14 @@ fn handle_char_stats(
                     t.sections[0].value = points.to_string();
                 }
                 // Show/hide + buttons based on available points
-                let vis = if points > 0 { Visibility::Inherited } else { Visibility::Hidden };
-                for mut v in statup_btn_q.iter_mut() { *v = vis; }
+                let vis = if points > 0 {
+                    Visibility::Inherited
+                } else {
+                    Visibility::Hidden
+                };
+                for mut v in statup_btn_q.iter_mut() {
+                    *v = vis;
+                }
             }
         }
     }
@@ -1124,15 +1401,24 @@ fn handle_stat_points_event(
                 if let Ok(mut t) = sp_text_q.get_single_mut() {
                     t.sections[0].value = points.to_string();
                 }
-                let vis = if points > 0 { Visibility::Inherited } else { Visibility::Hidden };
-                for mut v in statup_btn_q.iter_mut() { *v = vis; }
+                let vis = if points > 0 {
+                    Visibility::Inherited
+                } else {
+                    Visibility::Hidden
+                };
+                for mut v in statup_btn_q.iter_mut() {
+                    *v = vis;
+                }
             }
         }
     }
 }
 
 fn handle_statup_click(
-    mut btn_q: Query<(&Interaction, &StatUpBtn, &mut BackgroundColor), (Changed<Interaction>, With<Button>)>,
+    mut btn_q: Query<
+        (&Interaction, &StatUpBtn, &mut BackgroundColor),
+        (Changed<Interaction>, With<Button>),
+    >,
     sender: Option<Res<NetworkSender>>,
 ) {
     let Some(sender) = sender else { return };
@@ -1142,7 +1428,7 @@ fn handle_statup_click(
                 let _ = sender.0.try_send(format!("STATUP {}\n", stat_btn.0));
             }
             Interaction::Hovered => *bg = Color::rgba(0.2, 0.5, 0.2, 0.9).into(),
-            Interaction::None    => *bg = Color::rgba(0.2, 0.5, 0.2, 0.0).into(),
+            Interaction::None => *bg = Color::rgba(0.2, 0.5, 0.2, 0.0).into(),
         }
     }
 }
@@ -1186,7 +1472,8 @@ impl Plugin for ConsolePlugin {
                     spawn_chat_bubbles,
                     tick_chat_bubbles,
                     update_chat_combat_visibility,
-                ).run_if(in_state(AppState::InGame)),
+                )
+                    .run_if(in_state(AppState::InGame)),
             );
     }
 }
@@ -1295,7 +1582,11 @@ pub struct ChatHistory {
 
 impl ChatHistory {
     pub fn add(&mut self, channel: ChatChannel, text: String, color: Color) {
-        self.messages.push(ChatMessage { channel, text, color });
+        self.messages.push(ChatMessage {
+            channel,
+            text,
+            color,
+        });
         if self.messages.len() > 100 {
             self.messages.remove(0);
         }
@@ -1403,7 +1694,10 @@ fn setup_chat_ui(mut commands: Commands) {
                     flex_direction: FlexDirection::Row,
                     align_items: AlignItems::Center,
                     justify_content: JustifyContent::SpaceBetween,
-                    margin: UiRect { bottom: Val::Px(4.0), ..default() },
+                    margin: UiRect {
+                        bottom: Val::Px(4.0),
+                        ..default()
+                    },
                     ..default()
                 },
                 ..default()
@@ -1424,7 +1718,12 @@ fn setup_chat_ui(mut commands: Commands) {
                         tabs.spawn((
                             ButtonBundle {
                                 style: Style {
-                                    padding: UiRect { left: Val::Px(10.0), right: Val::Px(10.0), top: Val::Px(3.0), bottom: Val::Px(3.0) },
+                                    padding: UiRect {
+                                        left: Val::Px(10.0),
+                                        right: Val::Px(10.0),
+                                        top: Val::Px(3.0),
+                                        bottom: Val::Px(3.0),
+                                    },
                                     border: UiRect::all(Val::Px(1.0)),
                                     justify_content: JustifyContent::Center,
                                     align_items: AlignItems::Center,
@@ -1440,7 +1739,11 @@ fn setup_chat_ui(mut commands: Commands) {
                             btn.spawn((
                                 TextBundle::from_section(
                                     "Global",
-                                    TextStyle { font_size: 13.0, color: ChatChannel::Global.color(), ..default() },
+                                    TextStyle {
+                                        font_size: 13.0,
+                                        color: ChatChannel::Global.color(),
+                                        ..default()
+                                    },
                                 ),
                                 ChatTabText(ChatChannel::Global),
                             ));
@@ -1450,7 +1753,12 @@ fn setup_chat_ui(mut commands: Commands) {
                         tabs.spawn((
                             ButtonBundle {
                                 style: Style {
-                                    padding: UiRect { left: Val::Px(10.0), right: Val::Px(10.0), top: Val::Px(3.0), bottom: Val::Px(3.0) },
+                                    padding: UiRect {
+                                        left: Val::Px(10.0),
+                                        right: Val::Px(10.0),
+                                        top: Val::Px(3.0),
+                                        bottom: Val::Px(3.0),
+                                    },
                                     border: UiRect::all(Val::Px(1.0)),
                                     justify_content: JustifyContent::Center,
                                     align_items: AlignItems::Center,
@@ -1466,7 +1774,11 @@ fn setup_chat_ui(mut commands: Commands) {
                             btn.spawn((
                                 TextBundle::from_section(
                                     "Room",
-                                    TextStyle { font_size: 13.0, color: Color::rgba(0.65, 0.65, 0.70, 0.8), ..default() },
+                                    TextStyle {
+                                        font_size: 13.0,
+                                        color: Color::rgba(0.65, 0.65, 0.70, 0.8),
+                                        ..default()
+                                    },
                                 ),
                                 ChatTabText(ChatChannel::Room),
                             ));
@@ -1477,7 +1789,12 @@ fn setup_chat_ui(mut commands: Commands) {
                             ButtonBundle {
                                 style: Style {
                                     display: Display::None,
-                                    padding: UiRect { left: Val::Px(10.0), right: Val::Px(10.0), top: Val::Px(3.0), bottom: Val::Px(3.0) },
+                                    padding: UiRect {
+                                        left: Val::Px(10.0),
+                                        right: Val::Px(10.0),
+                                        top: Val::Px(3.0),
+                                        bottom: Val::Px(3.0),
+                                    },
                                     border: UiRect::all(Val::Px(1.0)),
                                     justify_content: JustifyContent::Center,
                                     align_items: AlignItems::Center,
@@ -1493,7 +1810,11 @@ fn setup_chat_ui(mut commands: Commands) {
                             btn.spawn((
                                 TextBundle::from_section(
                                     "Group",
-                                    TextStyle { font_size: 13.0, color: Color::rgba(0.65, 0.65, 0.70, 0.8), ..default() },
+                                    TextStyle {
+                                        font_size: 13.0,
+                                        color: Color::rgba(0.65, 0.65, 0.70, 0.8),
+                                        ..default()
+                                    },
                                 ),
                                 ChatTabText(ChatChannel::Group),
                             ));
@@ -1503,7 +1824,11 @@ fn setup_chat_ui(mut commands: Commands) {
                 tabs_row.spawn((
                     TextBundle::from_section(
                         "[Tab] Canal  [T] Parler  [F1] Console Dev",
-                        TextStyle { font_size: 11.0, color: Color::rgba(0.55, 0.55, 0.62, 0.7), ..default() },
+                        TextStyle {
+                            font_size: 11.0,
+                            color: Color::rgba(0.55, 0.55, 0.62, 0.7),
+                            ..default()
+                        },
                     ),
                     ChatShortcutHelpText,
                 ));
@@ -1515,7 +1840,11 @@ fn setup_chat_ui(mut commands: Commands) {
                     style: Style {
                         width: Val::Percent(100.0),
                         flex_grow: 1.0,
-                        margin: UiRect { top: Val::Px(2.0), bottom: Val::Px(4.0), ..default() },
+                        margin: UiRect {
+                            top: Val::Px(2.0),
+                            bottom: Val::Px(4.0),
+                            ..default()
+                        },
                         padding: UiRect::all(Val::Px(6.0)),
                         flex_direction: FlexDirection::ColumnReverse,
                         overflow: Overflow::clip(),
@@ -1530,7 +1859,11 @@ fn setup_chat_ui(mut commands: Commands) {
                 msg_area.spawn((
                     TextBundle::from_section(
                         "Welcome! Type directly to chat.\n",
-                        TextStyle { font_size: 14.0, color: Color::rgba(0.85, 0.85, 0.90, 1.0), ..default() },
+                        TextStyle {
+                            font_size: 14.0,
+                            color: Color::rgba(0.85, 0.85, 0.90, 1.0),
+                            ..default()
+                        },
                     ),
                     ChatText,
                 ));
@@ -1542,7 +1875,12 @@ fn setup_chat_ui(mut commands: Commands) {
                     style: Style {
                         width: Val::Percent(100.0),
                         height: Val::Px(32.0),
-                        padding: UiRect { left: Val::Px(8.0), right: Val::Px(8.0), top: Val::Px(3.0), bottom: Val::Px(3.0) },
+                        padding: UiRect {
+                            left: Val::Px(8.0),
+                            right: Val::Px(8.0),
+                            top: Val::Px(3.0),
+                            bottom: Val::Px(3.0),
+                        },
                         border: UiRect::all(Val::Px(1.0)),
                         flex_direction: FlexDirection::Row,
                         align_items: AlignItems::Center,
@@ -1558,14 +1896,22 @@ fn setup_chat_ui(mut commands: Commands) {
                 input_box.spawn((
                     TextBundle::from_section(
                         "[Global] ",
-                        TextStyle { font_size: 14.0, color: ChatChannel::Global.color(), ..default() },
+                        TextStyle {
+                            font_size: 14.0,
+                            color: ChatChannel::Global.color(),
+                            ..default()
+                        },
                     ),
                     ChatInputPrompt,
                 ));
                 input_box.spawn((
                     TextBundle::from_section(
                         "Press 'T' to chat...",
-                        TextStyle { font_size: 13.0, color: Color::rgba(0.55, 0.55, 0.60, 0.7), ..default() },
+                        TextStyle {
+                            font_size: 13.0,
+                            color: Color::rgba(0.55, 0.55, 0.60, 0.7),
+                            ..default()
+                        },
                     ),
                     ChatInputText,
                 ));
@@ -1663,7 +2009,11 @@ fn on_enter_ingame(
 ) {
     let in_combat = combat.as_ref().map_or(false, |c| c.in_combat);
     if let Ok(mut vis) = chat_root_q.get_single_mut() {
-        *vis = if in_combat { Visibility::Hidden } else { Visibility::Inherited };
+        *vis = if in_combat {
+            Visibility::Hidden
+        } else {
+            Visibility::Inherited
+        };
     }
     fade_state.reset();
     let _ = sender.0.send("GROUP\n".to_string());
@@ -1745,7 +2095,11 @@ fn toggle_terminal(
             console.open = false;
         }
         if let Ok(mut vis) = query.get_single_mut() {
-            *vis = if console.terminal_open { Visibility::Inherited } else { Visibility::Hidden };
+            *vis = if console.terminal_open {
+                Visibility::Inherited
+            } else {
+                Visibility::Hidden
+            };
         }
     } else if console.terminal_open && keys.just_pressed(KeyCode::Escape) {
         console.terminal_open = false;
@@ -1822,7 +2176,13 @@ fn handle_terminal_inputs(
             continue;
         }
         let s = ev.char.to_string();
-        if !s.contains('\u{8}') && !s.contains('\r') && !s.contains('\n') && !s.contains('`') && !s.contains('~') && !s.contains('²') {
+        if !s.contains('\u{8}')
+            && !s.contains('\r')
+            && !s.contains('\n')
+            && !s.contains('`')
+            && !s.contains('~')
+            && !s.contains('²')
+        {
             input_text.sections[0].value.push_str(&s);
         }
     }
@@ -1836,7 +2196,9 @@ fn handle_terminal_inputs(
         if !command.is_empty() {
             let _ = sender.0.send(format!("{}\n", command));
             if let Ok(mut log_text) = log_query.get_single_mut() {
-                log_text.sections[0].value.push_str(&format!("> {}\n", command));
+                log_text.sections[0]
+                    .value
+                    .push_str(&format!("> {}\n", command));
                 let lines: Vec<&str> = log_text.sections[0].value.lines().collect();
                 if lines.len() > 15 {
                     log_text.sections[0].value = lines[lines.len() - 15..].join("\n") + "\n";
@@ -1853,7 +2215,9 @@ fn display_terminal_messages(
 ) {
     for ev in events.read() {
         for mut text in query.iter_mut() {
-            text.sections[0].value.push_str(&format!("{}\n", ev.0.trim()));
+            text.sections[0]
+                .value
+                .push_str(&format!("{}\n", ev.0.trim()));
             let lines: Vec<&str> = text.sections[0].value.lines().collect();
             if lines.len() > 15 {
                 text.sections[0].value = lines[lines.len() - 15..].join("\n") + "\n";
@@ -1913,7 +2277,9 @@ fn handle_inputs(
                         );
                     }
                     "INVITE" if parts.len() > 1 => {
-                        let _ = sender.0.send(format!("GROUP INVITE {}\n", parts[1..].join(" ")));
+                        let _ = sender
+                            .0
+                            .send(format!("GROUP INVITE {}\n", parts[1..].join(" ")));
                     }
                     "ACCEPT" => {
                         let _ = sender.0.send("GROUP ACCEPT\n".to_string());
@@ -1924,20 +2290,39 @@ fn handle_inputs(
                     "GLOBAL" if parts.len() > 1 => {
                         let text = parts[1..].join(" ");
                         let _ = sender.0.send(format!("CHAT GLOBAL {}\n", text));
-                        history.add(ChatChannel::Global, format!("[Global] {}: {}", my_name, text), Color::rgb(0.95, 0.90, 0.80));
-                        console.last_sent = Some((ChatChannel::Global, text, std::time::Instant::now()));
+                        history.add(
+                            ChatChannel::Global,
+                            format!("[Global] {}: {}", my_name, text),
+                            Color::rgb(0.95, 0.90, 0.80),
+                        );
+                        console.last_sent =
+                            Some((ChatChannel::Global, text, std::time::Instant::now()));
                     }
                     "ROOM" if parts.len() > 1 => {
                         let text = parts[1..].join(" ");
                         let _ = sender.0.send(format!("CHAT ROOM {}\n", text));
-                        history.add(ChatChannel::Room, format!("[Room] {}: {}", my_name, text), Color::rgb(0.85, 1.0, 0.88));
-                        console.last_sent = Some((ChatChannel::Room, text, std::time::Instant::now()));
+                        history.add(
+                            ChatChannel::Room,
+                            format!("[Room] {}: {}", my_name, text),
+                            Color::rgb(0.85, 1.0, 0.88),
+                        );
+                        console.last_sent =
+                            Some((ChatChannel::Room, text, std::time::Instant::now()));
                     }
-                    "GROUP" if parts.len() > 1 && !["CREATE", "INVITE", "ACCEPT", "LEAVE", "INFO"].contains(&parts[1].to_uppercase().as_str()) => {
+                    "GROUP"
+                        if parts.len() > 1
+                            && !["CREATE", "INVITE", "ACCEPT", "LEAVE", "INFO"]
+                                .contains(&parts[1].to_uppercase().as_str()) =>
+                    {
                         let text = parts[1..].join(" ");
                         let _ = sender.0.send(format!("CHAT GROUP {}\n", text));
-                        history.add(ChatChannel::Group, format!("[Group] {}: {}", my_name, text), Color::rgb(0.80, 0.90, 1.0));
-                        console.last_sent = Some((ChatChannel::Group, text, std::time::Instant::now()));
+                        history.add(
+                            ChatChannel::Group,
+                            format!("[Group] {}: {}", my_name, text),
+                            Color::rgb(0.80, 0.90, 1.0),
+                        );
+                        console.last_sent =
+                            Some((ChatChannel::Group, text, std::time::Instant::now()));
                     }
                     _ => {
                         let _ = sender.0.send(format!("{}\n", cmd));
@@ -1955,12 +2340,25 @@ fn handle_inputs(
 
                 // Immediate insertion for guaranteed instant display
                 let (prefix, color) = match console.active_channel {
-                    ChatChannel::Global => (format!("[Global] {}: {}", my_name, msg), Color::rgb(0.95, 0.90, 0.80)),
-                    ChatChannel::Room => (format!("[Room] {}: {}", my_name, msg), Color::rgb(0.85, 1.0, 0.88)),
-                    ChatChannel::Group => (format!("[Group] {}: {}", my_name, msg), Color::rgb(0.80, 0.90, 1.0)),
+                    ChatChannel::Global => (
+                        format!("[Global] {}: {}", my_name, msg),
+                        Color::rgb(0.95, 0.90, 0.80),
+                    ),
+                    ChatChannel::Room => (
+                        format!("[Room] {}: {}", my_name, msg),
+                        Color::rgb(0.85, 1.0, 0.88),
+                    ),
+                    ChatChannel::Group => (
+                        format!("[Group] {}: {}", my_name, msg),
+                        Color::rgb(0.80, 0.90, 1.0),
+                    ),
                 };
                 history.add(console.active_channel, prefix, color);
-                console.last_sent = Some((console.active_channel, msg.clone(), std::time::Instant::now()));
+                console.last_sent = Some((
+                    console.active_channel,
+                    msg.clone(),
+                    std::time::Instant::now(),
+                ));
             }
             console.input_buffer.clear();
         }
@@ -1984,7 +2382,9 @@ fn process_chat_events(
                 let sender = parts[0];
                 let message = parts[1..].join(" ");
                 let is_recent_self = local_name.0.as_deref() == Some(sender)
-                    && console.last_sent.as_ref().map_or(false, |(c, m, t)| *c == ChatChannel::Global && m == &message && t.elapsed().as_secs() < 3);
+                    && console.last_sent.as_ref().map_or(false, |(c, m, t)| {
+                        *c == ChatChannel::Global && m == &message && t.elapsed().as_secs() < 3
+                    });
 
                 if !is_recent_self {
                     if sender == "Server" {
@@ -2017,7 +2417,11 @@ fn process_chat_events(
                         let sender = parts[4].replace('_', " ");
                         let message = parts[5..].join(" ");
                         let is_recent_self = local_name.0.as_deref() == Some(sender.as_str())
-                            && console.last_sent.as_ref().map_or(false, |(c, m, t)| *c == ChatChannel::Room && m == &message && t.elapsed().as_secs() < 3);
+                            && console.last_sent.as_ref().map_or(false, |(c, m, t)| {
+                                *c == ChatChannel::Room
+                                    && m == &message
+                                    && t.elapsed().as_secs() < 3
+                            });
 
                         if !is_recent_self {
                             history.add(
@@ -2045,7 +2449,10 @@ fn process_chat_events(
                                     console.unread_room += 1;
                                 }
                             } else if action == "ENTER" {
-                                let is_room_loading = console.room_change_time.as_ref().map_or(false, |t| t.elapsed().as_millis() < 800);
+                                let is_room_loading = console
+                                    .room_change_time
+                                    .as_ref()
+                                    .map_or(false, |t| t.elapsed().as_millis() < 800);
                                 if !is_room_loading {
                                     history.add(
                                         ChatChannel::Room,
@@ -2089,7 +2496,11 @@ fn process_chat_events(
                         let sender = parts[4];
                         let message = parts[5..].join(" ");
                         let is_recent_self = local_name.0.as_deref() == Some(sender)
-                            && console.last_sent.as_ref().map_or(false, |(c, m, t)| *c == ChatChannel::Group && m == &message && t.elapsed().as_secs() < 3);
+                            && console.last_sent.as_ref().map_or(false, |(c, m, t)| {
+                                *c == ChatChannel::Group
+                                    && m == &message
+                                    && t.elapsed().as_secs() < 3
+                            });
 
                         if !is_recent_self {
                             history.add(
@@ -2170,54 +2581,118 @@ fn process_chat_events(
         // 5. SERVER RESPONSES
         if line == "S: OK you_joined_the_group" {
             console.in_group = true;
-            history.add(ChatChannel::Room, "[Group] Vous avez rejoint le groupe !".to_string(), Color::rgb(0.5, 0.85, 1.0));
-            history.add(ChatChannel::Group, "[Group] Vous avez rejoint le groupe !".to_string(), Color::rgb(0.5, 0.85, 1.0));
+            history.add(
+                ChatChannel::Room,
+                "[Group] Vous avez rejoint le groupe !".to_string(),
+                Color::rgb(0.5, 0.85, 1.0),
+            );
+            history.add(
+                ChatChannel::Group,
+                "[Group] Vous avez rejoint le groupe !".to_string(),
+                Color::rgb(0.5, 0.85, 1.0),
+            );
         } else if line == "S: OK group_created" {
             console.in_group = true;
-            history.add(ChatChannel::Room, "[Group] Groupe créé !".to_string(), Color::rgb(0.5, 0.85, 1.0));
-            history.add(ChatChannel::Group, "[Group] Groupe créé !".to_string(), Color::rgb(0.5, 0.85, 1.0));
+            history.add(
+                ChatChannel::Room,
+                "[Group] Groupe créé !".to_string(),
+                Color::rgb(0.5, 0.85, 1.0),
+            );
+            history.add(
+                ChatChannel::Group,
+                "[Group] Groupe créé !".to_string(),
+                Color::rgb(0.5, 0.85, 1.0),
+            );
         } else if line == "S: OK you_left_the_group" {
             console.in_group = false;
             if console.active_channel == ChatChannel::Group {
                 console.active_channel = ChatChannel::Room;
             }
-            history.add(ChatChannel::Room, "[Group] Vous avez quitté le groupe.".to_string(), Color::rgb(0.7, 0.7, 0.8));
+            history.add(
+                ChatChannel::Room,
+                "[Group] Vous avez quitté le groupe.".to_string(),
+                Color::rgb(0.7, 0.7, 0.8),
+            );
         } else if line == "S: OK group_disbanded" {
             console.in_group = false;
             if console.active_channel == ChatChannel::Group {
                 console.active_channel = ChatChannel::Room;
             }
-            history.add(ChatChannel::Room, "[Group] Le groupe a été dissous.".to_string(), Color::rgb(1.0, 0.6, 0.4));
+            history.add(
+                ChatChannel::Room,
+                "[Group] Le groupe a été dissous.".to_string(),
+                Color::rgb(1.0, 0.6, 0.4),
+            );
         } else if let Some(members) = line.strip_prefix("S: OK Group members: ") {
             console.in_group = true;
-            history.add(ChatChannel::Group, format!("[Group] Membres : {}", members), Color::rgb(0.5, 0.85, 1.0));
+            history.add(
+                ChatChannel::Group,
+                format!("[Group] Membres : {}", members),
+                Color::rgb(0.5, 0.85, 1.0),
+            );
         } else if line == "S: OK No group" {
             console.in_group = false;
             if console.active_channel == ChatChannel::Group {
                 console.active_channel = ChatChannel::Room;
             }
         } else if let Some(target) = line.strip_prefix("S: OK you invited ") {
-            history.add(console.active_channel, format!("[Group] Invitation envoyée à {}", target), Color::rgb(1.0, 0.85, 0.4));
+            history.add(
+                console.active_channel,
+                format!("[Group] Invitation envoyée à {}", target),
+                Color::rgb(1.0, 0.85, 0.4),
+            );
         } else if line == "S: ERR chat_spam_forbidden" {
-            history.add(console.active_channel, "[System] Ralentissez ! Anti-spam actif (2s).".to_string(), Color::rgb(1.0, 0.4, 0.4));
+            history.add(
+                console.active_channel,
+                "[System] Ralentissez ! Anti-spam actif (2s).".to_string(),
+                Color::rgb(1.0, 0.4, 0.4),
+            );
         } else if line == "S: ERR you_have_no_group" {
             console.in_group = false;
             if console.active_channel == ChatChannel::Group {
                 console.active_channel = ChatChannel::Room;
             }
-            history.add(console.active_channel, "[System] Vous n'êtes pas dans un groupe.".to_string(), Color::rgb(1.0, 0.4, 0.4));
+            history.add(
+                console.active_channel,
+                "[System] Vous n'êtes pas dans un groupe.".to_string(),
+                Color::rgb(1.0, 0.4, 0.4),
+            );
         } else if line == "S: ERR player_not_found" {
-            history.add(console.active_channel, "[System] Player not found.".to_string(), Color::rgb(1.0, 0.4, 0.4));
+            history.add(
+                console.active_channel,
+                "[System] Player not found.".to_string(),
+                Color::rgb(1.0, 0.4, 0.4),
+            );
         } else if line == "S: ERR player_already_in_group" {
-            history.add(console.active_channel, "[System] That player is already in a group.".to_string(), Color::rgb(1.0, 0.4, 0.4));
+            history.add(
+                console.active_channel,
+                "[System] That player is already in a group.".to_string(),
+                Color::rgb(1.0, 0.4, 0.4),
+            );
         } else if line == "S: ERR cannot_invite_yourself" {
-            history.add(console.active_channel, "[System] Impossible de vous inviter vous-même.".to_string(), Color::rgb(1.0, 0.4, 0.4));
+            history.add(
+                console.active_channel,
+                "[System] Impossible de vous inviter vous-même.".to_string(),
+                Color::rgb(1.0, 0.4, 0.4),
+            );
         } else if line == "S: ERR you_already_have_a_group" {
-            history.add(console.active_channel, "[System] Vous avez déjà un groupe.".to_string(), Color::rgb(1.0, 0.4, 0.4));
+            history.add(
+                console.active_channel,
+                "[System] Vous avez déjà un groupe.".to_string(),
+                Color::rgb(1.0, 0.4, 0.4),
+            );
         } else if line == "S: ERR no_pending_invite" {
-            history.add(console.active_channel, "[System] Aucune invitation en attente.".to_string(), Color::rgb(1.0, 0.4, 0.4));
+            history.add(
+                console.active_channel,
+                "[System] Aucune invitation en attente.".to_string(),
+                Color::rgb(1.0, 0.4, 0.4),
+            );
         } else if line == "S: ERR group_no_longer_exists" {
-            history.add(console.active_channel, "[System] Le groupe n'existe plus.".to_string(), Color::rgb(1.0, 0.4, 0.4));
+            history.add(
+                console.active_channel,
+                "[System] Le groupe n'existe plus.".to_string(),
+                Color::rgb(1.0, 0.4, 0.4),
+            );
         }
     }
 }
@@ -2257,7 +2732,8 @@ fn tick_chat_fade(
     } else {
         let dt = time.delta_seconds();
         if fade_state.activity_timer > 0.0 {
-            fade_state.bypass_change_detection().activity_timer = (fade_state.activity_timer - dt).max(0.0);
+            fade_state.bypass_change_detection().activity_timer =
+                (fade_state.activity_timer - dt).max(0.0);
         } else if fade_state.alpha > 0.0 {
             let new_alpha = (fade_state.alpha - dt / CHAT_FADE_DURATION).max(0.0);
             fade_state.alpha = new_alpha;
@@ -2329,7 +2805,12 @@ fn update_chat_container_style(
 fn update_chat_tabs_ui(
     console: Res<ChatConsole>,
     fade_state: Res<ChatFadeState>,
-    mut tab_buttons: Query<(&ChatTabButton, &mut BackgroundColor, &mut BorderColor, &mut Style)>,
+    mut tab_buttons: Query<(
+        &ChatTabButton,
+        &mut BackgroundColor,
+        &mut BorderColor,
+        &mut Style,
+    )>,
     mut tab_texts: Query<(&ChatTabText, &mut Text), Without<ChatShortcutHelpText>>,
     mut help_texts: Query<&mut Text, With<ChatShortcutHelpText>>,
 ) {
@@ -2339,7 +2820,11 @@ fn update_chat_tabs_ui(
     let alpha = fade_state.alpha;
     for (btn, mut bg, mut border, mut style) in &mut tab_buttons {
         if btn.0 == ChatChannel::Group {
-            style.display = if console.in_group { Display::Flex } else { Display::None };
+            style.display = if console.in_group {
+                Display::Flex
+            } else {
+                Display::None
+            };
         }
 
         if btn.0 == console.active_channel {
@@ -2463,7 +2948,10 @@ fn update_chat_messages_ui(
     let mut sections = Vec::new();
     if relevant.is_empty() {
         sections.push(TextSection::new(
-            format!("(Aucun message dans le canal {})\n", console.active_channel.name()),
+            format!(
+                "(Aucun message dans le canal {})\n",
+                console.active_channel.name()
+            ),
             TextStyle {
                 font_size: 14.0,
                 color: Color::rgba(0.5, 0.5, 0.55, 0.70 * alpha),
@@ -2500,12 +2988,17 @@ fn spawn_chat_bubbles(
     for ev in events.read() {
         let parts: Vec<&str> = ev.0.split_whitespace().collect();
         // S: EVT ROOM CHAT <user> <msg>
-        if parts.len() >= 6 && parts[0] == "S:" && parts[1] == "EVT" && parts[2] == "ROOM" && parts[3] == "CHAT" {
+        if parts.len() >= 6
+            && parts[0] == "S:"
+            && parts[1] == "EVT"
+            && parts[2] == "ROOM"
+            && parts[3] == "CHAT"
+        {
             let username = parts[4];
             let message = parts[5..].join(" ");
             let text_len = message.chars().count() as f32;
             let bubble_width = (text_len * 14.0).max(50.0);
-            
+
             for (player_ent, name) in &players {
                 if name.0 == username {
                     let mut found = false;
@@ -2514,7 +3007,7 @@ fn spawn_chat_bubbles(
                             // Update existing background size
                             sprite.custom_size = Some(Vec2::new(bubble_width + 20.0, 40.0));
                             bubble.timer.reset();
-                            
+
                             // Update existing text
                             if let Some(children) = children {
                                 for &child in children.iter() {
@@ -2531,7 +3024,7 @@ fn spawn_chat_bubbles(
                         commands.entity(player_ent).with_children(|p| {
                             let text_len = message.chars().count() as f32;
                             let bubble_width = (text_len * 14.0).max(50.0);
-                            
+
                             p.spawn((
                                 SpriteBundle {
                                     sprite: Sprite {
@@ -2544,14 +3037,19 @@ fn spawn_chat_bubbles(
                                 },
                                 ChatBubble {
                                     timer: Timer::from_seconds(5.0, TimerMode::Once),
-                                }
+                                },
                             ))
                             .with_children(|bubble_parent| {
                                 bubble_parent.spawn(Text2dBundle {
                                     text: Text::from_section(
                                         message.clone(),
-                                        TextStyle { font_size: 24.0, color: Color::BLACK, ..default() },
-                                    ).with_justify(JustifyText::Center),
+                                        TextStyle {
+                                            font_size: 24.0,
+                                            color: Color::BLACK,
+                                            ..default()
+                                        },
+                                    )
+                                    .with_justify(JustifyText::Center),
                                     transform: Transform::from_xyz(0.0, 0.0, 1.0),
                                     ..default()
                                 });
@@ -2588,17 +3086,24 @@ impl Plugin for QuestPlugin {
         app.init_resource::<QuestState>()
             .init_resource::<SelectedQuest>()
             .add_systems(Startup, setup_quest_ui)
-            .add_systems(Update, (
-                toggle_quest_ui,
-                handle_quest_data,
-                handle_quest_selection,
-                handle_close_buttons,
-            ).run_if(in_state(AppState::InGame)));
+            .add_systems(
+                Update,
+                (
+                    toggle_quest_ui,
+                    handle_quest_data,
+                    handle_quest_selection,
+                    handle_close_buttons,
+                )
+                    .run_if(in_state(AppState::InGame)),
+            );
     }
 }
 
 fn handle_close_buttons(
-    mut interaction_query: Query<(&Interaction, &CloseButton), (Changed<Interaction>, With<Button>)>,
+    mut interaction_query: Query<
+        (&Interaction, &CloseButton),
+        (Changed<Interaction>, With<Button>),
+    >,
     mut inv_state: ResMut<InventoryState>,
     mut quest_state: ResMut<QuestState>,
 ) {
@@ -2653,16 +3158,16 @@ struct QuestEntry {
 struct QuestEntrySlot;
 
 // Quest Journal theme colours
-const QUEST_BG: Color          = Color::rgba(0.08, 0.07, 0.06, 0.96);
-const QUEST_BORDER: Color      = Color::rgba(0.55, 0.42, 0.18, 1.0);
+const QUEST_BG: Color = Color::rgba(0.08, 0.07, 0.06, 0.96);
+const QUEST_BORDER: Color = Color::rgba(0.55, 0.42, 0.18, 1.0);
 const QUEST_TITLE_COLOR: Color = Color::rgba(0.90, 0.75, 0.35, 1.0);
-const QUEST_ENTRY_BG: Color    = Color::rgba(0.30, 0.24, 0.10, 0.92);
+const QUEST_ENTRY_BG: Color = Color::rgba(0.30, 0.24, 0.10, 0.92);
 const QUEST_ENTRY_BORDER: Color = Color::rgba(0.50, 0.40, 0.15, 0.8);
-const QUEST_ENTRY_TEXT: Color  = Color::rgba(0.88, 0.76, 0.42, 1.0);
-const QUEST_PARCHMENT: Color   = Color::rgba(0.82, 0.75, 0.60, 0.92);
+const QUEST_ENTRY_TEXT: Color = Color::rgba(0.88, 0.76, 0.42, 1.0);
+const QUEST_PARCHMENT: Color = Color::rgba(0.82, 0.75, 0.60, 0.92);
 const QUEST_DETAIL_TITLE: Color = Color::rgba(0.15, 0.12, 0.08, 1.0);
-const QUEST_DETAIL_TEXT: Color  = Color::rgba(0.25, 0.22, 0.18, 1.0);
-const QUEST_ENTRY_HOVER: Color  = Color::rgba(0.40, 0.33, 0.14, 0.95);
+const QUEST_DETAIL_TEXT: Color = Color::rgba(0.25, 0.22, 0.18, 1.0);
+const QUEST_ENTRY_HOVER: Color = Color::rgba(0.40, 0.33, 0.14, 0.95);
 const QUEST_ENTRY_SELECTED: Color = Color::rgba(0.48, 0.38, 0.16, 1.0);
 
 fn setup_quest_ui(mut commands: Commands) {
@@ -2701,182 +3206,237 @@ fn setup_quest_ui(mut commands: Commands) {
             })
             .with_children(|window| {
                 // ── Header ──
-                window.spawn(NodeBundle {
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        justify_content: JustifyContent::SpaceBetween,
-                        align_items: AlignItems::Center,
-                        padding: UiRect::new(Val::Px(12.0), Val::Px(12.0), Val::Px(8.0), Val::Px(12.0)),
-                        border: UiRect::bottom(Val::Px(2.0)),
-                        margin: UiRect::bottom(Val::Px(12.0)),
+                window
+                    .spawn(NodeBundle {
+                        style: Style {
+                            width: Val::Percent(100.0),
+                            justify_content: JustifyContent::SpaceBetween,
+                            align_items: AlignItems::Center,
+                            padding: UiRect::new(
+                                Val::Px(12.0),
+                                Val::Px(12.0),
+                                Val::Px(8.0),
+                                Val::Px(12.0),
+                            ),
+                            border: UiRect::bottom(Val::Px(2.0)),
+                            margin: UiRect::bottom(Val::Px(12.0)),
+                            ..default()
+                        },
+                        border_color: QUEST_BORDER.into(),
                         ..default()
-                    },
-                    border_color: QUEST_BORDER.into(),
-                    ..default()
-                })
-                .with_children(|header| {
-                    header.spawn(NodeBundle { style: Style { width: Val::Px(24.0), ..default() }, ..default() });
-                    header.spawn(TextBundle::from_section(
-                        "Quest Journal",
-                        TextStyle { font_size: 28.0, color: QUEST_TITLE_COLOR, ..default() },
-                    ));
-                    header.spawn((
-                        ButtonBundle {
+                    })
+                    .with_children(|header| {
+                        header.spawn(NodeBundle {
                             style: Style {
                                 width: Val::Px(24.0),
-                                height: Val::Px(24.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
                                 ..default()
                             },
-                            background_color: Color::NONE.into(),
                             ..default()
-                        },
-                        CloseButton("quests".to_string()),
-                    )).with_children(|btn| {
-                        btn.spawn(TextBundle::from_section("X", TextStyle { font_size: 24.0, color: QUEST_TITLE_COLOR, ..default() }));
-                    });
-                });
-
-                // ── Split Panel ──
-                window.spawn(NodeBundle {
-                    style: Style {
-                        width: Val::Percent(100.0),
-                        flex_grow: 1.0,
-                        flex_direction: FlexDirection::Row,
-                        column_gap: Val::Px(12.0),
-                        ..default()
-                    },
-                    ..default()
-                })
-                .with_children(|split| {
-                    // ── Left Panel: Quest List ──
-                    split.spawn(NodeBundle {
-                        style: Style {
-                            width: Val::Percent(38.0),
-                            height: Val::Percent(100.0),
-                            flex_direction: FlexDirection::Column,
-                            overflow: Overflow::clip_y(),
-                            row_gap: Val::Px(6.0),
-                            padding: UiRect::all(Val::Px(6.0)),
-                            border: UiRect::all(Val::Px(1.0)),
-                            ..default()
-                        },
-                        border_color: Color::rgba(0.4, 0.35, 0.2, 0.5).into(),
-                        ..default()
-                    })
-                    .with_children(|left| {
-                        // Quest list container
-                        left.spawn((
-                            NodeBundle {
-                                style: Style {
-                                    width: Val::Percent(100.0),
-                                    flex_direction: FlexDirection::Column,
-                                    row_gap: Val::Px(6.0),
+                        });
+                        header.spawn(TextBundle::from_section(
+                            "Quest Journal",
+                            TextStyle {
+                                font_size: 28.0,
+                                color: QUEST_TITLE_COLOR,
+                                ..default()
+                            },
+                        ));
+                        header
+                            .spawn((
+                                ButtonBundle {
+                                    style: Style {
+                                        width: Val::Px(24.0),
+                                        height: Val::Px(24.0),
+                                        justify_content: JustifyContent::Center,
+                                        align_items: AlignItems::Center,
+                                        ..default()
+                                    },
+                                    background_color: Color::NONE.into(),
                                     ..default()
                                 },
-                                ..default()
-                            },
-                            QuestListPanel,
-                        ));
-
-                        // Empty state message
-                        left.spawn((
-                            TextBundle::from_section(
-                                "No active quests",
-                                TextStyle { font_size: 18.0, color: Color::rgba(0.6, 0.55, 0.4, 0.7), ..default() },
-                            ).with_style(Style {
-                                margin: UiRect::top(Val::Px(20.0)),
-                                align_self: AlignSelf::Center,
-                                ..default()
-                            }),
-                            QuestEmptyText,
-                        ));
+                                CloseButton("quests".to_string()),
+                            ))
+                            .with_children(|btn| {
+                                btn.spawn(TextBundle::from_section(
+                                    "X",
+                                    TextStyle {
+                                        font_size: 24.0,
+                                        color: QUEST_TITLE_COLOR,
+                                        ..default()
+                                    },
+                                ));
+                            });
                     });
 
-                    // ── Right Panel: Quest Details (parchment) ──
-                    split.spawn(NodeBundle {
+                // ── Split Panel ──
+                window
+                    .spawn(NodeBundle {
                         style: Style {
+                            width: Val::Percent(100.0),
                             flex_grow: 1.0,
-                            height: Val::Percent(100.0),
-                            flex_direction: FlexDirection::Column,
-                            padding: UiRect::all(Val::Px(20.0)),
-                            border: UiRect::all(Val::Px(2.0)),
-                            row_gap: Val::Px(16.0),
+                            flex_direction: FlexDirection::Row,
+                            column_gap: Val::Px(12.0),
                             ..default()
                         },
-                        background_color: QUEST_PARCHMENT.into(),
-                        border_color: Color::rgba(0.6, 0.5, 0.3, 0.6).into(),
                         ..default()
                     })
-                    .with_children(|right| {
-                        // Quest Title
-                        right.spawn((
-                            TextBundle::from_section(
-                                "Select a quest",
-                                TextStyle { font_size: 24.0, color: QUEST_DETAIL_TITLE, ..default() },
-                            ),
-                            QuestDetailTitle,
-                        ));
-
-                        // Separator
-                        right.spawn(NodeBundle {
-                            style: Style {
-                                width: Val::Percent(100.0),
-                                height: Val::Px(2.0),
+                    .with_children(|split| {
+                        // ── Left Panel: Quest List ──
+                        split
+                            .spawn(NodeBundle {
+                                style: Style {
+                                    width: Val::Percent(38.0),
+                                    height: Val::Percent(100.0),
+                                    flex_direction: FlexDirection::Column,
+                                    overflow: Overflow::clip_y(),
+                                    row_gap: Val::Px(6.0),
+                                    padding: UiRect::all(Val::Px(6.0)),
+                                    border: UiRect::all(Val::Px(1.0)),
+                                    ..default()
+                                },
+                                border_color: Color::rgba(0.4, 0.35, 0.2, 0.5).into(),
                                 ..default()
-                            },
-                            background_color: Color::rgba(0.5, 0.4, 0.25, 0.5).into(),
-                            ..default()
-                        });
+                            })
+                            .with_children(|left| {
+                                // Quest list container
+                                left.spawn((
+                                    NodeBundle {
+                                        style: Style {
+                                            width: Val::Percent(100.0),
+                                            flex_direction: FlexDirection::Column,
+                                            row_gap: Val::Px(6.0),
+                                            ..default()
+                                        },
+                                        ..default()
+                                    },
+                                    QuestListPanel,
+                                ));
 
-                        // Description label + text
-                        right.spawn(NodeBundle {
-                            style: Style {
-                                flex_direction: FlexDirection::Column,
-                                row_gap: Val::Px(4.0),
-                                ..default()
-                            },
-                            ..default()
-                        })
-                        .with_children(|desc_block| {
-                            desc_block.spawn(TextBundle::from_section(
-                                "Description",
-                                TextStyle { font_size: 16.0, color: Color::rgba(0.4, 0.35, 0.25, 0.8), ..default() },
-                            ));
-                            desc_block.spawn((
-                                TextBundle::from_section(
-                                    "",
-                                    TextStyle { font_size: 18.0, color: QUEST_DETAIL_TEXT, ..default() },
-                                ),
-                                QuestDetailDescription,
-                            ));
-                        });
+                                // Empty state message
+                                left.spawn((
+                                    TextBundle::from_section(
+                                        "No active quests",
+                                        TextStyle {
+                                            font_size: 18.0,
+                                            color: Color::rgba(0.6, 0.55, 0.4, 0.7),
+                                            ..default()
+                                        },
+                                    )
+                                    .with_style(Style {
+                                        margin: UiRect::top(Val::Px(20.0)),
+                                        align_self: AlignSelf::Center,
+                                        ..default()
+                                    }),
+                                    QuestEmptyText,
+                                ));
+                            });
 
-                        // Objective label + text
-                        right.spawn(NodeBundle {
-                            style: Style {
-                                flex_direction: FlexDirection::Column,
-                                row_gap: Val::Px(4.0),
+                        // ── Right Panel: Quest Details (parchment) ──
+                        split
+                            .spawn(NodeBundle {
+                                style: Style {
+                                    flex_grow: 1.0,
+                                    height: Val::Percent(100.0),
+                                    flex_direction: FlexDirection::Column,
+                                    padding: UiRect::all(Val::Px(20.0)),
+                                    border: UiRect::all(Val::Px(2.0)),
+                                    row_gap: Val::Px(16.0),
+                                    ..default()
+                                },
+                                background_color: QUEST_PARCHMENT.into(),
+                                border_color: Color::rgba(0.6, 0.5, 0.3, 0.6).into(),
                                 ..default()
-                            },
-                            ..default()
-                        })
-                        .with_children(|obj_block| {
-                            obj_block.spawn(TextBundle::from_section(
-                                "Objective",
-                                TextStyle { font_size: 16.0, color: Color::rgba(0.4, 0.35, 0.25, 0.8), ..default() },
-                            ));
-                            obj_block.spawn((
-                                TextBundle::from_section(
-                                    "",
-                                    TextStyle { font_size: 18.0, color: Color::rgba(0.45, 0.30, 0.12, 1.0), ..default() },
-                                ),
-                                QuestDetailObjective,
-                            ));
-                        });
+                            })
+                            .with_children(|right| {
+                                // Quest Title
+                                right.spawn((
+                                    TextBundle::from_section(
+                                        "Select a quest",
+                                        TextStyle {
+                                            font_size: 24.0,
+                                            color: QUEST_DETAIL_TITLE,
+                                            ..default()
+                                        },
+                                    ),
+                                    QuestDetailTitle,
+                                ));
+
+                                // Separator
+                                right.spawn(NodeBundle {
+                                    style: Style {
+                                        width: Val::Percent(100.0),
+                                        height: Val::Px(2.0),
+                                        ..default()
+                                    },
+                                    background_color: Color::rgba(0.5, 0.4, 0.25, 0.5).into(),
+                                    ..default()
+                                });
+
+                                // Description label + text
+                                right
+                                    .spawn(NodeBundle {
+                                        style: Style {
+                                            flex_direction: FlexDirection::Column,
+                                            row_gap: Val::Px(4.0),
+                                            ..default()
+                                        },
+                                        ..default()
+                                    })
+                                    .with_children(|desc_block| {
+                                        desc_block.spawn(TextBundle::from_section(
+                                            "Description",
+                                            TextStyle {
+                                                font_size: 16.0,
+                                                color: Color::rgba(0.4, 0.35, 0.25, 0.8),
+                                                ..default()
+                                            },
+                                        ));
+                                        desc_block.spawn((
+                                            TextBundle::from_section(
+                                                "",
+                                                TextStyle {
+                                                    font_size: 18.0,
+                                                    color: QUEST_DETAIL_TEXT,
+                                                    ..default()
+                                                },
+                                            ),
+                                            QuestDetailDescription,
+                                        ));
+                                    });
+
+                                // Objective label + text
+                                right
+                                    .spawn(NodeBundle {
+                                        style: Style {
+                                            flex_direction: FlexDirection::Column,
+                                            row_gap: Val::Px(4.0),
+                                            ..default()
+                                        },
+                                        ..default()
+                                    })
+                                    .with_children(|obj_block| {
+                                        obj_block.spawn(TextBundle::from_section(
+                                            "Objective",
+                                            TextStyle {
+                                                font_size: 16.0,
+                                                color: Color::rgba(0.4, 0.35, 0.25, 0.8),
+                                                ..default()
+                                            },
+                                        ));
+                                        obj_block.spawn((
+                                            TextBundle::from_section(
+                                                "",
+                                                TextStyle {
+                                                    font_size: 18.0,
+                                                    color: Color::rgba(0.45, 0.30, 0.12, 1.0),
+                                                    ..default()
+                                                },
+                                            ),
+                                            QuestDetailObjective,
+                                        ));
+                                    });
+                            });
                     });
-                });
             });
         });
 }
@@ -2891,8 +3451,22 @@ fn toggle_quest_ui(
     combat: Option<Res<CombatResource>>,
     mut selected: ResMut<SelectedQuest>,
     mut title_q: Query<&mut Text, With<QuestDetailTitle>>,
-    mut desc_q: Query<&mut Text, (With<QuestDetailDescription>, Without<QuestDetailTitle>, Without<QuestDetailObjective>)>,
-    mut obj_q: Query<&mut Text, (With<QuestDetailObjective>, Without<QuestDetailTitle>, Without<QuestDetailDescription>)>,
+    mut desc_q: Query<
+        &mut Text,
+        (
+            With<QuestDetailDescription>,
+            Without<QuestDetailTitle>,
+            Without<QuestDetailObjective>,
+        ),
+    >,
+    mut obj_q: Query<
+        &mut Text,
+        (
+            With<QuestDetailObjective>,
+            Without<QuestDetailTitle>,
+            Without<QuestDetailDescription>,
+        ),
+    >,
 ) {
     if let Some(ref combat) = combat {
         if combat.in_combat && state.open {
@@ -2908,15 +3482,25 @@ fn toggle_quest_ui(
         }
     }
 
-    if !console.open && !console.terminal_open && !inventory.open && keys.just_pressed(KeyCode::KeyU) {
+    if !console.open
+        && !console.terminal_open
+        && !inventory.open
+        && keys.just_pressed(KeyCode::KeyU)
+    {
         state.open = !state.open;
         if state.open {
             let _ = sender.0.send("QUESTS\n".to_string());
             // Reset detail panel to default "Select a quest" view.
             selected.id = None;
-            if let Ok(mut t) = title_q.get_single_mut() { t.sections[0].value = "Select a quest".to_string(); }
-            if let Ok(mut t) = desc_q.get_single_mut() { t.sections[0].value = String::new(); }
-            if let Ok(mut t) = obj_q.get_single_mut()  { t.sections[0].value = String::new(); }
+            if let Ok(mut t) = title_q.get_single_mut() {
+                t.sections[0].value = "Select a quest".to_string();
+            }
+            if let Ok(mut t) = desc_q.get_single_mut() {
+                t.sections[0].value = String::new();
+            }
+            if let Ok(mut t) = obj_q.get_single_mut() {
+                t.sections[0].value = String::new();
+            }
         }
     }
 
@@ -2940,7 +3524,9 @@ fn handle_quest_data(
 ) {
     for ev in events.read() {
         if let Some(data) = ev.0.strip_prefix("S: EVT QUEST_DATA ") {
-            let Ok(list) = list_query.get_single() else { continue };
+            let Ok(list) = list_query.get_single() else {
+                continue;
+            };
 
             // Remove old entries
             for entity in existing_entries.iter() {
@@ -2969,34 +3555,46 @@ fn handle_quest_data(
                     // parts[3] = objective text, parts[4] = stage wire (drop it from display)
                     let quest_obj = parts[3].to_string();
 
-                    let entry_entity = commands.spawn((
-                        ButtonBundle {
-                            style: Style {
-                                width: Val::Percent(100.0),
-                                min_height: Val::Px(44.0),
-                                justify_content: JustifyContent::Center,
-                                align_items: AlignItems::Center,
-                                padding: UiRect::new(Val::Px(12.0), Val::Px(12.0), Val::Px(8.0), Val::Px(8.0)),
-                                border: UiRect::all(Val::Px(1.0)),
+                    let entry_entity = commands
+                        .spawn((
+                            ButtonBundle {
+                                style: Style {
+                                    width: Val::Percent(100.0),
+                                    min_height: Val::Px(44.0),
+                                    justify_content: JustifyContent::Center,
+                                    align_items: AlignItems::Center,
+                                    padding: UiRect::new(
+                                        Val::Px(12.0),
+                                        Val::Px(12.0),
+                                        Val::Px(8.0),
+                                        Val::Px(8.0),
+                                    ),
+                                    border: UiRect::all(Val::Px(1.0)),
+                                    ..default()
+                                },
+                                background_color: QUEST_ENTRY_BG.into(),
+                                border_color: QUEST_ENTRY_BORDER.into(),
                                 ..default()
                             },
-                            background_color: QUEST_ENTRY_BG.into(),
-                            border_color: QUEST_ENTRY_BORDER.into(),
-                            ..default()
-                        },
-                        QuestEntrySlot,
-                        QuestEntry {
-                            id: quest_id,
-                            name: quest_name.clone(),
-                            description: quest_desc,
-                            objective: quest_obj,
-                        },
-                    )).with_children(|btn| {
-                        btn.spawn(TextBundle::from_section(
-                            quest_name,
-                            TextStyle { font_size: 17.0, color: QUEST_ENTRY_TEXT, ..default() },
-                        ));
-                    }).id();
+                            QuestEntrySlot,
+                            QuestEntry {
+                                id: quest_id,
+                                name: quest_name.clone(),
+                                description: quest_desc,
+                                objective: quest_obj,
+                            },
+                        ))
+                        .with_children(|btn| {
+                            btn.spawn(TextBundle::from_section(
+                                quest_name,
+                                TextStyle {
+                                    font_size: 17.0,
+                                    color: QUEST_ENTRY_TEXT,
+                                    ..default()
+                                },
+                            ));
+                        })
+                        .id();
                     commands.entity(list).add_child(entry_entity);
                 }
             }
@@ -3010,8 +3608,22 @@ fn handle_quest_selection(
         (Changed<Interaction>, With<Button>, With<QuestEntrySlot>),
     >,
     mut title_q: Query<&mut Text, With<QuestDetailTitle>>,
-    mut desc_q: Query<&mut Text, (With<QuestDetailDescription>, Without<QuestDetailTitle>, Without<QuestDetailObjective>)>,
-    mut obj_q: Query<&mut Text, (With<QuestDetailObjective>, Without<QuestDetailTitle>, Without<QuestDetailDescription>)>,
+    mut desc_q: Query<
+        &mut Text,
+        (
+            With<QuestDetailDescription>,
+            Without<QuestDetailTitle>,
+            Without<QuestDetailObjective>,
+        ),
+    >,
+    mut obj_q: Query<
+        &mut Text,
+        (
+            With<QuestDetailObjective>,
+            Without<QuestDetailTitle>,
+            Without<QuestDetailDescription>,
+        ),
+    >,
     mut selected: ResMut<SelectedQuest>,
 ) {
     for (interaction, entry, mut color) in &mut interaction_query {
@@ -3056,10 +3668,8 @@ impl Plugin for HudPlugin {
             .add_systems(Startup, setup_hud_ui)
             .add_systems(
                 Update,
-                (
-                    handle_player_stats,
-                    update_hud_combat_visibility,
-                ).run_if(in_state(AppState::InGame)),
+                (handle_player_stats, update_hud_combat_visibility)
+                    .run_if(in_state(AppState::InGame)),
             )
             .add_systems(OnEnter(AppState::InGame), show_hud)
             .add_systems(OnExit(AppState::InGame), hide_hud)
@@ -3230,13 +3840,14 @@ fn reset_ui_data_on_logout(
     *history = ChatHistory::default();
 }
 
-fn show_hud(
-    mut q: Query<&mut Visibility, With<HudUiRoot>>,
-    combat: Option<Res<CombatResource>>,
-) {
+fn show_hud(mut q: Query<&mut Visibility, With<HudUiRoot>>, combat: Option<Res<CombatResource>>) {
     let in_combat = combat.as_ref().map_or(false, |c| c.in_combat);
     for mut vis in q.iter_mut() {
-        *vis = if in_combat { Visibility::Hidden } else { Visibility::Inherited };
+        *vis = if in_combat {
+            Visibility::Hidden
+        } else {
+            Visibility::Inherited
+        };
     }
 }
 
@@ -3288,7 +3899,11 @@ fn handle_player_stats(
                     stats.level = lvl;
 
                     // Update HP UI
-                    let hp_pct = if max_hp > 0 { (hp as f32 / max_hp as f32).clamp(0.0, 1.0) * 100.0 } else { 0.0 };
+                    let hp_pct = if max_hp > 0 {
+                        (hp as f32 / max_hp as f32).clamp(0.0, 1.0) * 100.0
+                    } else {
+                        0.0
+                    };
                     if let Ok(mut style) = hp_fill_q.get_single_mut() {
                         style.width = Val::Percent(hp_pct);
                     }
@@ -3297,7 +3912,11 @@ fn handle_player_stats(
                     }
 
                     // Update XP UI
-                    let xp_pct = if max_xp > 0 { (xp as f32 / max_xp as f32).clamp(0.0, 1.0) * 100.0 } else { 0.0 };
+                    let xp_pct = if max_xp > 0 {
+                        (xp as f32 / max_xp as f32).clamp(0.0, 1.0) * 100.0
+                    } else {
+                        0.0
+                    };
                     if let Ok(mut style) = xp_fill_q.get_single_mut() {
                         style.width = Val::Percent(xp_pct);
                     }

@@ -1,7 +1,7 @@
-use bevy::prelude::*;
-use bevy_egui::{egui, EguiContexts};
-use crate::net::{NetworkSender, NetworkStatus, ServerMessageEvent};
 use crate::AppState;
+use crate::net::{NetworkSender, NetworkStatus, ServerMessageEvent};
+use bevy::prelude::*;
+use bevy_egui::{EguiContexts, egui};
 
 #[derive(Resource, Default)]
 pub struct LoginData {
@@ -14,14 +14,10 @@ pub struct MenuPlugin;
 
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<LoginData>()
-            .add_systems(
-                Update,
-                (
-                    login_ui_system,
-                    handle_login_responses,
-                ).run_if(in_state(AppState::MainMenu)),
-            );
+        app.init_resource::<LoginData>().add_systems(
+            Update,
+            (login_ui_system, handle_login_responses).run_if(in_state(AppState::MainMenu)),
+        );
     }
 }
 
@@ -68,9 +64,11 @@ fn login_ui_system(
                             send_login(&login_data, &sender);
                         }
                         ui.end_row();
-                        
+
                         ui.label("Password:");
-                        let response = ui.add(egui::TextEdit::singleline(&mut login_data.password).password(true));
+                        let response = ui.add(
+                            egui::TextEdit::singleline(&mut login_data.password).password(true),
+                        );
                         if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                             send_login(&login_data, &sender);
                         }
@@ -88,7 +86,10 @@ fn login_ui_system(
 
 fn send_login(login_data: &LoginData, sender: &NetworkSender) {
     if !login_data.username.is_empty() && !login_data.password.is_empty() {
-        let _ = sender.0.send(format!("CONNECT {} {}\n", login_data.username, login_data.password));
+        let _ = sender.0.send(format!(
+            "CONNECT {} {}\n",
+            login_data.username, login_data.password
+        ));
     }
 }
 

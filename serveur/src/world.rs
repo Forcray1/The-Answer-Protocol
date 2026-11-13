@@ -147,12 +147,6 @@ impl Npc {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct Stats {
-    pub damage: i32,
-    pub defense: i32,
-}
-
 #[derive(Debug, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ItemType {

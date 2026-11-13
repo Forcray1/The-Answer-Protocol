@@ -10,8 +10,8 @@
 use bevy::prelude::*;
 use domain::quest::{QuestProgress, QuestStage};
 
-use crate::net::{NetworkSender, ServerMessageEvent};
 use crate::AppState;
+use crate::net::{NetworkSender, ServerMessageEvent};
 
 pub struct QuestTrackerPlugin;
 
@@ -27,10 +27,7 @@ impl Plugin for QuestTrackerPlugin {
             .add_systems(OnEnter(AppState::MainMenu), reset_quest_tracker_on_logout)
             .add_systems(
                 Update,
-                (
-                    handle_quest_update_events,
-                    sync_quest_ui_on_update,
-                )
+                (handle_quest_update_events, sync_quest_ui_on_update)
                     .chain()
                     .run_if(in_state(AppState::InGame)),
             );
@@ -66,7 +63,10 @@ impl QuestTracker {
     /// Returns the current stage of a quest (None if unknown).
     pub fn stage_of(&self, quest_id: &str) -> Option<&QuestStage> {
         let id = domain::QuestId::from(quest_id);
-        self.quests.iter().find(|p| p.quest_id == id).map(|p| &p.stage)
+        self.quests
+            .iter()
+            .find(|p| p.quest_id == id)
+            .map(|p| &p.stage)
     }
 }
 
@@ -102,9 +102,16 @@ fn handle_quest_update_events(
         };
         // Format : `<quest_id> <stage_wire> <counter>`
         let mut parts = rest.splitn(3, ' ');
-        let Some(quest_id) = parts.next() else { continue };
-        let Some(stage_str) = parts.next() else { continue };
-        let counter: u32 = parts.next().and_then(|s| s.trim().parse().ok()).unwrap_or(0);
+        let Some(quest_id) = parts.next() else {
+            continue;
+        };
+        let Some(stage_str) = parts.next() else {
+            continue;
+        };
+        let counter: u32 = parts
+            .next()
+            .and_then(|s| s.trim().parse().ok())
+            .unwrap_or(0);
 
         let stage = QuestStage::from_wire(stage_str);
         tracker.upsert(quest_id, stage.clone(), counter);

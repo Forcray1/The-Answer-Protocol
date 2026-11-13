@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 use bevy::render::camera::ScalingMode;
 
+use crate::AppState;
 use crate::game::GameState;
 use crate::parse_layers::LayerProfile;
-use crate::AppState;
 
 pub struct MapPlugin;
 
@@ -13,7 +13,10 @@ impl Plugin for MapPlugin {
             .init_resource::<CurrentLayerProfile>()
             .add_systems(Startup, setup_camera)
             .add_systems(Update, sync_map_to_room.run_if(in_state(AppState::InGame)))
-            .add_systems(PostUpdate, y_sort_entities.run_if(in_state(AppState::InGame)));
+            .add_systems(
+                PostUpdate,
+                y_sort_entities.run_if(in_state(AppState::InGame)),
+            );
     }
 }
 
@@ -74,7 +77,10 @@ fn sync_map_to_room(
     if layer_profile.0.is_some() {
         println!("[MAP] Dynamic layers loaded for room '{}'.", room);
     } else {
-        println!("[MAP] No layers.txt for room '{}', using fallback Y-sort.", room);
+        println!(
+            "[MAP] No layers.txt for room '{}', using fallback Y-sort.",
+            room
+        );
     }
 
     let (ground, overhead) = spawn_zone(&mut commands, &asset_server, room);
@@ -135,8 +141,17 @@ fn list_layer_files(abs_dir: &str) -> Vec<String> {
 
 fn trailing_number(name: &str) -> u32 {
     let stem = name.rsplit_once('.').map(|(s, _)| s).unwrap_or(name);
-    let reversed_digits: String = stem.chars().rev().take_while(|c| c.is_ascii_digit()).collect();
-    reversed_digits.chars().rev().collect::<String>().parse().unwrap_or(0)
+    let reversed_digits: String = stem
+        .chars()
+        .rev()
+        .take_while(|c| c.is_ascii_digit())
+        .collect();
+    reversed_digits
+        .chars()
+        .rev()
+        .collect::<String>()
+        .parse()
+        .unwrap_or(0)
 }
 
 fn y_sort_entities(
@@ -145,7 +160,8 @@ fn y_sort_entities(
 ) {
     for mut transform in &mut query {
         if let Some(profile) = &layer_profile.0 {
-			if let Some(layer) = profile.get_layer(transform.translation.x, transform.translation.y) {
+            if let Some(layer) = profile.get_layer(transform.translation.x, transform.translation.y)
+            {
                 let t = ((MAP_HEIGHT * 0.5) - transform.translation.y) / MAP_HEIGHT;
                 let in_layer_offset = 0.05 + t.clamp(0.0, 1.0) * 0.9;
                 transform.translation.z = layer as f32 + in_layer_offset;

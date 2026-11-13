@@ -8,8 +8,8 @@
 
 use bevy::prelude::*;
 
-use crate::net::{NetworkSender, ServerMessageEvent};
 use crate::AppState;
+use crate::net::{NetworkSender, ServerMessageEvent};
 
 // ── Plugin ────────────────────────────────────────────────────────────────
 
@@ -116,37 +116,38 @@ fn setup_shop_ui(mut commands: Commands) {
                 })
                 .with_children(|panel| {
                     // ── Header row ─────────────────────────────────────────
-                    panel.spawn(NodeBundle {
-                        style: Style {
-                            justify_content: JustifyContent::SpaceBetween,
-                            align_items: AlignItems::Center,
-                            width: Val::Percent(100.0),
-                            ..default()
-                        },
-                        ..default()
-                    })
-                    .with_children(|header| {
-                        header.spawn(TextBundle::from_section(
-                            "⚒  Shop",
-                            TextStyle {
-                                font_size: 32.0,
-                                color: Color::rgb(1.0, 0.85, 0.3),
+                    panel
+                        .spawn(NodeBundle {
+                            style: Style {
+                                justify_content: JustifyContent::SpaceBetween,
+                                align_items: AlignItems::Center,
+                                width: Val::Percent(100.0),
                                 ..default()
                             },
-                        ));
-                        // Gold display
-                        header.spawn((
-                            TextBundle::from_section(
-                                "0 gold",
+                            ..default()
+                        })
+                        .with_children(|header| {
+                            header.spawn(TextBundle::from_section(
+                                "⚒  Shop",
                                 TextStyle {
-                                    font_size: 22.0,
-                                    color: Color::rgb(1.0, 0.9, 0.3),
+                                    font_size: 32.0,
+                                    color: Color::rgb(1.0, 0.85, 0.3),
                                     ..default()
                                 },
-                            ),
-                            ShopGoldText,
-                        ));
-                    });
+                            ));
+                            // Gold display
+                            header.spawn((
+                                TextBundle::from_section(
+                                    "0 gold",
+                                    TextStyle {
+                                        font_size: 22.0,
+                                        color: Color::rgb(1.0, 0.9, 0.3),
+                                        ..default()
+                                    },
+                                ),
+                                ShopGoldText,
+                            ));
+                        });
 
                     // Divider
                     panel.spawn(NodeBundle {
@@ -200,7 +201,9 @@ fn handle_shop_events(
             // Format: `<npc_id> <player_gold> <entries>`
             let mut parts = rest.splitn(3, ' ');
             let Some(npc_id) = parts.next() else { continue };
-            let Some(gold_str) = parts.next() else { continue };
+            let Some(gold_str) = parts.next() else {
+                continue;
+            };
             let entries_str = parts.next().unwrap_or("");
 
             let gold: i32 = gold_str.trim().parse().unwrap_or(0);
@@ -211,19 +214,25 @@ fn handle_shop_events(
                     // item_id:name:price:sprite:can_buy
                     let mut it = chunk.splitn(5, ':');
                     let item_id = it.next()?.to_string();
-                    let name    = it.next()?.to_string();
-                    let price   = it.next()?.parse::<u32>().ok()?;
-                    let sprite  = it.next()?.to_string();
+                    let name = it.next()?.to_string();
+                    let price = it.next()?.parse::<u32>().ok()?;
+                    let sprite = it.next()?.to_string();
                     let can_buy = it.next().map(|s| s.trim() == "1").unwrap_or(true);
-                    Some(ShopEntry { item_id, name, price, sprite, can_buy })
+                    Some(ShopEntry {
+                        item_id,
+                        name,
+                        price,
+                        sprite,
+                        can_buy,
+                    })
                 })
                 .collect();
 
-            shop.npc_id     = npc_id.to_string();
+            shop.npc_id = npc_id.to_string();
             shop.player_gold = gold;
-            shop.items      = items;
-            shop.open       = true;
-            shop.dirty      = true;
+            shop.items = items;
+            shop.open = true;
+            shop.dirty = true;
 
             if let Ok(mut vis) = window_q.get_single_mut() {
                 *vis = Visibility::Inherited;
@@ -257,10 +266,14 @@ fn render_shop_items(
     container_q: Query<Entity, With<ShopItemsContainer>>,
     mut gold_q: Query<&mut Text, With<ShopGoldText>>,
 ) {
-    if !shop.dirty || !shop.open { return; }
+    if !shop.dirty || !shop.open {
+        return;
+    }
     shop.dirty = false;
 
-    let Ok(container) = container_q.get_single() else { return };
+    let Ok(container) = container_q.get_single() else {
+        return;
+    };
     // Clear old children
     commands.entity(container).despawn_descendants();
 
@@ -270,7 +283,7 @@ fn render_shop_items(
     }
 
     let npc_id = shop.npc_id.clone();
-    let items  = shop.items.clone();
+    let items = shop.items.clone();
 
     commands.entity(container).with_children(|parent| {
         for entry in &items {
@@ -374,13 +387,18 @@ fn render_shop_items(
 
 /// Sends `BUY <npc_id> <item_id>` when a buy button is pressed.
 fn handle_buy_click(
-    mut btn_q: Query<(&Interaction, &BuyButton, &mut BackgroundColor), (Changed<Interaction>, With<Button>)>,
+    mut btn_q: Query<
+        (&Interaction, &BuyButton, &mut BackgroundColor),
+        (Changed<Interaction>, With<Button>),
+    >,
     sender: Option<Res<NetworkSender>>,
 ) {
     let Some(sender) = sender else { return };
 
     for (interaction, btn, mut bg) in &mut btn_q {
-        if !btn.can_buy { continue; }
+        if !btn.can_buy {
+            continue;
+        }
         match *interaction {
             Interaction::Pressed => {
                 let msg = format!("BUY {} {}\n", btn.npc_id, btn.item_id);
@@ -402,7 +420,9 @@ fn handle_shop_close_input(
     mut shop: ResMut<ShopState>,
     mut window_q: Query<&mut Visibility, With<ShopWindowRoot>>,
 ) {
-    if !shop.open { return; }
+    if !shop.open {
+        return;
+    }
     if input.just_pressed(KeyCode::KeyE) {
         shop.open = false;
         shop.items.clear();

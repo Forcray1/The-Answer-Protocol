@@ -80,7 +80,13 @@ impl LayerProfile {
                 Err(_) => continue,
             };
 
-            bands.push(LayerBand { min_y, max_y, min_x, max_x, layer });
+            bands.push(LayerBand {
+                min_y,
+                max_y,
+                min_x,
+                max_x,
+                layer,
+            });
         }
 
         Self { bands }
@@ -93,10 +99,7 @@ impl LayerProfile {
     // x is only used against bands that declared an "@ x_min:x_max" range;
     // bands without one match regardless of x, exactly like before.
     pub fn get_layer(&self, x: f32, y: f32) -> Option<i32> {
-        self.bands
-            .iter()
-            .find(|b| b.matches(x, y))
-            .map(|b| b.layer)
+        self.bands.iter().find(|b| b.matches(x, y)).map(|b| b.layer)
     }
 }
 

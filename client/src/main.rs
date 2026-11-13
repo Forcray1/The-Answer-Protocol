@@ -1,19 +1,19 @@
 // client/src/main.rs
 
-use tokio::net::TcpStream;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::net::TcpStream;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("[CLIENT] Connecting to the server 0.0.0.0:4243...");
-    
+
     // Connexion au serveur
     let mut stream = TcpStream::connect("0.0.0.0:4243").await?;
     let (reader, mut writer) = stream.split();
-    
+
     let mut server_reader = BufReader::new(reader);
     let mut stdin = BufReader::new(tokio::io::stdin());
-    
+
     let mut server_line = String::new();
     let mut user_input = String::new();
 
@@ -31,7 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             println!("[CLIENT] Clean program shutdown. See you soon!");
                             std::process::exit(0); // Quitte le terminal sans erreur
                         }
-                        
+
                         server_line.clear();
                     }
                     Err(e) => {
@@ -40,7 +40,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             }
-            
+
             result = stdin.read_line(&mut user_input) => {
                 match result {
                     Ok(0) => break,

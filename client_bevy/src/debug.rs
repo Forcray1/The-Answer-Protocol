@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
+use crate::AppState;
 use crate::game::GameState;
 use crate::player::LocalPlayer;
-use crate::AppState;
 
 pub struct DebugPlugin;
 

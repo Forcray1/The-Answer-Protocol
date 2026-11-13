@@ -689,11 +689,7 @@ world:
         east: Start_oasis
       npcs:
       - SandMonster
-      items:
-      - bone
-      - bone
-      - bone
-      - bone
+      items: []
     Start_oasis:
       name: Start_oasis
       description: ''

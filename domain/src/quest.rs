@@ -1,8 +1,8 @@
 //! Shared types for the multi-stage quest system.
 //! Used by the server, console client, and Bevy client.
 
-use serde::{Deserialize, Serialize};
 use crate::{ItemId, NpcId, QuestId};
+use serde::{Deserialize, Serialize};
 
 // ── Quest Stage ───────────────────────────────────────────────────────────
 
@@ -11,18 +11,13 @@ use crate::{ItemId, NpcId, QuestId};
 /// - `NotStarted` : the player hasn't accepted / triggered it yet.
 /// - `Stage(n)`   : in progress, step n (1-based).
 /// - `Completed`  : reward already given, quest archived.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum QuestStage {
+    #[default]
     NotStarted,
     Stage(u32),
     Completed,
-}
-
-impl Default for QuestStage {
-    fn default() -> Self {
-        QuestStage::NotStarted
-    }
 }
 
 impl QuestStage {
@@ -30,8 +25,8 @@ impl QuestStage {
     pub fn next(&self) -> QuestStage {
         match self {
             QuestStage::NotStarted => QuestStage::Stage(1),
-            QuestStage::Stage(n)   => QuestStage::Stage(n + 1),
-            QuestStage::Completed  => QuestStage::Completed,
+            QuestStage::Stage(n) => QuestStage::Stage(n + 1),
+            QuestStage::Completed => QuestStage::Completed,
         }
     }
 
@@ -40,8 +35,8 @@ impl QuestStage {
     pub fn from_wire(s: &str) -> Self {
         match s {
             "notstarted" => QuestStage::NotStarted,
-            "completed"  => QuestStage::Completed,
-            n            => n.parse::<u32>().map(QuestStage::Stage).unwrap_or_default(),
+            "completed" => QuestStage::Completed,
+            n => n.parse::<u32>().map(QuestStage::Stage).unwrap_or_default(),
         }
     }
 
@@ -49,14 +44,18 @@ impl QuestStage {
     pub fn to_wire(&self) -> String {
         match self {
             QuestStage::NotStarted => "notstarted".into(),
-            QuestStage::Completed  => "completed".into(),
-            QuestStage::Stage(n)   => n.to_string(),
+            QuestStage::Completed => "completed".into(),
+            QuestStage::Stage(n) => n.to_string(),
         }
     }
 
     /// Raw stage number (None if NotStarted / Completed).
     pub fn stage_num(&self) -> Option<u32> {
-        if let QuestStage::Stage(n) = self { Some(*n) } else { None }
+        if let QuestStage::Stage(n) = self {
+            Some(*n)
+        } else {
+            None
+        }
     }
 }
 

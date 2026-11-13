@@ -2,7 +2,6 @@ use bevy::prelude::*;
 
 use crate::AppState;
 
-
 pub const MINIMAP_ASSET: &str = "maps/map.png";
 
 const MINIMAP_KEY: KeyCode = KeyCode::KeyM;
@@ -12,7 +11,6 @@ const MAP_MARGIN_PCT: f32 = 5.0;
 const BACKDROP_COLOR: Color = Color::rgba(0.0, 0.0, 0.0, 0.75);
 
 const OVERLAY_Z: i32 = 1000;
-
 
 pub struct MinimapPlugin;
 

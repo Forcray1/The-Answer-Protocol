@@ -1,23 +1,24 @@
-use tokio::net::TcpListener;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use std::sync::Arc;
-use tokio::sync::{Mutex, broadcast};
-use serde_json::json;
 use chrono::Local;
-use std::sync::atomic::{AtomicBool, Ordering};
+use serde_json::json;
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::net::TcpListener;
+use tokio::sync::{broadcast, mpsc, Mutex};
 
-mod commands;
-mod world;
-mod state;
-pub mod handlers;
 pub mod board_quests;
+mod commands;
+pub mod handlers;
+mod state;
+mod world;
 
 use commands::GameCommand;
-use world::WorldData;
+use domain::{GroupId, RoomId};
 use state::ServerState;
-use domain::{RoomId, GroupId};
+use world::WorldData;
 
 // Le pool SQLite est partagé entre tous les handlers via Arc
 // SqlitePool est déjà thread-safe, pas besoin de Mutex autour
@@ -67,9 +68,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let shared_pool: DbPool = Arc::new(pool);
     println!("[SERVER] Database ready.");
 
-    // 2. Charge le monde depuis le YAML (inchangé)
+    // 2. Load the world from YAML.
     println!("[SERVER] Loading map...");
-    let world_data = WorldData::load_from_file("world.yaml").expect("world.yaml error");
+    let world_data = match WorldData::load_from_file("world.yaml") {
+        Ok(data) => data,
+        Err(e) => {
+            eprintln!("[SERVER] Failed to load world.yaml: {}", e);
+            return Err(e);
+        }
+    };
     let shared_world = Arc::new(world_data);
 
     // 3. Initialise l'état en mémoire (inchangé)
@@ -80,22 +87,88 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (tx, _rx) = broadcast::channel::<GlobalEvent>(32);
     let shared_tx = Arc::new(tx);
 
+    // Respawn loop: independent timer so NPC respawns do not depend on player commands.
+    {
+        let world_for_respawn = Arc::clone(&shared_world);
+        let state_for_respawn = Arc::clone(&shared_state);
+        let tx_for_respawn = Arc::clone(&shared_tx);
+        tokio::spawn(async move {
+            let mut ticker = tokio::time::interval(Duration::from_secs(1));
+            loop {
+                ticker.tick().await;
+                let mut events_to_emit: Vec<(RoomId, String)> = Vec::new();
+                {
+                    let mut guard = state_for_respawn.lock().await;
+                    let respawned = guard.update_respawns(&world_for_respawn);
+                    for (npc_id, room_id) in respawned {
+                        if let Some(npc) =
+                            world_for_respawn.world.npcs.iter().find(|n| n.id == npc_id)
+                        {
+                            let (x, y) = npc
+                                .spawn_pos
+                                .map(|p| (p[0] as i64, p[1] as i64))
+                                .unwrap_or((0, 0));
+                            if npc.role == "board" {
+                                events_to_emit.push((
+                                    room_id.clone(),
+                                    format!("S: EVT ROOM BOARD_SPAWN {} {} {}\n", npc_id, x, y),
+                                ));
+                            } else {
+                                let sprite = npc.map_sprite();
+                                let hp = guard.npc_hps.get(&npc_id).copied().unwrap_or(npc.hp);
+                                let scale = npc.scale.unwrap_or(1.0);
+                                events_to_emit.push((
+                                    room_id.clone(),
+                                    format!(
+                                        "S: EVT ROOM MOB_SPAWN {} {} {} {} {} {} {} {} {}\n",
+                                        npc_id,
+                                        sprite,
+                                        x,
+                                        y,
+                                        hp,
+                                        npc.hp,
+                                        scale,
+                                        npc.name.replace(' ', "_"),
+                                        npc.role
+                                    ),
+                                ));
+                            }
+                        }
+                    }
+                }
+                for (room_id, message) in events_to_emit {
+                    let _ = tx_for_respawn.send(GlobalEvent {
+                        sender_addr: None,
+                        message,
+                        target_room: Some(room_id),
+                        target_group: None,
+                        target_player: None,
+                    });
+                }
+            }
+        });
+    }
+
     let listener = TcpListener::bind("127.0.0.1:4243").await?;
     println!("[SERVER] Listening on port 4243...");
 
     // Spawn a task that waits for SIGINT (Ctrl-C) and saves world state before exit.
     {
         let state_for_shutdown = Arc::clone(&shared_state);
-        let pool_for_shutdown  = Arc::clone(&shared_pool);
+        let pool_for_shutdown = Arc::clone(&shared_pool);
         tokio::spawn(async move {
             if tokio::signal::ctrl_c().await.is_ok() {
                 println!("[SERVER] Shutdown signal received. Saving player data and world state…");
-                let guard = state_for_shutdown.lock().await;
-                // Save every connected (non-guest) player to the DB.
-                for player in guard.players.values() {
+                let (players_to_save, room_items) = {
+                    let guard = state_for_shutdown.lock().await;
+                    let players = guard.players.values().cloned().collect::<Vec<_>>();
+                    let room_items = guard.room_items.clone();
+                    (players, room_items)
+                };
+                for player in &players_to_save {
                     handlers::save_player_to_db(&pool_for_shutdown, player).await;
                 }
-                save_world_state(&guard.room_items, "world.yaml");
+                save_world_state(&room_items, "world.yaml");
                 println!("[SERVER] All data saved. Goodbye.");
                 std::process::exit(0);
             }
@@ -103,7 +176,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     loop {
-        let (mut socket, addr) = listener.accept().await?;
+        let (socket, addr) = listener.accept().await?;
 
         let world = Arc::clone(&shared_world);
         let state = Arc::clone(&shared_state);
@@ -112,98 +185,107 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut rx = tx.subscribe();
 
         tokio::spawn(async move {
-            let (reader, mut writer) = socket.split();
+            let (reader, mut writer) = socket.into_split();
             let mut reader = BufReader::new(reader);
-            let mut line = String::new();
+            let (line_tx, mut line_rx) = mpsc::unbounded_channel::<String>();
+
+            tokio::spawn(async move {
+                let mut line = String::new();
+                loop {
+                    line.clear();
+                    match reader.read_line(&mut line).await {
+                        Ok(0) => break,
+                        Ok(_) => {
+                            let trimmed = line.trim_end_matches(['\r', '\n']).to_string();
+                            if line_tx.send(trimmed).is_err() {
+                                break;
+                            }
+                        }
+                        Err(_) => break,
+                    }
+                }
+            });
 
             let _ = writer.write_all(b"S: OK hello proto=1\n").await;
 
             loop {
-                line.clear();
-
                 tokio::select! {
-                    result = reader.read_line(&mut line) => {
-                        match result {
-                            Ok(0) | Err(_) => {
-                                // Connexion fermée brutalement — sauvegarde quand même
+                    maybe_line = line_rx.recv() => {
+                        let Some(line) = maybe_line else {
+                            let removed_player = {
                                 let mut guard = state.lock().await;
-                                if let Some(player) = guard.remove_player(addr) {
-                                    handlers::save_player_to_db(&pool, &player).await;
-                                    log_event("DISCONNECT", &player.username, json!({"reason": "connection_lost"}));
-                                    let _ = tx.send(GlobalEvent {
-                                        sender_addr: Some(addr),
-                                        message: format!("S: EVT ROOM PRESENCE LEAVE {}\n", player.username),
-                                        target_room: Some(player.current_room.clone()),
-                                        target_group: None,
-                                        target_player: None,
-                                    });
-                                    let _ = tx.send(GlobalEvent {
-                                        sender_addr: Some(addr),
-                                        message: format!("S: EVT GLOBAL CHAT Server {} lost connection.\n", player.username),
-                                        target_room: None,
-                                        target_group: None,
-                                        target_player: None,
-                                    });
-                                }
-                                break;
+                                guard.remove_player(addr)
+                            };
+                            if let Some(player) = removed_player {
+                                handlers::save_player_to_db(&pool, &player).await;
+                                log_event("DISCONNECT", &player.username, json!({"reason": "connection_lost"}));
+                                let _ = tx.send(GlobalEvent {
+                                    sender_addr: Some(addr),
+                                    message: format!("S: EVT ROOM PRESENCE LEAVE {}\n", player.username),
+                                    target_room: Some(player.current_room.clone()),
+                                    target_group: None,
+                                    target_player: None,
+                                });
+                                let _ = tx.send(GlobalEvent {
+                                    sender_addr: Some(addr),
+                                    message: format!("S: EVT GLOBAL CHAT Server {} lost connection.\n", player.username),
+                                    target_room: None,
+                                    target_group: None,
+                                    target_player: None,
+                                });
                             }
-                            Ok(_) => {
-                                let commande = GameCommand::parse(&line);
+                            break;
+                        };
 
-                                let (reponse, quitter) = {
-                                    let mut guard = state.lock().await;
-                                    let server_state = &mut *guard;
-                                    let respawned = server_state.update_respawns(&world);
-                                    for (npc_id, room_id) in &respawned {
-                                        if let Some(npc) = world.world.npcs.iter().find(|n| &n.id == npc_id) {
-                                            let sprite = npc.map_sprite();
-                                            let (x, y) = npc.spawn_pos.map(|p| (p[0] as i64, p[1] as i64)).unwrap_or((0, 0));
-                                            let hp = server_state.npc_hps.get(npc_id).copied().unwrap_or(npc.hp);
-                                            let scale = npc.scale.unwrap_or(1.0);
-                                            let _ = tx.send(GlobalEvent {
-                                                sender_addr: None, // Server sends, no one excluded
-                                                message: format!("S: EVT ROOM MOB_SPAWN {} {} {} {} {} {} {} {} {}\n", npc_id, sprite, x, y, hp, npc.hp, scale, npc.name.replace(" ", "_"), npc.role),
-                                                target_room: Some(room_id.clone()),
-                                                target_group: None,
-                                                target_player: None,
-                                            });
-                                        }
-                                    }
-                                    handlers::process_command(
-                                        addr,
-                                        commande,
-                                        server_state,
-                                        &world,
-                                        &tx,
-                                        &pool,
-                                    ).await
-                                };
-
-                                if writer.write_all(reponse.as_bytes()).await.is_err() { break; }
-
-                                if quitter {
-                                    let mut guard = state.lock().await;
-                                    if let Some(player) = guard.remove_player(addr) {
-                                        handlers::save_player_to_db(&pool, &player).await;
-                                        log_event("DISCONNECT", &player.username, json!({"reason": "QUIT"}));
-                                        let _ = tx.send(GlobalEvent {
-                                            sender_addr: Some(addr),
-                                            message: format!("S: EVT ROOM PRESENCE LEAVE {}\n", player.username),
-                                            target_room: Some(player.current_room.clone()),
-                                            target_group: None,
-                                            target_player: None,
-                                        });
-                                        let _ = tx.send(GlobalEvent {
-                                            sender_addr: Some(addr),
-                                            message: format!("S: EVT GLOBAL CHAT Server {} left the world.\n", player.username),
-                                            target_room: None,
-                                            target_group: None,
-                                            target_player: None,
-                                        });
-                                    }
-                                    break;
-                                }
+                        let commande = GameCommand::parse(&line);
+                        let (reponse, quitter) = match commande {
+                            GameCommand::Connect { username, password } => {
+                                let response = handlers::process_connect(
+                                    addr,
+                                    username,
+                                    password,
+                                    &state,
+                                    &world,
+                                    &tx,
+                                    &pool,
+                                )
+                                .await;
+                                (response, false)
                             }
+                            other => {
+                                let mut guard = state.lock().await;
+                                handlers::process_command(addr, other, &mut guard, &world, &tx)
+                            }
+                        };
+
+                        if writer.write_all(reponse.as_bytes()).await.is_err() {
+                            break;
+                        }
+
+                        if quitter {
+                            let removed_player = {
+                                let mut guard = state.lock().await;
+                                guard.remove_player(addr)
+                            };
+                            if let Some(player) = removed_player {
+                                handlers::save_player_to_db(&pool, &player).await;
+                                log_event("DISCONNECT", &player.username, json!({"reason": "QUIT"}));
+                                let _ = tx.send(GlobalEvent {
+                                    sender_addr: Some(addr),
+                                    message: format!("S: EVT ROOM PRESENCE LEAVE {}\n", player.username),
+                                    target_room: Some(player.current_room.clone()),
+                                    target_group: None,
+                                    target_player: None,
+                                });
+                                let _ = tx.send(GlobalEvent {
+                                    sender_addr: Some(addr),
+                                    message: format!("S: EVT GLOBAL CHAT Server {} left the world.\n", player.username),
+                                    target_room: None,
+                                    target_group: None,
+                                    target_player: None,
+                                });
+                            }
+                            break;
                         }
                     }
                     Ok(event) = rx.recv() => {
@@ -253,12 +335,18 @@ fn save_world_state(
 ) {
     let content = match std::fs::read_to_string(world_path) {
         Ok(c) => c,
-        Err(e) => { eprintln!("[SAVE] Cannot read {}: {}", world_path, e); return; }
+        Err(e) => {
+            eprintln!("[SAVE] Cannot read {}: {}", world_path, e);
+            return;
+        }
     };
 
     let mut value: serde_yaml::Value = match serde_yaml::from_str(&content) {
         Ok(v) => v,
-        Err(e) => { eprintln!("[SAVE] Cannot parse world.yaml: {}", e); return; }
+        Err(e) => {
+            eprintln!("[SAVE] Cannot parse world.yaml: {}", e);
+            return;
+        }
     };
 
     if let Some(locations) = value

@@ -1,8 +1,8 @@
-use bevy::prelude::*;
+use crate::AppState;
 use crate::net::{NetworkSender, ServerMessageEvent};
 use crate::player::{LocalPlayerName, LocalPlayerSkin};
 use crate::ui::PlayerStats;
-use crate::AppState;
+use bevy::prelude::*;
 
 pub struct CombatPlugin;
 
@@ -23,7 +23,8 @@ impl Plugin for CombatPlugin {
                     update_combat_hp_bars,
                     update_combat_menu_selection,
                     update_combat_btn_labels,
-                ).run_if(in_state(AppState::InGame)),
+                )
+                    .run_if(in_state(AppState::InGame)),
             );
     }
 }
@@ -67,18 +68,20 @@ pub struct CombatResource {
     pub enemy_charge_phase: ChargePhase,
     /// Heavy attack blocked turns remaining
     pub heavy_blocked_turns: u32,
+    /// If true, the next player turn is an automatic stun/recharge turn.
+    pub skip_next_player_turn: bool,
 }
 
 /// Sequencer for player-attack → pause → enemy-attack → pause → input.
 #[derive(Default, PartialEq, Clone, Copy)]
 pub enum TurnSequence {
     #[default]
-    Idle,               // waiting for player input
-    PlayerCharging,     // player lunge animation playing
-    PauseAfterPlayer,   // 2 s pause showing "dealt X dmg"
-    EnemyCharging,      // enemy lunge animation playing
-    PauseAfterEnemy,    // 2 s pause showing "took Y dmg"
-    Recovery,           // heavy-attack recovery (no anim, just text + timer)
+    Idle, // waiting for player input
+    PlayerCharging,   // player lunge animation playing
+    PauseAfterPlayer, // 2 s pause showing "dealt X dmg"
+    EnemyCharging,    // enemy lunge animation playing
+    PauseAfterEnemy,  // 2 s pause showing "took Y dmg"
+    Recovery,         // heavy-attack recovery (no anim, just text + timer)
 }
 
 #[derive(Default, PartialEq, Eq, Clone, Copy)]
@@ -104,17 +107,21 @@ pub enum ChargePhase {
 #[derive(Default, PartialEq, Eq, Clone, Copy)]
 pub enum MenuLevel {
     #[default]
-    Main,       // Attack | Item | Flee
-    AttackSub,  // Physical | Heavy Phys | Magical | Class1 Magic
+    Main, // Attack | Item | Flee
+    AttackSub, // Physical | Heavy Phys | Magical | Class1 Magic
 }
 
 /// Marks the player sprite in the combat arena (for charge animation).
 #[derive(Component)]
-struct CombatPlayerSprite { base_x: f32 }
+struct CombatPlayerSprite {
+    base_x: f32,
+}
 
 /// Marks the enemy sprite in the combat arena (for charge animation).
 #[derive(Component)]
-struct CombatEnemySpritePos { base_x: f32 }
+struct CombatEnemySpritePos {
+    base_x: f32,
+}
 
 // ── Components ─────────────────────────────────────────────────────────────
 
@@ -171,7 +178,9 @@ fn setup_combat_overlay(
 ) {
     // Preload all 5 backgrounds immediately to eliminate loading time
     for i in 1..=5 {
-        combat.bg_textures.push(asset_server.load(format!("maps/FightMap/FightBackground{}.webp", i)));
+        combat
+            .bg_textures
+            .push(asset_server.load(format!("maps/FightMap/FightBackground{}.webp", i)));
     }
     // Preload combat buttons and cursor
     let _ = asset_server.load::<Image>("CombatUI_Attaquer.png");
@@ -221,8 +230,12 @@ fn listen_combat_events(
                 combat.seq = TurnSequence::Idle;
                 combat.seq_timer = 0.0;
                 combat.heavy_blocked_turns = 0;
+                combat.skip_next_player_turn = false;
                 combat.enemy_id = parts[0].to_string();
-                combat.combat_sprite = parts[1].strip_suffix(".png").unwrap_or(parts[1]).to_string();
+                combat.combat_sprite = parts[1]
+                    .strip_suffix(".png")
+                    .unwrap_or(parts[1])
+                    .to_string();
                 let _ = asset_server.load::<Image>(format!("mob/{}.png", combat.combat_sprite));
                 combat.enemy_hp = parts[2].parse().unwrap_or(50);
                 combat.enemy_max_hp = parts[3].parse().unwrap_or(50);
@@ -239,11 +252,42 @@ fn listen_combat_events(
         if let Some(rest) = line.strip_prefix("S: EVT COMBAT HIT ") {
             let parts: Vec<&str> = rest.split_whitespace().collect();
             if parts.len() >= 4 {
-                combat.enemy_hp     = parts[0].parse().unwrap_or(combat.enemy_hp);
+                combat.enemy_hp = parts[0].parse().unwrap_or(combat.enemy_hp);
                 combat.enemy_max_hp = parts[1].parse().unwrap_or(combat.enemy_max_hp);
                 combat.pending_dealt = parts[2].parse().unwrap_or(0);
                 combat.pending_taken = parts[3].parse().unwrap_or(0);
                 // The sequence driver will pick these up when the player anim finishes
+            }
+        }
+
+        if let Some(rest) = line.strip_prefix("S: EVT COMBAT BONUS_HIT ") {
+            let parts: Vec<&str> = rest.split_whitespace().collect();
+            if parts.len() >= 3 {
+                let bonus = parts[0].parse::<i32>().unwrap_or(0);
+                combat.enemy_hp = parts[1].parse().unwrap_or(combat.enemy_hp);
+                combat.enemy_max_hp = parts[2].parse().unwrap_or(combat.enemy_max_hp);
+                combat.pending_dealt += bonus.max(0);
+            }
+
+            if let Some(rest) = line.strip_prefix("S: EVT COMBAT STUN_APPLIED ") {
+                let turns = rest.trim().parse::<u32>().unwrap_or(0);
+                combat.skip_next_player_turn = turns > 0;
+            }
+
+            if let Some(rest) = line.strip_prefix("S: EVT COMBAT STUN ") {
+                let player_name = rest.trim().replace('_', " ");
+                combat.combat_message =
+                    format!("{} is stunned by his previous attack and can't moove.", player_name);
+                combat.message_timer = 1.8;
+            }
+
+            if let Some(rest) = line.strip_prefix("S: EVT COMBAT STUN_HIT ") {
+                let parts: Vec<&str> = rest.split_whitespace().collect();
+                if parts.len() >= 3 {
+                    combat.enemy_hp = parts[0].parse().unwrap_or(combat.enemy_hp);
+                    combat.enemy_max_hp = parts[1].parse().unwrap_or(combat.enemy_max_hp);
+                    combat.pending_taken = parts[2].parse().unwrap_or(0);
+                }
             }
         }
 
@@ -275,8 +319,8 @@ fn listen_combat_events(
             if combat.seq == TurnSequence::Idle {
                 let msg = match reason.as_str() {
                     "victory" => "Victory! The enemy collapses.".to_string(),
-                    "defeat"  => "Defeated... You wake up at the oasis.".to_string(),
-                    _         => "You fled.".to_string(),
+                    "defeat" => "Defeated... You wake up at the oasis.".to_string(),
+                    _ => "You fled.".to_string(),
                 };
                 combat.combat_message = msg;
                 combat.message_timer = 1.5;
@@ -368,11 +412,15 @@ fn spawn_combat_arena(
     stats: &PlayerStats,
     combat: &CombatResource,
 ) {
-    let bg_texture: Handle<Image> = if (combat.bg_index as usize) <= combat.bg_textures.len() && combat.bg_index > 0 {
-        combat.bg_textures[(combat.bg_index - 1) as usize].clone()
-    } else {
-        asset_server.load(format!("maps/FightMap/FightBackground{}.webp", combat.bg_index))
-    };
+    let bg_texture: Handle<Image> =
+        if (combat.bg_index as usize) <= combat.bg_textures.len() && combat.bg_index > 0 {
+            combat.bg_textures[(combat.bg_index - 1) as usize].clone()
+        } else {
+            asset_server.load(format!(
+                "maps/FightMap/FightBackground{}.webp",
+                combat.bg_index
+            ))
+        };
 
     // 1. Background image (2560 x 1440)
     commands.spawn((
@@ -389,8 +437,13 @@ fn spawn_combat_arena(
     ));
 
     // 2. Player on the LEFT (frame unique : backward/f1.png)
-    let skin_name = if local_skin.0.is_empty() { "default" } else { &local_skin.0 };
-    let player_texture: Handle<Image> = asset_server.load(format!("skin/{}/backward/f1.png", skin_name));
+    let skin_name = if local_skin.0.is_empty() {
+        "default"
+    } else {
+        &local_skin.0
+    };
+    let player_texture: Handle<Image> =
+        asset_server.load(format!("skin/{}/backward/f1.png", skin_name));
 
     commands.spawn((
         SpriteBundle {
@@ -408,80 +461,90 @@ fn spawn_combat_arena(
 
     // Player HUD (Name + HP Bar above player)
     let p_name = local_name.0.as_deref().unwrap_or("Player");
-    commands.spawn((
-        NodeBundle {
-            style: Style {
-                position_type: PositionType::Absolute,
-                left: Val::Percent(12.0),
-                top: Val::Percent(16.0),
-                width: Val::Px(280.0),
-                flex_direction: FlexDirection::Column,
-                padding: UiRect::all(Val::Px(10.0)),
-                border: UiRect::all(Val::Px(2.0)),
-                ..default()
-            },
-            background_color: Color::rgba(0.08, 0.08, 0.12, 0.85).into(),
-            border_color: Color::rgb(0.3, 0.7, 0.9).into(),
-            ..default()
-        },
-        CombatEntity,
-    )).with_children(|parent| {
-        parent.spawn(TextBundle::from_section(
-            format!("Lv.{} {}", stats.level.max(1), p_name),
-            TextStyle {
-                font_size: 20.0,
-                color: Color::rgb(0.9, 0.9, 1.0),
-                ..default()
-            },
-        ));
-
-        // HP track
-        parent.spawn(NodeBundle {
-            style: Style {
-                width: Val::Percent(100.0),
-                height: Val::Px(16.0),
-                margin: UiRect::top(Val::Px(6.0)),
-                border: UiRect::all(Val::Px(1.0)),
-                ..default()
-            },
-            background_color: Color::rgb(0.15, 0.15, 0.18).into(),
-            border_color: Color::rgb(0.4, 0.4, 0.5).into(),
-            ..default()
-        }).with_children(|bar| {
-            let pct = if stats.max_hp > 0 { (stats.hp as f32 / stats.max_hp as f32).clamp(0.0, 1.0) * 100.0 } else { 100.0 };
-            bar.spawn((
-                NodeBundle {
-                    style: Style {
-                        width: Val::Percent(pct),
-                        height: Val::Percent(100.0),
-                        ..default()
-                    },
-                    background_color: Color::rgb(0.2, 0.85, 0.35).into(),
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    left: Val::Percent(12.0),
+                    top: Val::Percent(16.0),
+                    width: Val::Px(280.0),
+                    flex_direction: FlexDirection::Column,
+                    padding: UiRect::all(Val::Px(10.0)),
+                    border: UiRect::all(Val::Px(2.0)),
                     ..default()
                 },
-                PlayerHpBarFill,
+                background_color: Color::rgba(0.08, 0.08, 0.12, 0.85).into(),
+                border_color: Color::rgb(0.3, 0.7, 0.9).into(),
+                ..default()
+            },
+            CombatEntity,
+        ))
+        .with_children(|parent| {
+            parent.spawn(TextBundle::from_section(
+                format!("Lv.{} {}", stats.level.max(1), p_name),
+                TextStyle {
+                    font_size: 20.0,
+                    color: Color::rgb(0.9, 0.9, 1.0),
+                    ..default()
+                },
+            ));
+
+            // HP track
+            parent
+                .spawn(NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Px(16.0),
+                        margin: UiRect::top(Val::Px(6.0)),
+                        border: UiRect::all(Val::Px(1.0)),
+                        ..default()
+                    },
+                    background_color: Color::rgb(0.15, 0.15, 0.18).into(),
+                    border_color: Color::rgb(0.4, 0.4, 0.5).into(),
+                    ..default()
+                })
+                .with_children(|bar| {
+                    let pct = if stats.max_hp > 0 {
+                        (stats.hp as f32 / stats.max_hp as f32).clamp(0.0, 1.0) * 100.0
+                    } else {
+                        100.0
+                    };
+                    bar.spawn((
+                        NodeBundle {
+                            style: Style {
+                                width: Val::Percent(pct),
+                                height: Val::Percent(100.0),
+                                ..default()
+                            },
+                            background_color: Color::rgb(0.2, 0.85, 0.35).into(),
+                            ..default()
+                        },
+                        PlayerHpBarFill,
+                    ));
+                });
+
+            // HP Text
+            parent.spawn((
+                TextBundle::from_section(
+                    format!("HP : {} / {}", stats.hp, stats.max_hp),
+                    TextStyle {
+                        font_size: 14.0,
+                        color: Color::rgb(0.8, 0.8, 0.85),
+                        ..default()
+                    },
+                )
+                .with_style(Style {
+                    margin: UiRect::top(Val::Px(4.0)),
+                    ..default()
+                }),
+                PlayerHpText,
             ));
         });
 
-        // HP Text
-        parent.spawn((
-            TextBundle::from_section(
-                format!("HP : {} / {}", stats.hp, stats.max_hp),
-                TextStyle {
-                    font_size: 14.0,
-                    color: Color::rgb(0.8, 0.8, 0.85),
-                    ..default()
-                },
-            ).with_style(Style {
-                margin: UiRect::top(Val::Px(4.0)),
-                ..default()
-            }),
-            PlayerHpText,
-        ));
-    });
-
     // 3. Enemy on the RIGHT
-    let enemy_texture: Handle<Image> = asset_server.load(format!("mob/{}.png", combat.combat_sprite));
+    let enemy_texture: Handle<Image> =
+        asset_server.load(format!("mob/{}.png", combat.combat_sprite));
     commands.spawn((
         SpriteBundle {
             texture: enemy_texture,
@@ -503,81 +566,87 @@ fn spawn_combat_arena(
     ));
 
     // Enemy HUD (Name + HP Bar above enemy)
-    commands.spawn((
-        NodeBundle {
-            style: Style {
-                position_type: PositionType::Absolute,
-                right: Val::Percent(12.0),
-                top: Val::Percent(16.0),
-                width: Val::Px(280.0),
-                flex_direction: FlexDirection::Column,
-                padding: UiRect::all(Val::Px(10.0)),
-                border: UiRect::all(Val::Px(2.0)),
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    right: Val::Percent(12.0),
+                    top: Val::Percent(16.0),
+                    width: Val::Px(280.0),
+                    flex_direction: FlexDirection::Column,
+                    padding: UiRect::all(Val::Px(10.0)),
+                    border: UiRect::all(Val::Px(2.0)),
+                    ..default()
+                },
+                background_color: Color::rgba(0.08, 0.08, 0.12, 0.85).into(),
+                border_color: Color::rgb(0.9, 0.3, 0.3).into(),
                 ..default()
             },
-            background_color: Color::rgba(0.08, 0.08, 0.12, 0.85).into(),
-            border_color: Color::rgb(0.9, 0.3, 0.3).into(),
-            ..default()
-        },
-        CombatEntity,
-    )).with_children(|parent| {
-        parent.spawn(TextBundle::from_section(
-            &combat.enemy_name,
-            TextStyle {
-                font_size: 20.0,
-                color: Color::rgb(1.0, 0.85, 0.85),
-                ..default()
-            },
-        ));
+            CombatEntity,
+        ))
+        .with_children(|parent| {
+            parent.spawn(TextBundle::from_section(
+                &combat.enemy_name,
+                TextStyle {
+                    font_size: 20.0,
+                    color: Color::rgb(1.0, 0.85, 0.85),
+                    ..default()
+                },
+            ));
 
-        // HP track
-        parent.spawn(NodeBundle {
-            style: Style {
-                width: Val::Percent(100.0),
-                height: Val::Px(16.0),
-                margin: UiRect::top(Val::Px(6.0)),
-                border: UiRect::all(Val::Px(1.0)),
-                ..default()
-            },
-            background_color: Color::rgb(0.15, 0.15, 0.18).into(),
-            border_color: Color::rgb(0.4, 0.4, 0.5).into(),
-            ..default()
-        }).with_children(|bar| {
-            let pct = if combat.enemy_max_hp > 0 {
-                (combat.enemy_hp as f32 / combat.enemy_max_hp as f32).clamp(0.0, 1.0) * 100.0
-            } else {
-                100.0
-            };
-            bar.spawn((
-                NodeBundle {
+            // HP track
+            parent
+                .spawn(NodeBundle {
                     style: Style {
-                        width: Val::Percent(pct),
-                        height: Val::Percent(100.0),
+                        width: Val::Percent(100.0),
+                        height: Val::Px(16.0),
+                        margin: UiRect::top(Val::Px(6.0)),
+                        border: UiRect::all(Val::Px(1.0)),
                         ..default()
                     },
-                    background_color: Color::rgb(0.95, 0.25, 0.25).into(),
+                    background_color: Color::rgb(0.15, 0.15, 0.18).into(),
+                    border_color: Color::rgb(0.4, 0.4, 0.5).into(),
                     ..default()
-                },
-                EnemyHpBarFill,
+                })
+                .with_children(|bar| {
+                    let pct = if combat.enemy_max_hp > 0 {
+                        (combat.enemy_hp as f32 / combat.enemy_max_hp as f32).clamp(0.0, 1.0)
+                            * 100.0
+                    } else {
+                        100.0
+                    };
+                    bar.spawn((
+                        NodeBundle {
+                            style: Style {
+                                width: Val::Percent(pct),
+                                height: Val::Percent(100.0),
+                                ..default()
+                            },
+                            background_color: Color::rgb(0.95, 0.25, 0.25).into(),
+                            ..default()
+                        },
+                        EnemyHpBarFill,
+                    ));
+                });
+
+            // HP Text
+            parent.spawn((
+                TextBundle::from_section(
+                    format!("HP : {} / {}", combat.enemy_hp, combat.enemy_max_hp),
+                    TextStyle {
+                        font_size: 14.0,
+                        color: Color::rgb(0.85, 0.8, 0.8),
+                        ..default()
+                    },
+                )
+                .with_style(Style {
+                    margin: UiRect::top(Val::Px(4.0)),
+                    ..default()
+                }),
+                EnemyHpText,
             ));
         });
-
-        // HP Text
-        parent.spawn((
-            TextBundle::from_section(
-                format!("HP : {} / {}", combat.enemy_hp, combat.enemy_max_hp),
-                TextStyle {
-                    font_size: 14.0,
-                    color: Color::rgb(0.85, 0.8, 0.8),
-                    ..default()
-                },
-            ).with_style(Style {
-                margin: UiRect::top(Val::Px(4.0)),
-                ..default()
-            }),
-            EnemyHpText,
-        ));
-    });
 
     // 4. Combat Actions Menu (LEFT side towards middle of screen)
     // 4 slots — Main shows 3 (slot 3 hidden), AttackSub shows all 4
@@ -588,125 +657,131 @@ fn spawn_combat_arena(
         asset_server.load("CombatUI_Attaquer.png"), // 3: (hidden in Main) / Class1 Magic
     ];
 
-    commands.spawn((
-        NodeBundle {
-            style: Style {
-                position_type: PositionType::Absolute,
-                left: Val::Percent(6.0),
-                top: Val::Percent(38.0),
-                flex_direction: FlexDirection::Column,
-                align_items: AlignItems::FlexStart,
-                row_gap: Val::Px(6.0),
-                ..default()
-            },
-            ..default()
-        },
-        CombatEntity,
-    )).with_children(|menu| {
-        for (i, texture) in btn_textures.into_iter().enumerate() {
-            let is_selected = combat.selected_action == i;
-            let initial_w = if is_selected { 210.0 } else { 195.0 };
-            let initial_h = if is_selected { 72.0 } else { 66.8 };
-            // Slot 3 is only visible in AttackSub menu
-            let slot_display = if i == 3 { Display::None } else { Display::Flex };
-
-            menu.spawn((
-                NodeBundle {
-                    style: Style {
-                        display: slot_display,
-                        width: Val::Px(240.0),
-                        height: Val::Px(74.0),
-                        justify_content: JustifyContent::FlexStart,
-                        align_items: AlignItems::Center,
-                        position_type: PositionType::Relative,
-                        ..default()
-                    },
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    left: Val::Percent(6.0),
+                    top: Val::Percent(38.0),
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::FlexStart,
+                    row_gap: Val::Px(6.0),
                     ..default()
                 },
-                CombatBtnSlot(i),
-            )).with_children(|slot| {
-                slot.spawn((
-                    ImageBundle {
-                        image: UiImage::new(texture),
+                ..default()
+            },
+            CombatEntity,
+        ))
+        .with_children(|menu| {
+            for (i, texture) in btn_textures.into_iter().enumerate() {
+                let is_selected = combat.selected_action == i;
+                let initial_w = if is_selected { 210.0 } else { 195.0 };
+                let initial_h = if is_selected { 72.0 } else { 66.8 };
+                // Slot 3 is only visible in AttackSub menu
+                let slot_display = if i == 3 { Display::None } else { Display::Flex };
+
+                menu.spawn((
+                    NodeBundle {
                         style: Style {
-                            width: Val::Px(initial_w),
-                            height: Val::Px(initial_h),
+                            display: slot_display,
+                            width: Val::Px(240.0),
+                            height: Val::Px(74.0),
+                            justify_content: JustifyContent::FlexStart,
+                            align_items: AlignItems::Center,
+                            position_type: PositionType::Relative,
                             ..default()
                         },
                         ..default()
                     },
-                    CombatButtonVisual {
-                        index: i,
-                        current_width: initial_w,
-                        current_height: initial_h,
+                    CombatBtnSlot(i),
+                ))
+                .with_children(|slot| {
+                    slot.spawn((
+                        ImageBundle {
+                            image: UiImage::new(texture),
+                            style: Style {
+                                width: Val::Px(initial_w),
+                                height: Val::Px(initial_h),
+                                ..default()
+                            },
+                            ..default()
+                        },
+                        CombatButtonVisual {
+                            index: i,
+                            current_width: initial_w,
+                            current_height: initial_h,
+                        },
+                    ));
+                });
+            }
+
+            // Animated golden arrow cursor on the left of the selected button
+            let cursor_texture: Handle<Image> = asset_server.load("curseur.png");
+            let initial_cursor_top = match combat.selected_action {
+                0 => 20.0,
+                1 => 100.0,
+                2 => 180.0,
+                _ => 260.0,
+            };
+
+            menu.spawn((
+                ImageBundle {
+                    image: UiImage::new(cursor_texture),
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        left: Val::Px(-44.0),
+                        top: Val::Px(initial_cursor_top),
+                        width: Val::Px(34.0),
+                        height: Val::Px(34.0),
+                        ..default()
                     },
-                ));
-            });
-        }
-
-        // Animated golden arrow cursor on the left of the selected button
-        let cursor_texture: Handle<Image> = asset_server.load("curseur.png");
-        let initial_cursor_top = match combat.selected_action {
-            0 => 20.0,
-            1 => 100.0,
-            2 => 180.0,
-            _ => 260.0,
-        };
-
-        menu.spawn((
-            ImageBundle {
-                image: UiImage::new(cursor_texture),
-                style: Style {
-                    position_type: PositionType::Absolute,
-                    left: Val::Px(-44.0),
-                    top: Val::Px(initial_cursor_top),
-                    width: Val::Px(34.0),
-                    height: Val::Px(34.0),
                     ..default()
                 },
-                ..default()
-            },
-            CombatCursorVisual {
-                current_top: initial_cursor_top,
-            },
-        ));
-    });
+                CombatCursorVisual {
+                    current_top: initial_cursor_top,
+                },
+            ));
+        });
 
     // 5. Combat Log Banner (status / feedback at the bottom of the screen)
-    commands.spawn((
-        NodeBundle {
-            style: Style {
-                position_type: PositionType::Absolute,
-                bottom: Val::Percent(6.0),
-                left: Val::Percent(22.0),
-                right: Val::Percent(22.0),
-                height: Val::Px(48.0),
-                flex_direction: FlexDirection::Row,
-                align_items: AlignItems::Center,
-                justify_content: JustifyContent::Center,
-                padding: UiRect::axes(Val::Px(20.0), Val::Px(6.0)),
-                border: UiRect::all(Val::Px(2.0)),
-                ..default()
-            },
-            background_color: Color::rgba(0.04, 0.04, 0.08, 0.92).into(),
-            border_color: Color::rgba(0.85, 0.75, 0.35, 0.85).into(),
-            ..default()
-        },
-        CombatEntity,
-    )).with_children(|parent| {
-        // Message line
-        parent.spawn((
-            TextBundle::from_section(
-                &combat.combat_message,
-                TextStyle {
-                    font_size: 18.0,
-                    color: Color::rgb(1.0, 0.92, 0.65),
+    commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    position_type: PositionType::Absolute,
+                    bottom: Val::Percent(6.0),
+                    left: Val::Percent(22.0),
+                    right: Val::Percent(22.0),
+                    height: Val::Px(48.0),
+                    flex_direction: FlexDirection::Row,
+                    align_items: AlignItems::Center,
+                    justify_content: JustifyContent::Center,
+                    padding: UiRect::axes(Val::Px(20.0), Val::Px(6.0)),
+                    border: UiRect::all(Val::Px(2.0)),
                     ..default()
                 },
-            ).with_text_justify(JustifyText::Center),
-            CombatMessageText,
-        ));
-    });
+                background_color: Color::rgba(0.04, 0.04, 0.08, 0.92).into(),
+                border_color: Color::rgba(0.85, 0.75, 0.35, 0.85).into(),
+                ..default()
+            },
+            CombatEntity,
+        ))
+        .with_children(|parent| {
+            // Message line
+            parent.spawn((
+                TextBundle::from_section(
+                    &combat.combat_message,
+                    TextStyle {
+                        font_size: 18.0,
+                        color: Color::rgb(1.0, 0.92, 0.65),
+                        ..default()
+                    },
+                )
+                .with_text_justify(JustifyText::Center),
+                CombatMessageText,
+            ));
+        });
 }
 
 fn handle_combat_inputs(
@@ -715,10 +790,15 @@ fn handle_combat_inputs(
     sender: Res<NetworkSender>,
     console: Option<Res<crate::ui::ChatConsole>>,
 ) {
-    if !combat.in_combat || combat.phase != CombatTransitionPhase::None { return; }
+    if !combat.in_combat || combat.phase != CombatTransitionPhase::None {
+        return;
+    }
 
     // Any key during damage pauses immediately skips the timer so the player is never frozen
-    if combat.seq == TurnSequence::PauseAfterPlayer || combat.seq == TurnSequence::PauseAfterEnemy || combat.seq == TurnSequence::Recovery {
+    if combat.seq == TurnSequence::PauseAfterPlayer
+        || combat.seq == TurnSequence::PauseAfterEnemy
+        || combat.seq == TurnSequence::Recovery
+    {
         let skip_pressed = input.just_pressed(KeyCode::Space)
             || input.just_pressed(KeyCode::Enter)
             || input.just_pressed(KeyCode::NumpadEnter)
@@ -737,13 +817,17 @@ fn handle_combat_inputs(
     }
 
     // Block input while physical charge animations are playing
-    if combat.seq != TurnSequence::Idle { return; }
+    if combat.seq != TurnSequence::Idle {
+        return;
+    }
     if let Some(ref c) = console {
-        if c.open || c.terminal_open { return; }
+        if c.open || c.terminal_open {
+            return;
+        }
     }
 
     let num_options: usize = match combat.menu_level {
-        MenuLevel::Main      => 3, // Attack | Item | Flee
+        MenuLevel::Main => 3,      // Attack | Item | Flee
         MenuLevel::AttackSub => 4, // Physical | Heavy Phys | Magical | Class1 Magic
     };
 
@@ -760,11 +844,17 @@ fn handle_combat_inputs(
         || input.just_pressed(KeyCode::KeyD);
 
     if up {
-        if combat.selected_action == 0 { combat.selected_action = num_options - 1; }
-        else { combat.selected_action -= 1; }
+        if combat.selected_action == 0 {
+            combat.selected_action = num_options - 1;
+        } else {
+            combat.selected_action -= 1;
+        }
     } else if down {
-        if combat.selected_action >= num_options - 1 { combat.selected_action = 0; }
-        else { combat.selected_action += 1; }
+        if combat.selected_action >= num_options - 1 {
+            combat.selected_action = 0;
+        } else {
+            combat.selected_action += 1;
+        }
     }
 
     let validate = input.just_pressed(KeyCode::Enter)
@@ -775,21 +865,25 @@ fn handle_combat_inputs(
     if validate {
         match combat.menu_level {
             MenuLevel::Main => match combat.selected_action {
-                0 => { // → Attack sub-menu
+                0 => {
+                    // → Attack sub-menu
                     combat.menu_level = MenuLevel::AttackSub;
                     combat.selected_action = 0;
                 }
-                1 => { // Item — use healing potion
+                1 => {
+                    // Item — use healing potion
                     let _ = sender.0.send("USE healing_potion\n".to_string());
                     combat.combat_message = "Used a Healing Potion!".to_string();
                     combat.message_timer = 1.5;
                 }
-                _ => { // Flee
+                _ => {
+                    // Flee
                     let _ = sender.0.send("FLEE\n".to_string());
                 }
             },
             MenuLevel::AttackSub => match combat.selected_action {
-                0 => { // Physical Attack
+                0 => {
+                    // Physical Attack
                     if !combat.enemy_id.is_empty() {
                         let _ = sender.0.send(format!("ATTACK {}\n", combat.enemy_id));
                         combat.combat_message = format!("You attack {}!", combat.enemy_name);
@@ -799,21 +893,25 @@ fn handle_combat_inputs(
                     combat.menu_level = MenuLevel::Main;
                     combat.selected_action = 0;
                 }
-                1 => { // Heavy Physical (1.75×)
+                1 => {
+                    // Heavy Physical (1.75×)
                     if combat.heavy_blocked_turns > 0 {
                         combat.combat_message = "Heavy attack is recharging!".to_string();
                         combat.message_timer = 1.5;
                     } else if !combat.enemy_id.is_empty() {
                         let _ = sender.0.send(format!("ATTACK_HEAVY {}\n", combat.enemy_id));
-                        combat.combat_message = format!("You charge a heavy blow at {}!", combat.enemy_name);
+                        combat.combat_message =
+                            format!("You charge a heavy blow at {}!", combat.enemy_name);
                         combat.charge_phase = ChargePhase::ChargingForward;
                         combat.seq = TurnSequence::PlayerCharging;
                         combat.heavy_blocked_turns = 1;
+                        combat.skip_next_player_turn = true;
                     }
                     combat.menu_level = MenuLevel::Main;
                     combat.selected_action = 0;
                 }
-                2 => { // Magical Attack
+                2 => {
+                    // Magical Attack
                     if !combat.enemy_id.is_empty() {
                         let _ = sender.0.send(format!("ATTACK_MAGIC {}\n", combat.enemy_id));
                         combat.combat_message = format!("You cast magic at {}!", combat.enemy_name);
@@ -823,29 +921,42 @@ fn handle_combat_inputs(
                     combat.menu_level = MenuLevel::Main;
                     combat.selected_action = 0;
                 }
-                3 => { // Class1 Magic (Heavy Magic)
+                3 => {
+                    // Class1 Magic (Heavy Magic)
                     if combat.heavy_blocked_turns > 0 {
                         combat.combat_message = "Class magic is recharging!".to_string();
                         combat.message_timer = 1.5;
                     } else if !combat.enemy_id.is_empty() {
-                        let _ = sender.0.send(format!("ATTACK_MAGIC_HEAVY {}\n", combat.enemy_id));
-                        combat.combat_message = format!("You channel class magic at {}!", combat.enemy_name);
+                        let _ = sender
+                            .0
+                            .send(format!("ATTACK_MAGIC_HEAVY {}\n", combat.enemy_id));
+                        combat.combat_message =
+                            format!("You channel class magic at {}!", combat.enemy_name);
                         combat.charge_phase = ChargePhase::ChargingForward;
                         combat.seq = TurnSequence::PlayerCharging;
                         combat.heavy_blocked_turns = 1;
+                        combat.skip_next_player_turn = true;
                     }
                     combat.menu_level = MenuLevel::Main;
                     combat.selected_action = 0;
                 }
-                _ => { combat.menu_level = MenuLevel::Main; combat.selected_action = 0; } // Back
+                _ => {
+                    combat.menu_level = MenuLevel::Main;
+                    combat.selected_action = 0;
+                } // Back
             },
         }
     }
 
     if input.just_pressed(KeyCode::Escape) || input.just_pressed(KeyCode::KeyB) {
         match combat.menu_level {
-            MenuLevel::Main => { let _ = sender.0.send("FLEE\n".to_string()); }
-            MenuLevel::AttackSub => { combat.menu_level = MenuLevel::Main; combat.selected_action = 0; }
+            MenuLevel::Main => {
+                let _ = sender.0.send("FLEE\n".to_string());
+            }
+            MenuLevel::AttackSub => {
+                combat.menu_level = MenuLevel::Main;
+                combat.selected_action = 0;
+            }
         }
     }
 }
@@ -853,6 +964,8 @@ fn handle_combat_inputs(
 /// Drives the turn sequence state machine between animations and pauses.
 fn advance_turn_sequence(
     time: Res<Time>,
+    sender: Res<NetworkSender>,
+    local_name: Res<LocalPlayerName>,
     mut combat: ResMut<CombatResource>,
 ) {
     let dt = time.delta_seconds();
@@ -865,8 +978,8 @@ fn advance_turn_sequence(
                     if let Some(reason) = combat.pending_end.take() {
                         let msg = match reason.as_str() {
                             "victory" => "Victory! The enemy collapses.".to_string(),
-                            "defeat"  => "Defeated... You wake up at the oasis.".to_string(),
-                            _         => "You fled.".to_string(),
+                            "defeat" => "Defeated... You wake up at the oasis.".to_string(),
+                            _ => "You fled.".to_string(),
                         };
                         combat.combat_message = msg;
                         combat.message_timer = 1.5;
@@ -888,13 +1001,15 @@ fn advance_turn_sequence(
             combat.seq_timer -= dt;
             if combat.seq_timer <= 0.0 {
                 // Decrement heavy-attack cooldown after full turn
-                if combat.heavy_blocked_turns > 0 { combat.heavy_blocked_turns -= 1; }
+                if combat.heavy_blocked_turns > 0 {
+                    combat.heavy_blocked_turns -= 1;
+                }
                 // Check for pending combat end (victory / defeat / flee)
                 if let Some(reason) = combat.pending_end.take() {
                     let msg = match reason.as_str() {
                         "victory" => "Victory! The enemy collapses.".to_string(),
-                        "defeat"  => "Defeated... You wake up at the oasis.".to_string(),
-                        _         => "You fled.".to_string(),
+                        "defeat" => "Defeated... You wake up at the oasis.".to_string(),
+                        _ => "You fled.".to_string(),
                     };
                     combat.combat_message = msg;
                     combat.message_timer = 1.5;
@@ -906,6 +1021,18 @@ fn advance_turn_sequence(
                     combat.phase = CombatTransitionPhase::ExitingToBlack;
                     return;
                 }
+
+                if combat.skip_next_player_turn {
+                    combat.skip_next_player_turn = false;
+                    let who = local_name.0.as_deref().unwrap_or("Player");
+                    combat.combat_message =
+                        format!("{} is stunned by his previous attack and can't moove.", who);
+                    combat.message_timer = 1.2;
+                    combat.seq = TurnSequence::Recovery;
+                    combat.seq_timer = 0.75;
+                    return;
+                }
+
                 combat.seq = TurnSequence::Idle;
                 combat.menu_level = MenuLevel::Main;
                 combat.selected_action = 0;
@@ -914,9 +1041,15 @@ fn advance_turn_sequence(
         TurnSequence::Recovery => {
             combat.seq_timer -= dt;
             if combat.seq_timer <= 0.0 {
-                combat.seq = TurnSequence::Idle;
-                combat.menu_level = MenuLevel::Main;
-                combat.selected_action = 0;
+                if !combat.enemy_id.is_empty() {
+                    let _ = sender.0.send(format!("ATTACK {}\n", combat.enemy_id));
+                    combat.enemy_charge_phase = ChargePhase::ChargingForward;
+                    combat.seq = TurnSequence::EnemyCharging;
+                } else {
+                    combat.seq = TurnSequence::Idle;
+                    combat.menu_level = MenuLevel::Main;
+                    combat.selected_action = 0;
+                }
             }
         }
         _ => {}
@@ -973,7 +1106,9 @@ fn animate_combat_entities(
     // Enemy animation loop (spritesheet slicing if 2x3, or static)
     for (mut anim, mut sprite, tex_handle) in &mut enemy_q {
         if anim.frames.is_empty() {
-            let Some(img) = images.get(tex_handle) else { continue; };
+            let Some(img) = images.get(tex_handle) else {
+                continue;
+            };
             let w = img.size().x as f32;
             let h = img.size().y as f32;
 
@@ -989,7 +1124,8 @@ fn animate_combat_entities(
                     }
                 }
             } else {
-                anim.frames.push(Rect::from_corners(Vec2::ZERO, Vec2::new(w, h)));
+                anim.frames
+                    .push(Rect::from_corners(Vec2::ZERO, Vec2::new(w, h)));
             }
             if let Some(first) = anim.frames.first() {
                 sprite.rect = Some(*first);
@@ -1011,10 +1147,31 @@ fn update_combat_hp_bars(
     mut combat: ResMut<CombatResource>,
     stats: Res<PlayerStats>,
     mut enemy_fill_q: Query<&mut Style, (With<EnemyHpBarFill>, Without<PlayerHpBarFill>)>,
-    mut enemy_text_q: Query<&mut Text, (With<EnemyHpText>, Without<PlayerHpText>, Without<CombatMessageText>)>,
+    mut enemy_text_q: Query<
+        &mut Text,
+        (
+            With<EnemyHpText>,
+            Without<PlayerHpText>,
+            Without<CombatMessageText>,
+        ),
+    >,
     mut player_fill_q: Query<&mut Style, (With<PlayerHpBarFill>, Without<EnemyHpBarFill>)>,
-    mut player_text_q: Query<&mut Text, (With<PlayerHpText>, Without<EnemyHpText>, Without<CombatMessageText>)>,
-    mut msg_text_q: Query<&mut Text, (With<CombatMessageText>, Without<EnemyHpText>, Without<PlayerHpText>)>,
+    mut player_text_q: Query<
+        &mut Text,
+        (
+            With<PlayerHpText>,
+            Without<EnemyHpText>,
+            Without<CombatMessageText>,
+        ),
+    >,
+    mut msg_text_q: Query<
+        &mut Text,
+        (
+            With<CombatMessageText>,
+            Without<EnemyHpText>,
+            Without<PlayerHpText>,
+        ),
+    >,
 ) {
     if !combat.in_combat {
         return;
@@ -1042,7 +1199,8 @@ fn update_combat_hp_bars(
     }
     if let Ok(mut text) = enemy_text_q.get_single_mut() {
         if !text.sections.is_empty() {
-            text.sections[0].value = format!("HP : {} / {}", combat.enemy_hp.max(0), combat.enemy_max_hp);
+            text.sections[0].value =
+                format!("HP : {} / {}", combat.enemy_hp.max(0), combat.enemy_max_hp);
         }
     }
 
@@ -1069,7 +1227,9 @@ fn update_combat_btn_labels(
     mut slots: Query<(&mut Style, &CombatBtnSlot)>,
     mut images: Query<(&mut UiImage, &CombatButtonVisual)>,
 ) {
-    if !combat.is_changed() { return; }
+    if !combat.is_changed() {
+        return;
+    }
 
     // ── 1. Swap button images ────────────────────────────────────────────
     for (mut img, btn) in images.iter_mut() {
@@ -1107,7 +1267,9 @@ fn animate_player_charge(
     mut combat: ResMut<CombatResource>,
     mut player_q: Query<(&mut Transform, &CombatPlayerSprite)>,
 ) {
-    if combat.charge_phase == ChargePhase::Idle { return; }
+    if combat.charge_phase == ChargePhase::Idle {
+        return;
+    }
     let dt = time.delta_seconds();
 
     let mut finished = false;
@@ -1160,7 +1322,9 @@ fn animate_enemy_charge(
     mut combat: ResMut<CombatResource>,
     mut enemy_q: Query<(&mut Transform, &CombatEnemySpritePos)>,
 ) {
-    if combat.enemy_charge_phase == ChargePhase::Idle { return; }
+    if combat.enemy_charge_phase == ChargePhase::Idle {
+        return;
+    }
     let dt = time.delta_seconds();
 
     let mut finished = false;

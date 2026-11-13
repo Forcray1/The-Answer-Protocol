@@ -108,7 +108,11 @@ impl BoardQuestSlot {
             self.mob_name.replace(' ', "_"),
             self.kill_count,
             self.gold_reward,
-            if self.taken_by.is_some() { "taken" } else { "available" },
+            if self.taken_by.is_some() {
+                "taken"
+            } else {
+                "available"
+            },
             self.taken_by.as_deref().unwrap_or("none"),
             self.kills_done,
         )
@@ -132,16 +136,24 @@ impl BoardQuestPool {
 
     /// Return the slot currently held by `player`, if any.
     pub fn player_slot(&self, player: &str) -> Option<&BoardQuestSlot> {
-        self.slots.iter().find(|s| s.taken_by.as_deref() == Some(player))
+        self.slots
+            .iter()
+            .find(|s| s.taken_by.as_deref() == Some(player))
     }
 
     pub fn player_slot_mut(&mut self, player: &str) -> Option<&mut BoardQuestSlot> {
-        self.slots.iter_mut().find(|s| s.taken_by.as_deref() == Some(player))
+        self.slots
+            .iter_mut()
+            .find(|s| s.taken_by.as_deref() == Some(player))
     }
 
     /// Wire string listing all 6 slots, pipe-separated.
     pub fn to_wire(&self) -> String {
-        self.slots.iter().map(|s| s.to_wire()).collect::<Vec<_>>().join("|")
+        self.slots
+            .iter()
+            .map(|s| s.to_wire())
+            .collect::<Vec<_>>()
+            .join("|")
     }
 }
 
