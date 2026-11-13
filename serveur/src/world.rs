@@ -11,7 +11,7 @@
 // world.yaml doesn't need to change.
 
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use domain::{Direction, ItemBucket, ItemId, NpcId, QuestId, RoomId};
 
@@ -256,9 +256,182 @@ pub struct Quest {
 }
 
 impl WorldData {
+    fn validate_quest_objective(
+        objective: &QuestObjective,
+        item_ids: &HashSet<ItemId>,
+        npc_ids: &HashSet<NpcId>,
+    ) -> Result<(), String> {
+        match objective {
+            QuestObjective::FetchItem { item } => {
+                if !item_ids.contains(item) {
+                    return Err(format!("Quest references unknown item '{item}'"));
+                }
+            }
+            QuestObjective::DefeatNpc { npc } => {
+                if !npc_ids.contains(npc) {
+                    return Err(format!("Quest references unknown NPC '{npc}'"));
+                }
+            }
+            QuestObjective::DeliverItem { item, to } => {
+                if !item_ids.contains(item) {
+                    return Err(format!("Quest references unknown item '{item}'"));
+                }
+                if !npc_ids.contains(to) {
+                    return Err(format!("Quest references unknown recipient NPC '{to}'"));
+                }
+            }
+            QuestObjective::DeliverItems { items, to } => {
+                for item in items {
+                    if !item_ids.contains(item) {
+                        return Err(format!("Quest references unknown item '{item}'"));
+                    }
+                }
+                if !npc_ids.contains(to) {
+                    return Err(format!("Quest references unknown recipient NPC '{to}'"));
+                }
+            }
+            QuestObjective::TalkToNpc { npc } => {
+                if !npc_ids.contains(npc) {
+                    return Err(format!("Quest references unknown NPC '{npc}'"));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_stage_objective(
+        objective: &domain::StageObjective,
+        item_ids: &HashSet<ItemId>,
+        npc_ids: &HashSet<NpcId>,
+    ) -> Result<(), String> {
+        match objective {
+            domain::StageObjective::FetchItem { item } => {
+                if !item_ids.contains(item) {
+                    return Err(format!("Quest stage references unknown item '{item}'"));
+                }
+            }
+            domain::StageObjective::TalkToNpc { npc } => {
+                if !npc_ids.contains(npc) {
+                    return Err(format!("Quest stage references unknown NPC '{npc}'"));
+                }
+            }
+            domain::StageObjective::KillMob { npc, .. } => {
+                if !npc_ids.contains(npc) {
+                    return Err(format!("Quest stage references unknown NPC '{npc}'"));
+                }
+            }
+            domain::StageObjective::AnswerDialogue { npc, .. } => {
+                if !npc_ids.contains(npc) {
+                    return Err(format!("Quest stage references unknown NPC '{npc}'"));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    pub fn validate(&self) -> Result<(), String> {
+        let item_ids: HashSet<_> = self.world.items.iter().map(|item| item.id.clone()).collect();
+        let npc_ids: HashSet<_> = self.world.npcs.iter().map(|npc| npc.id.clone()).collect();
+        let room_ids: HashSet<_> = self.world.locations.keys().cloned().collect();
+
+        if room_ids.is_empty() {
+            return Err("World contains no rooms.".to_string());
+        }
+
+        let start_room = RoomId::from("Start_oasis");
+        if !room_ids.contains(&start_room) {
+            return Err("World must define a room named 'Start_oasis'.".to_string());
+        }
+
+        for (room_id, location) in &self.world.locations {
+            for (direction, exit_room) in &location.exits {
+                if !room_ids.contains(exit_room) {
+                    return Err(format!(
+                        "Room '{room_id}' exits to unknown room '{exit_room}' via {direction:?}."
+                    ));
+                }
+            }
+
+            for npc_id in &location.npcs {
+                if !npc_ids.contains(npc_id) {
+                    return Err(format!(
+                        "Room '{room_id}' references unknown NPC '{npc_id}'."
+                    ));
+                }
+            }
+
+            for item_id in &location.items {
+                if !item_ids.contains(item_id) {
+                    return Err(format!(
+                        "Room '{room_id}' references unknown item '{item_id}'."
+                    ));
+                }
+            }
+        }
+
+        for npc in &self.world.npcs {
+            for drop in &npc.drops {
+                if !item_ids.contains(&drop.item_id) {
+                    return Err(format!(
+                        "NPC '{}' drops unknown item '{}'.",
+                        npc.id, drop.item_id
+                    ));
+                }
+            }
+        }
+
+        for quest in &self.world.quests {
+            if let Some(giver_id) = &quest.giver_id {
+                if !npc_ids.contains(giver_id) {
+                    return Err(format!(
+                        "Quest '{}' references unknown giver NPC '{}'.",
+                        quest.id, giver_id
+                    ));
+                }
+            }
+            if let Some(target_id) = &quest.target_id {
+                if !item_ids.contains(target_id) {
+                    return Err(format!(
+                        "Quest '{}' references unknown target item '{}'.",
+                        quest.id, target_id
+                    ));
+                }
+            }
+
+            Self::validate_quest_objective(&quest.objective, &item_ids, &npc_ids)?;
+
+            for item in &quest.reward_items {
+                if !item_ids.contains(item) {
+                    return Err(format!(
+                        "Quest '{}' rewards unknown item '{}'.",
+                        quest.id, item
+                    ));
+                }
+            }
+
+            if let Some(item) = &quest.reward_item {
+                if !item_ids.contains(item) {
+                    return Err(format!(
+                        "Quest '{}' rewards unknown item '{}'.",
+                        quest.id, item
+                    ));
+                }
+            }
+
+            for stage in &quest.stages {
+                if let Some(objective) = &stage.objective {
+                    Self::validate_stage_objective(objective, &item_ids, &npc_ids)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn load_from_file(path: &str) -> Result<Self, Box<dyn std::error::Error>> {
         let content = std::fs::read_to_string(path)?;
         let data: WorldData = serde_yaml::from_str(&content)?;
+        data.validate().map_err(|err| -> Box<dyn std::error::Error> { err.into() })?;
         Ok(data)
     }
 }

@@ -678,8 +678,7 @@ world:
         west: City
         east: Temple1
       npcs: []
-      items:
-      - worn_key
+      items: []
     Wild3:
       name: Wild3
       description: ''
@@ -704,7 +703,6 @@ world:
       - Panneau
       items:
       - Excalibur
-      - Dague
     Wild4:
       name: Wild4
       description: ''
@@ -802,8 +800,7 @@ world:
         west: Castle
         east: Temple2
       npcs: []
-      items:
-      - temple_relic
+      items: []
     Temple2:
       name: Temple2
       description: ''
@@ -811,8 +808,7 @@ world:
         west: Temple1
         east: Temple3
       npcs: []
-      items:
-      - temple_relic
+      items: []
     Temple3:
       name: Temple3
       description: ''
@@ -820,8 +816,7 @@ world:
         west: Temple2
         east: Temple4
       npcs: []
-      items:
-      - cracked_gem
+      items: []
     Temple4:
       name: Temple4
       description: ''
@@ -829,5 +824,4 @@ world:
         west: Temple3
       npcs:
       - Final_boss
-      items:
-      - temple_relic
+      items: []

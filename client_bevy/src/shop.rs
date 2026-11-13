@@ -128,7 +128,7 @@ fn setup_shop_ui(mut commands: Commands) {
                         })
                         .with_children(|header| {
                             header.spawn(TextBundle::from_section(
-                                "⚒  Shop",
+                                "Shop",
                                 TextStyle {
                                     font_size: 32.0,
                                     color: Color::rgb(1.0, 0.85, 0.3),

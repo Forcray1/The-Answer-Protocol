@@ -268,26 +268,26 @@ fn listen_combat_events(
                 combat.enemy_max_hp = parts[2].parse().unwrap_or(combat.enemy_max_hp);
                 combat.pending_dealt += bonus.max(0);
             }
+        }
 
-            if let Some(rest) = line.strip_prefix("S: EVT COMBAT STUN_APPLIED ") {
-                let turns = rest.trim().parse::<u32>().unwrap_or(0);
-                combat.skip_next_player_turn = turns > 0;
-            }
+        if let Some(rest) = line.strip_prefix("S: EVT COMBAT STUN_APPLIED ") {
+            let turns = rest.trim().parse::<u32>().unwrap_or(0);
+            combat.skip_next_player_turn = turns > 0;
+        }
 
-            if let Some(rest) = line.strip_prefix("S: EVT COMBAT STUN ") {
-                let player_name = rest.trim().replace('_', " ");
-                combat.combat_message =
-                    format!("{} is stunned by his previous attack and can't moove.", player_name);
-                combat.message_timer = 1.8;
-            }
+        if let Some(rest) = line.strip_prefix("S: EVT COMBAT STUN ") {
+            let player_name = rest.trim().replace('_', " ");
+            combat.combat_message =
+                format!("{} is stunned by his previous attack and can't moove.", player_name);
+            combat.message_timer = 1.8;
+        }
 
-            if let Some(rest) = line.strip_prefix("S: EVT COMBAT STUN_HIT ") {
-                let parts: Vec<&str> = rest.split_whitespace().collect();
-                if parts.len() >= 3 {
-                    combat.enemy_hp = parts[0].parse().unwrap_or(combat.enemy_hp);
-                    combat.enemy_max_hp = parts[1].parse().unwrap_or(combat.enemy_max_hp);
-                    combat.pending_taken = parts[2].parse().unwrap_or(0);
-                }
+        if let Some(rest) = line.strip_prefix("S: EVT COMBAT STUN_HIT ") {
+            let parts: Vec<&str> = rest.split_whitespace().collect();
+            if parts.len() >= 3 {
+                combat.enemy_hp = parts[0].parse().unwrap_or(combat.enemy_hp);
+                combat.enemy_max_hp = parts[1].parse().unwrap_or(combat.enemy_max_hp);
+                combat.pending_taken = parts[2].parse().unwrap_or(0);
             }
         }
 
@@ -813,6 +813,12 @@ fn handle_combat_inputs(
         if skip_pressed {
             combat.seq_timer = 0.0;
         }
+        return;
+    }
+
+    // If the player is stunned from a previous heavy attack, do not accept any new
+    // action for the next turn. The server already enforces this as well.
+    if combat.skip_next_player_turn {
         return;
     }
 

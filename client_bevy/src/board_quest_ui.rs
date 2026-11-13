@@ -159,7 +159,7 @@ fn render_board_quest_window(
     // Title
     commands.entity(root).with_children(|parent| {
         parent.spawn(TextBundle::from_section(
-            "── Notice Board ──",
+            " Quest Board ",
             TextStyle {
                 font_size: 26.0,
                 color: Color::rgb(1.0, 0.85, 0.3),
@@ -167,7 +167,7 @@ fn render_board_quest_window(
             },
         ));
         parent.spawn(TextBundle::from_section(
-            "↑↓ navigate  |  ENTER = take/abandon  |  ESC = close",
+            " navigate  |  ENTER = take/abandon  |  ESC = close",
             TextStyle {
                 font_size: 15.0,
                 color: Color::GRAY,
@@ -226,7 +226,7 @@ fn render_board_quest_window(
                 )
             };
 
-            let cursor_prefix = if is_cursor { "▶ " } else { "  " };
+            let cursor_prefix = if is_cursor { "O " } else { "  " };
             let full_label = format!("{}{}", cursor_prefix, label);
 
             parent

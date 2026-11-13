@@ -19,6 +19,10 @@ use domain::{
 };
 
 pub const START_ROOM: &str = "Start_oasis";
+pub const START_SPAWN_X: f32 = -1000.0;
+pub const START_SPAWN_Y: f32 = 215.0;
+pub const DEATH_RESPAWN_X: f32 = -1000.0;
+pub const DEATH_RESPAWN_Y: f32 = 215.0;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ItemSource {
@@ -109,8 +113,8 @@ impl Player {
             id: PlayerId(username.clone()),
             username,
             skin: "default".to_string(),
-            pos_x: 0.0,
-            pos_y: 0.0,
+            pos_x: START_SPAWN_X,
+            pos_y: START_SPAWN_Y,
             hp: 100,
             max_hp: 100,
             level: 1,

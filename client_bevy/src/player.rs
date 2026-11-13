@@ -54,7 +54,8 @@ const FOOT_HALF_W: f32 = 28.0;
 const FOOT_HALF_H: f32 = 12.0;
 const FOOT_OFFSET_Y: f32 = -48.0;
 
-const SPAWN_POINT: Vec2 = Vec2::new(-MAP_HALF_W + 80.0, 0.0);
+const SPAWN_POINT: Vec2 = Vec2::new(-1000.0, 215.0);
+const DEATH_RESPAWN_POINT: Vec2 = Vec2::new(-1000.0, 215.0);
 
 const POS_SEND_INTERVAL: f32 = 0.1;
 
@@ -163,11 +164,19 @@ fn spawn_local_player_on_connect(
             }
         }
 
+        // Keep the spawn explicit and exact: the server is authoritative for the oasis.
+        if spawn.x == 0.0 && spawn.y == 0.0 && name != DEFAULT_NAME {
+            spawn = SPAWN_POINT;
+        }
+
         local_name.0 = Some(name.to_string());
         commands.insert_resource(LocalPlayerSkin(skin.to_string()));
         let entity = spawn_player_visual(&mut commands, &asset_server, skin, name, spawn);
         commands.entity(entity).insert(LocalPlayer);
-        println!("[PLAYER] Avatar local '{}' (skin '{}').", name, skin);
+        println!(
+            "[PLAYER] Avatar local '{}' (skin '{}') spawned at ({}, {}).",
+            name, skin, spawn.x, spawn.y
+        );
     }
 }
 
@@ -441,11 +450,29 @@ fn handle_presence_events(
     asset_server: Res<AssetServer>,
     local_name: Res<LocalPlayerName>,
     mut remotes: Query<(Entity, &mut RemotePlayer)>,
+    mut local_query: Query<
+        (&mut Transform, &mut PlayerAnimation, &mut Handle<Image>),
+        With<LocalPlayer>,
+    >,
 ) {
     for ev in events.read() {
         if ev.0.starts_with("S: OK room=loc.") {
             for (entity, _) in &remotes {
                 commands.entity(entity).despawn_recursive();
+            }
+            if let Ok((mut transform, mut anim, mut texture)) = local_query.get_single_mut() {
+                if ev.0.starts_with("S: OK room=loc.Start_oasis") {
+                    transform.translation.x = SPAWN_POINT.x;
+                    transform.translation.y = SPAWN_POINT.y;
+                    animate(
+                        &mut anim,
+                        &mut texture,
+                        Duration::from_millis(0),
+                        false,
+                        Vec2::ZERO,
+                    );
+                    println!("[PLAYER] Local player snapped to Start_oasis spawn ({}, {}).", SPAWN_POINT.x, SPAWN_POINT.y);
+                }
             }
             continue;
         }
@@ -458,14 +485,33 @@ fn handle_presence_events(
         match p[3] {
             "PRESENCE" if p.len() >= 6 => {
                 let name = p[5];
-                if Some(name) == local_name.0.as_deref() {
-                    continue; // jamais soi-même
-                }
                 match p[4] {
                     "ENTER" | "ROSTER" if p.len() >= 9 => {
                         let skin = p[6];
                         let pos =
                             Vec2::new(p[7].parse().unwrap_or(0.0), p[8].parse().unwrap_or(0.0));
+
+                        if Some(name) == local_name.0.as_deref() {
+                            if let Ok((mut transform, mut anim, mut texture)) =
+                                local_query.get_single_mut()
+                            {
+                                transform.translation.x = pos.x;
+                                transform.translation.y = pos.y;
+                                animate(
+                                    &mut anim,
+                                    &mut texture,
+                                    Duration::from_millis(0),
+                                    false,
+                                    Vec2::ZERO,
+                                );
+                                println!(
+                                    "[PLAYER] Local player '{}' positioned at ({}, {}).",
+                                    name, pos.x, pos.y
+                                );
+                            }
+                            continue;
+                        }
+
                         if remotes.iter().any(|(_, r)| r.name == name) {
                             continue; // déjà présent
                         }
@@ -481,6 +527,9 @@ fn handle_presence_events(
                         );
                     }
                     "LEAVE" => {
+                        if Some(name) == local_name.0.as_deref() {
+                            continue;
+                        }
                         for (entity, r) in &remotes {
                             if r.name == name {
                                 commands.entity(entity).despawn_recursive();

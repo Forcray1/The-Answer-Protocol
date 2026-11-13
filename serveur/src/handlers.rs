@@ -354,10 +354,6 @@ pub async fn process_connect(
         }
     };
 
-    if loaded.is_some() && password.is_empty() {
-        return "S: ERR password_required\n".to_string();
-    }
-
     if loaded.is_some() {
         match database::verify_player(pool, &pseudo, &password).await {
             Ok(true) => {}
@@ -370,7 +366,7 @@ pub async fn process_connect(
                 return "S: ERR internal_error\n".to_string();
             }
         }
-    } else if !password.is_empty() {
+    } else {
         if let Err(e) = database::register_player(pool, &pseudo, &password).await {
             eprintln!("[DB] Account creation error: {}", e);
             return "S: ERR internal_error\n".to_string();
@@ -505,20 +501,26 @@ pub async fn process_connect(
         target_group: None,
         target_player: None,
     });
+    let (px, py) = (player.pos_x as i64, player.pos_y as i64);
     let _ = tx.send(GlobalEvent {
         sender_addr: Some(addr),
-        message: format!("S: EVT ROOM PRESENCE ENTER {} {} 0 0\n", pseudo, skin),
+        message: format!(
+            "S: EVT ROOM PRESENCE ENTER {} {} {} {}\n",
+            pseudo, skin, px, py
+        ),
         target_room: Some(enter_room.clone()),
         target_group: None,
         target_player: None,
     });
     let exits = format_exits(world, &enter_room);
+    let pos_str = format!(" pos={},{}", px, py);
     format!(
-        "S: OK connected skin={} name={} room={}{}\n{}{}{}\nS: EVT PLAYER_STATS {} {} {} {} {}\n",
+        "S: OK connected skin={} name={} room={}{}{}\n{}{}{}\nS: EVT PLAYER_STATS {} {} {} {} {}\n",
         skin,
         pseudo,
         enter_room,
         exits,
+        pos_str,
         room_presence_roster(addr, &guard, &enter_room),
         room_mob_roster(&enter_room, &guard, world),
         room_item_roster(&enter_room, &guard, world),
@@ -2153,7 +2155,7 @@ fn handle_attack_magic(
                 player_spe_dmg += item.special_damage.unwrap_or(0);
             }
         }
-        player_armor += player.equipement.total_defense();
+        player_armor += player.stats.special_defense + player.equipement.total_defense();
     } else {
         return "S: ERR utilize_connect_first\n".to_string();
     }
@@ -2264,15 +2266,12 @@ fn handle_attack_magic(
             let mut stat_str = String::new();
             let mut player_dead = false;
             let mut player_hp = 0;
-            let final_monster_damage = (monster_damage - player_armor).max(1);
+            let final_monster_damage = damage_after_defense(monster_damage, player_armor);
             if let Some(player) = state.players.get_mut(&addr) {
                 player.hp -= final_monster_damage;
                 player_hp = player.hp;
                 if player.hp <= 0 {
                     player_dead = true;
-                    player.hp = player.max_hp;
-                    player.current_room = RoomId::from(START_ROOM);
-                    player.combat = CombatState::Idle;
                 }
                 stat_str = format!(
                     "S: EVT PLAYER_STATS {} {} {} {} {}\n",
@@ -2285,6 +2284,30 @@ fn handle_attack_magic(
             }
             if player_dead {
                 state.active_combats.remove(&addr);
+                let (username, skin, old_room, final_stats) = if let Some(player) = state.players.get_mut(&addr) {
+                    let username = player.username.clone();
+                    let skin = player.skin.clone();
+                    let old_room = player.current_room.clone();
+                    respawn_player_at_start(player);
+                    let final_stats = if let Some(player) = state.players.get(&addr) {
+                        player_stats_event(player)
+                    } else {
+                        String::new()
+                    };
+                    (username, skin, old_room, final_stats)
+                } else {
+                    (String::new(), String::new(), RoomId::from(START_ROOM), String::new())
+                };
+                if !username.is_empty() {
+                    notify_player_respawn(tx, addr, old_room, &username, &skin);
+                    let _ = tx.send(GlobalEvent {
+                        sender_addr: Some(addr),
+                        message: final_stats.clone(),
+                        target_room: None,
+                        target_group: None,
+                        target_player: Some(addr),
+                    });
+                }
                 let _ = tx.send(GlobalEvent {
                     sender_addr: Some(addr),
                     message: format!(
@@ -2296,7 +2319,12 @@ fn handle_attack_magic(
                     target_player: None,
                 });
                 log_event("DEATH", &player_name, json!({"killer": monster_name}));
-                format!("S: EVT COMBAT END defeat\nS: OK Magic deals {}. {} retaliates and finishes you off. DEAD!\n{}", final_damage, monster_name, stat_str)
+                format!(
+                    "S: EVT COMBAT END defeat\nS: OK Magic deals {}. {} retaliates and finishes you off. DEAD! You wake up at the oasis.\nS: OK room=loc.Start_oasis\n{}",
+                    final_damage,
+                    monster_name,
+                    final_stats
+                )
             } else {
                 format!("S: EVT COMBAT HIT {} {} {} {}\nS: OK Magic deals {}. {} retaliates (-{} HP). (HP: {})\n{}", monster_hp_left, max_hp_monster, final_damage, final_monster_damage, final_damage, monster_name, final_monster_damage, player_hp, stat_str)
             }
@@ -2438,6 +2466,75 @@ fn apply_bonus_hit(
     });
 }
 
+fn damage_after_defense(base_damage: i32, defense_points: i32) -> i32 {
+    (base_damage - defense_points).max(1)
+}
+
+fn player_stats_event(player: &crate::state::Player) -> String {
+    format!(
+        "S: EVT PLAYER_STATS {} {} {} {} {}\n",
+        player.hp,
+        player.max_hp,
+        player.xp_bar.current,
+        player.xp_bar.requiered,
+        player.level
+    )
+}
+
+#[allow(dead_code)]
+fn respawn_player_at_start(player: &mut crate::state::Player) {
+    let respawn_hp = (player.max_hp * 30 / 100).max(1);
+    player.hp = respawn_hp;
+    player.current_room = RoomId::from(START_ROOM);
+    player.pos_x = crate::state::DEATH_RESPAWN_X;
+    player.pos_y = crate::state::DEATH_RESPAWN_Y;
+    player.stunned_turns = 0;
+    player.combat = CombatState::Idle;
+}
+
+fn notify_player_respawn(
+    tx: &Sender<GlobalEvent>,
+    addr: SocketAddr,
+    old_room: RoomId,
+    username: &str,
+    skin: &str,
+) {
+    let _ = tx.send(GlobalEvent {
+        sender_addr: Some(addr),
+        message: format!("S: EVT ROOM PRESENCE LEAVE {}\n", username),
+        target_room: Some(old_room),
+        target_group: None,
+        target_player: None,
+    });
+    let _ = tx.send(GlobalEvent {
+        sender_addr: Some(addr),
+        message: format!(
+            "S: EVT ROOM PRESENCE ENTER {} {} {} {}\n",
+            username, skin, crate::state::DEATH_RESPAWN_X as i64, crate::state::DEATH_RESPAWN_Y as i64
+        ),
+        target_room: Some(RoomId::from(START_ROOM)),
+        target_group: None,
+        target_player: Some(addr),
+    });
+    let _ = tx.send(GlobalEvent {
+        sender_addr: Some(addr),
+        message: "S: OK room=loc.Start_oasis\n".to_string(),
+        target_room: Some(RoomId::from(START_ROOM)),
+        target_group: None,
+        target_player: Some(addr),
+    });
+    let _ = tx.send(GlobalEvent {
+        sender_addr: Some(addr),
+        message: format!(
+            "S: EVT ROOM POS {} {} {}\n",
+            username, crate::state::DEATH_RESPAWN_X as i64, crate::state::DEATH_RESPAWN_Y as i64
+        ),
+        target_room: Some(RoomId::from(START_ROOM)),
+        target_group: None,
+        target_player: None,
+    });
+}
+
 fn handle_stunned_turn(
     addr: SocketAddr,
     state: &mut ServerState,
@@ -2456,7 +2553,7 @@ fn handle_stunned_turn(
         (
             player.username.clone(),
             target,
-            player.equipement.total_defense(),
+            player.stats.defense + player.equipement.total_defense(),
         )
     };
 
@@ -2469,7 +2566,7 @@ fn handle_stunned_turn(
         .copied()
         .unwrap_or(max_hp_monster);
     let monster_damage = npc.damage.unwrap_or(5);
-    let final_monster_damage = (monster_damage - player_armor).max(1);
+    let final_monster_damage = damage_after_defense(monster_damage, player_armor);
 
     let (player_dead, player_hp, max_hp) = if let Some(player) = state.players.get_mut(&addr) {
         if player.stunned_turns > 0 {
@@ -2477,9 +2574,6 @@ fn handle_stunned_turn(
         }
         player.hp -= final_monster_damage;
         if player.hp <= 0 {
-            player.hp = player.max_hp;
-            player.current_room = RoomId::from(START_ROOM);
-            player.combat = CombatState::Idle;
             (true, player.hp, player.max_hp)
         } else {
             (false, player.hp, player.max_hp)
@@ -2499,6 +2593,30 @@ fn handle_stunned_turn(
 
     if player_dead {
         state.active_combats.remove(&addr);
+        let (username, skin, old_room, final_stats) = if let Some(player) = state.players.get_mut(&addr) {
+            let username = player.username.clone();
+            let skin = player.skin.clone();
+            let old_room = player.current_room.clone();
+            respawn_player_at_start(player);
+            let final_stats = if let Some(player) = state.players.get(&addr) {
+                player_stats_event(player)
+            } else {
+                String::new()
+            };
+            (username, skin, old_room, final_stats)
+        } else {
+            (String::new(), String::new(), RoomId::from(START_ROOM), String::new())
+        };
+        if !username.is_empty() {
+            notify_player_respawn(tx, addr, old_room, &username, &skin);
+            let _ = tx.send(GlobalEvent {
+                sender_addr: Some(addr),
+                message: final_stats.clone(),
+                target_room: None,
+                target_group: None,
+                target_player: Some(addr),
+            });
+        }
         let _ = tx.send(GlobalEvent {
             sender_addr: Some(addr),
             message: format!(
@@ -2511,11 +2629,11 @@ fn handle_stunned_turn(
         });
         log_event("DEATH", &player_name, json!({"killer": monster_name}));
         Some(format!(
-            "S: EVT COMBAT STUN {}\nS: EVT COMBAT END defeat\nS: OK {} is stun by the last attack and can't move. {} attacks and finishes them off. DEAD!\n{}",
+            "S: EVT COMBAT STUN {}\nS: EVT COMBAT END defeat\nS: OK {} is stunned by the last attack and can't move. {} attacks and finishes them off. DEAD! You wake up at the oasis.\nS: OK room=loc.Start_oasis\n{}",
             player_name.replace(' ', "_"),
             player_name,
             monster_name,
-            stat_str
+            final_stats
         ))
     } else {
         Some(format!(
@@ -2573,14 +2691,14 @@ fn handle_attack(
         current_room_id = player.current_room.clone();
         player_name = player.username.clone();
         player.last_attack = Some(Instant::now());
-        // Damage = base stats + weapon + medaillon bonus; armor = equipped pieces.
+        // Damage = base stats + weapon + medaillon bonus; armor = defense stat + equipped pieces.
         player_damage += player.stats.damage + player.equipement.weapon_damage();
         if let Some(mid) = &player.equipped_medaillon_id.clone() {
             if let Some(item) = world.world.items.iter().find(|i| &i.id == mid) {
                 player_damage += item.damage.unwrap_or(0);
             }
         }
-        player_armor += player.equipement.total_defense();
+        player_armor += player.stats.defense + player.equipement.total_defense();
     } else {
         return "S: ERR utilize_connect_first\n".to_string();
     }
@@ -2607,7 +2725,7 @@ fn handle_attack(
     if let Some(m_id) = monster_id_found {
         let mut monster_dead = false;
         let mut monster_hp_left = 0;
-        let final_damage = (player_damage - monster_defense).max(1);
+        let final_damage = damage_after_defense(player_damage, monster_defense);
         if let Some(hp) = state.npc_hps.get_mut(&m_id) {
             *hp -= final_damage;
             monster_hp_left = *hp;
@@ -2745,15 +2863,12 @@ fn handle_attack(
             let mut stat_str = String::new();
             let mut player_dead = false;
             let mut player_hp = 0;
-            let final_monster_damage = (degats_monstre - player_armor).max(1);
+            let final_monster_damage = damage_after_defense(degats_monstre, player_armor);
             if let Some(player) = state.players.get_mut(&addr) {
                 player.hp -= final_monster_damage;
                 player_hp = player.hp;
                 if player.hp <= 0 {
                     player_dead = true;
-                    player.hp = player.max_hp;
-                    player.current_room = RoomId::from(START_ROOM);
-                    player.combat = CombatState::Idle;
                 }
                 stat_str = format!(
                     "S: EVT PLAYER_STATS {} {} {} {} {}\n",
@@ -2766,6 +2881,30 @@ fn handle_attack(
             }
             if player_dead {
                 state.active_combats.remove(&addr);
+                let (username, skin, old_room, final_stats) = if let Some(player) = state.players.get_mut(&addr) {
+                    let username = player.username.clone();
+                    let skin = player.skin.clone();
+                    let old_room = player.current_room.clone();
+                    respawn_player_at_start(player);
+                    let final_stats = if let Some(player) = state.players.get(&addr) {
+                        player_stats_event(player)
+                    } else {
+                        String::new()
+                    };
+                    (username, skin, old_room, final_stats)
+                } else {
+                    (String::new(), String::new(), RoomId::from(START_ROOM), String::new())
+                };
+                if !username.is_empty() {
+                    notify_player_respawn(tx, addr, old_room, &username, &skin);
+                    let _ = tx.send(GlobalEvent {
+                        sender_addr: Some(addr),
+                        message: final_stats.clone(),
+                        target_room: None,
+                        target_group: None,
+                        target_player: Some(addr),
+                    });
+                }
                 let _ = tx.send(GlobalEvent {
                     sender_addr: Some(addr),
                     message: format!(
@@ -2777,7 +2916,12 @@ fn handle_attack(
                     target_player: None,
                 });
                 log_event("DEATH", &player_name, json!({"killer": monster_name}));
-                format!("S: EVT COMBAT END defeat\nS: OK You deal {} damage, but {} finishes you off. You are DEAD! You wake up at the oasis.\n{}", final_damage, monster_name, stat_str)
+                format!(
+                    "S: EVT COMBAT END defeat\nS: OK You deal {} damage, but {} finishes you off. You are DEAD! You wake up at the oasis.\nS: OK room=loc.Start_oasis\n{}",
+                    final_damage,
+                    monster_name,
+                    final_stats
+                )
             } else {
                 format!("S: EVT COMBAT HIT {} {} {} {}\nS: OK You attack {} ({} HP left). It retaliates (-{} HP). (Your HP: {})\n{}", monster_hp_left, max_hp_monster, final_damage, final_monster_damage, monster_name, monster_hp_left, final_monster_damage, player_hp, stat_str)
             }
