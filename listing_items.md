@@ -35,7 +35,7 @@ Mob:
 
 !!! Faire un sprite sur la map, et un sprite en combat
 
-Squelette
+
 Golem
 Bandit
 Rat
@@ -43,7 +43,6 @@ Rat
 Boss:
 
 Basilic (V1 faite mais peut etre a modifier)
-Dragon (a faire une fois ou il regarde a gauche et une petite animation quand il est statique)
 
 !!! Faire Sprite en combat pour les deux aussi
 

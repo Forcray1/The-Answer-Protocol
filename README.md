@@ -509,6 +509,7 @@ AI has been used to help with research, and to fasten the code, as in righting b
 	mlorenzo:
 		- Corrected the heavy attacks
 		- Finished all of the bugs and robustness section
+		- implemented sprite for all PNJ and Player
 ````
 
 TODO:

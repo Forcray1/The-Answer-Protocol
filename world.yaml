@@ -670,8 +670,7 @@ world:
       - Oguzhan
       - Soufiane
       - Queen
-      items:
-      - dusty_scroll
+      items: []
     Castle:
       name: Castle
       description: ''
@@ -726,8 +725,7 @@ world:
         west: Wild4
       npcs:
       - Zek
-      items:
-      - old_flask
+      items: []
     Wild6:
       name: Wild6
       description: ''
@@ -760,8 +758,7 @@ world:
         west: Oasis2
       npcs:
       - Remy
-      items:
-      - iron_scrap
+      items: []
     Cave1:
       name: Cave1
       description: ''
