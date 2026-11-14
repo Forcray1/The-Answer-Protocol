@@ -524,7 +524,6 @@ TODO:
 
 - [ ] **`CONNECT <name>` without password** answers `ERR password_required`, so a client following the RFC cannot log in (clients must be interchangeable between groups). Make the password optional or document the deviation prominently.
 - [ ] **Reply formats vs the subject.** Subject examples: `OK room=loc.bakery`, `OK taken=item.herbs`, `OK dropped=item.herbs`, JSON for `LOOK`/`INVENTORY`/`WHO`, `EVT ROOM PRESENCE LEAVE alice`. Code sends `OK room-loc.X`, prose for `TAKE`/`DROP`/`LOOK`/`INVENTORY`, and `EVT ROOM <room> PRESENCE ...`. Align with RFC 42TAP, or list each difference in "Protocol Implementation".
-- [x] **World validation exists.** `WorldData::load_from_file` now validates the startup world: every exit target exists, every NPC/item reference in rooms, quests, drops, and rewards resolves, the `Start_oasis` room exists, and invalid data fails with a clear startup error. The old `Chungus` reference is no longer present in the current world definitions.
 - [ ] **Combat requirements.** Subject asks for turn-based combat with initiative order, `DEFEND`/`FLEE` style commands, respawn at a safe place with **reduced** health, and combat results **broadcast** to relevant players. Currently: one exchange per `ATTACK`, no initiative, no `DEFEND`, `FLEE` always succeeds, death restores full HP, hits are not broadcast to the room. On death the player is moved to `Start_oasis` without `PRESENCE LEAVE/ENTER` events, so other clients keep a ghost.
 - [ ] **Logging requirements.** Needed: always on (not only with `--logs`), levels INFO/WARN/ERROR, every command received (with player and parameters), every response and error code, NPC interactions, quest progress/completion, abuse patterns (command flooding, rapid connections) and precise timestamps. Currently only `CONNECT`, `DISCONNECT`, `AUTH_FAIL`, `TAKE`, `DROP`, `DEATH` are logged, `logs.json` is re-opened on every call, and cooldown rejections are not logged.
 - [ ] **TAKE/DROP do not notify the room**, so other players' views go stale. Subject: room view must update after TAKE/DROP. Emit an event to the room.
@@ -534,3 +533,11 @@ TODO:
 
 - [ ] Only 2 enemies exist (`SandMonster` with 1 damage, `Final_boss`). Add a few mobs on the main paths.
 - [ ] Only 4 items; add consumables (the subject example has an `ale` that restores energy) and a command to use them.
+
+
+Descriptions world.yaml
+edit inventory to make armùor, medaillon, and weapons only in equip data
+only quests implemented and not quest
+add events [player] leave Room [x] and [player] enter room [x] for each concerned room (if you move from wild1 to wild2, an event will be brroadcast to both map)
+MAJ README
+pass lint
