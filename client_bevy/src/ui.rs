@@ -1128,12 +1128,17 @@ fn handle_slot_interactions(
                 *border = BORDER_GOLD.into();
 
                 if let Ok(mut text) = text_query.get_single_mut() {
-                    let dmg_str = if info.damage > 0 {
-                        format!(" | Damage: +{}", info.damage)
+                    let stat_label = if matches!(info.slot.as_str(), "head" | "chest" | "legs" | "boot") {
+                        "Defense"
+                    } else {
+                        "Damage"
+                    };
+                    let stat_str = if info.damage > 0 {
+                        format!(" | {}: +{}", stat_label, info.damage)
                     } else {
                         String::new()
                     };
-                    text.sections[0].value = format!("{}{}", info.name, dmg_str);
+                    text.sections[0].value = format!("{}{}", info.name, stat_str);
                 }
                 selected_item.id = Some(info.id.clone());
                 selected_item.name = Some(info.name.clone());

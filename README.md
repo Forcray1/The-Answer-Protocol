@@ -516,6 +516,7 @@ AI has been used to help with research, and to fasten the code, as in righting b
 		- XP medaillon implemented
 		- world.yaml cleared
 		- zone descriptions finished
+		- rework medaillon strength and magic
 ````
 
 TODO:

@@ -14,6 +14,7 @@ impl Plugin for PlayerPlugin {
         app.init_resource::<HeldDirections>()
             .init_resource::<LocalPlayerName>()
             .init_resource::<LocalPlayerSkin>()
+            .init_resource::<PendingDeathRespawn>()
             .insert_resource(PosSendTimer(Timer::from_seconds(
                 POS_SEND_INTERVAL,
                 TimerMode::Repeating,
@@ -84,6 +85,9 @@ pub struct LocalPlayerName(pub Option<String>);
 
 #[derive(Resource, Default)]
 pub struct LocalPlayerSkin(pub String);
+
+#[derive(Resource, Default)]
+struct PendingDeathRespawn(bool);
 
 #[derive(Resource)]
 struct PosSendTimer(Timer);
@@ -257,6 +261,10 @@ const T4_TO_T3: Vec2 = Vec2::new(1255.0, 427.0);
 const T3_TO_T2: Vec2 = Vec2::new(1255.0, 427.0);
 const T2_TO_T1: Vec2 = Vec2::new(1255.0, 427.0);
 const T1_TO_T: Vec2 = Vec2::new(1255.0, 106.0);
+const W3_TO_O: Vec2 = Vec2::new(-1255.0, 0.0);
+const W2_TO_O: Vec2 = Vec2::new(0.0, 750.0);
+const W4_TO_O: Vec2 = Vec2::new(1255.0, 0.0);
+const W6_TO_O: Vec2 = Vec2::new(0.0, -750.0);
 
 fn arrival_point(from_room: &str, dir: &str) -> Vec2 {
     match (from_room, dir) {
@@ -267,6 +275,10 @@ fn arrival_point(from_room: &str, dir: &str) -> Vec2 {
         ("Temple3", "west") => T3_TO_T2,
         ("Temple2", "west") => T2_TO_T1,
         ("Temple1", "west") => T1_TO_T,
+		("Wild3", "east") => W3_TO_O,
+		("Wild2", "south") => W2_TO_O,
+		("Wild4", "west") => W4_TO_O,
+		("Wild6", "north") => W6_TO_O,
         _ => default_arrival(dir),
     }
 }
@@ -436,12 +448,14 @@ fn clear_players_on_logout(
     remotes: Query<Entity, With<RemotePlayer>>,
     mut local_name: ResMut<LocalPlayerName>,
     mut held: ResMut<HeldDirections>,
+    mut pending_death: ResMut<PendingDeathRespawn>,
 ) {
     for entity in locals.iter().chain(remotes.iter()) {
         commands.entity(entity).despawn_recursive();
     }
     local_name.0 = None;
     held.0.clear();
+    pending_death.0 = false;
 }
 
 fn handle_presence_events(
@@ -449,6 +463,7 @@ fn handle_presence_events(
     mut events: EventReader<ServerMessageEvent>,
     asset_server: Res<AssetServer>,
     local_name: Res<LocalPlayerName>,
+    mut pending_death: ResMut<PendingDeathRespawn>,
     mut remotes: Query<(Entity, &mut RemotePlayer)>,
     mut local_query: Query<
         (&mut Transform, &mut PlayerAnimation, &mut Handle<Image>),
@@ -456,22 +471,46 @@ fn handle_presence_events(
     >,
 ) {
     for ev in events.read() {
+        // Detect death: server sends "S: EVT COMBAT END defeat" before the room switch.
+        if ev.0.contains("COMBAT END defeat") {
+            pending_death.0 = true;
+            continue;
+        }
+
         if ev.0.starts_with("S: OK room=loc.") {
             for (entity, _) in &remotes {
                 commands.entity(entity).despawn_recursive();
             }
-            if let Ok((mut transform, mut anim, mut texture)) = local_query.get_single_mut() {
-                if ev.0.starts_with("S: OK room=loc.Start_oasis") {
-                    transform.translation.x = SPAWN_POINT.x;
-                    transform.translation.y = SPAWN_POINT.y;
-                    animate(
-                        &mut anim,
-                        &mut texture,
-                        Duration::from_millis(0),
-                        false,
-                        Vec2::ZERO,
-                    );
-                    println!("[PLAYER] Local player snapped to Start_oasis spawn ({}, {}).", SPAWN_POINT.x, SPAWN_POINT.y);
+
+            // The dying player never receives the PRESENCE ENTER GlobalEvent
+            // (broadcaster filters it because sender_addr == addr).
+            // The only position-related event they receive is this room=loc line,
+            // so apply the death snap here and consume the flag.
+            if pending_death.0 {
+                let room_name = ev
+                    .0
+                    .strip_prefix("S: OK room=loc.")
+                    .and_then(|r| r.split_whitespace().next())
+                    .unwrap_or_default();
+                if room_name == "Start_oasis" {
+                    pending_death.0 = false;
+                    if let Ok((mut transform, mut anim, mut texture)) =
+                        local_query.get_single_mut()
+                    {
+                        transform.translation.x = DEATH_RESPAWN_POINT.x;
+                        transform.translation.y = DEATH_RESPAWN_POINT.y;
+                        animate(
+                            &mut anim,
+                            &mut texture,
+                            Duration::from_millis(0),
+                            false,
+                            Vec2::ZERO,
+                        );
+                        println!(
+                            "[PLAYER] Death respawn: snapped to ({}, {}).",
+                            DEATH_RESPAWN_POINT.x, DEATH_RESPAWN_POINT.y
+                        );
+                    }
                 }
             }
             continue;
@@ -488,15 +527,28 @@ fn handle_presence_events(
                 match p[4] {
                     "ENTER" | "ROSTER" if p.len() >= 9 => {
                         let skin = p[6];
-                        let pos =
+                        let server_pos =
                             Vec2::new(p[7].parse().unwrap_or(0.0), p[8].parse().unwrap_or(0.0));
 
                         if Some(name) == local_name.0.as_deref() {
+                            // On death: force the respawn coords regardless of what the server sent.
+                            // On normal movement: use the server position as-is.
+                            let final_pos = if pending_death.0 {
+                                pending_death.0 = false;
+                                println!(
+                                    "[PLAYER] Death respawn: forcing coords to ({}, {}).",
+                                    DEATH_RESPAWN_POINT.x, DEATH_RESPAWN_POINT.y
+                                );
+                                DEATH_RESPAWN_POINT
+                            } else {
+                                server_pos
+                            };
+
                             if let Ok((mut transform, mut anim, mut texture)) =
                                 local_query.get_single_mut()
                             {
-                                transform.translation.x = pos.x;
-                                transform.translation.y = pos.y;
+                                transform.translation.x = final_pos.x;
+                                transform.translation.y = final_pos.y;
                                 animate(
                                     &mut anim,
                                     &mut texture,
@@ -506,20 +558,20 @@ fn handle_presence_events(
                                 );
                                 println!(
                                     "[PLAYER] Local player '{}' positioned at ({}, {}).",
-                                    name, pos.x, pos.y
+                                    name, final_pos.x, final_pos.y
                                 );
                             }
                             continue;
                         }
 
                         if remotes.iter().any(|(_, r)| r.name == name) {
-                            continue; // déjà présent
+                            continue;
                         }
                         let entity =
-                            spawn_player_visual(&mut commands, &asset_server, skin, name, pos);
+                            spawn_player_visual(&mut commands, &asset_server, skin, name, server_pos);
                         commands.entity(entity).insert(RemotePlayer {
                             name: name.to_string(),
-                            target: pos,
+                            target: server_pos,
                         });
                         println!(
                             "[PLAYER] Remote player '{}' appeared (skin '{}').",

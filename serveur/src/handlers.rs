@@ -124,7 +124,7 @@ fn make_armor(item: &CatalogItem) -> Armor {
         id: item.id.clone(),
         name: item.name.clone(),
         description: item.description.clone(),
-        defense: item.defense.unwrap_or(0),
+        defense: item.defense.or(item.damage).unwrap_or(0),
         special_defense: 0,
         sprite: item.sprite.clone(),
     }
@@ -161,7 +161,7 @@ pub fn process_command(
         GameCommand::Info(c) => (handle_info(addr, c, state, world), false),
         GameCommand::Equip(c) => (handle_equip(addr, c, state, world), false),
         GameCommand::Unequip(c) => (handle_unequip(addr, c, state, world), false),
-        GameCommand::Equipment => (handle_equipment(addr, state), false),
+        GameCommand::Equipment => (handle_equipment(addr, state, world), false),
         GameCommand::Take(c) => (handle_take(addr, c, state, world, tx), false),
         GameCommand::Drop(c) => (handle_drop(addr, c, state, world, tx), false),
         GameCommand::Talk(c) => (handle_talk(addr, c, state, world, tx), false),
@@ -471,10 +471,9 @@ pub async fn process_connect(
             p.hp, p.max_hp, p.xp_bar.current, p.xp_bar.requiered, p.level,
             p.money, p.stat_points,
             get_inv_data_event(p, world),
-            get_equip_data_event(p),
-            get_char_stats_event(p),
-        );
-    }
+            get_equip_data_event(p, world),
+            get_char_stats_event_with_world(p, world),
+        );    }
 
     let guest = password.is_empty();
     guard.add_player(addr, pseudo.clone());
@@ -731,7 +730,7 @@ fn get_inv_data_event(player: &crate::state::Player, world: &WorldData) -> Strin
     format!("S: EVT INV_DATA {}\n", data_objets.join("|"))
 }
 
-fn get_equip_data_event(player: &crate::state::Player) -> String {
+fn get_equip_data_event(player: &crate::state::Player, world: &WorldData) -> String {
     let head = player
         .equipement
         .helmet
@@ -788,9 +787,15 @@ fn get_equip_data_event(player: &crate::state::Player) -> String {
             )
         })
         .unwrap_or_else(|| "none".to_string());
-    // Medaillon slot: the item stays in inventory, we just send its id + name for the slot display
     let medaillon = if let Some(mid) = &player.equipped_medaillon_id {
-        format!("{}:equipped:0:QuestUI", mid)
+        let sprite = world
+            .world
+            .items
+            .iter()
+            .find(|item| &item.id == mid)
+            .and_then(|item| item.sprite.as_deref())
+            .unwrap_or("none");
+        format!("{}:equipped:0:{}", mid, sprite)
     } else {
         "none".to_string()
     };
@@ -800,10 +805,44 @@ fn get_equip_data_event(player: &crate::state::Player) -> String {
     )
 }
 
-fn get_char_stats_event(player: &crate::state::Player) -> String {
-    let weapon_dmg = player.equipement.weapon_damage();
-    let total_dmg = player.stats.damage + weapon_dmg;
-    let total_spe_dmg = player.stats.special_damage;
+fn player_physical_attack_total(player: &crate::state::Player, world: &WorldData) -> i32 {
+    let base = player.stats.damage + player.equipement.weapon_damage();
+    let mut total = base;
+
+    if let Some(mid) = &player.equipped_medaillon_id {
+        if let Some(item) = world.world.items.iter().find(|i| &i.id == mid) {
+            if item.id.as_str() == "strength_medaillon" {
+                total += (base * 20) / 100;
+            }
+        }
+    }
+
+    total
+}
+
+fn player_special_attack_total(player: &crate::state::Player, world: &WorldData) -> i32 {
+    let mut total = player.stats.special_damage;
+
+    if let Some(weapon) = &player.equipement.weapon {
+        if weapon.id.as_str() == "magic_staff" {
+            total += 12;
+        }
+    }
+
+    if let Some(mid) = &player.equipped_medaillon_id {
+        if let Some(item) = world.world.items.iter().find(|i| &i.id == mid) {
+            if item.id.as_str() == "magical_strength_medaillon" {
+                total += (player.stats.special_damage * 20) / 100;
+            }
+        }
+    }
+
+    total
+}
+
+fn get_char_stats_event_with_world(player: &crate::state::Player, world: &WorldData) -> String {
+    let total_dmg = player_physical_attack_total(player, world);
+    let total_spe_dmg = player_special_attack_total(player, world);
     let total_def = player.stats.defense + player.equipement.total_defense();
     let total_spe_def: i32 = player.stats.special_defense
         + [
@@ -836,8 +875,8 @@ fn handle_inventory(addr: SocketAddr, state: &ServerState, world: &WorldData) ->
             "S: OK {}\n{}{}{}",
             json!(ids),
             get_inv_data_event(player, world),
-            get_equip_data_event(player),
-            get_char_stats_event(player)
+            get_equip_data_event(player, world),
+            get_char_stats_event_with_world(player, world)
         )
     } else {
         "S: ERR utilize_connect_first\n".to_string()
@@ -909,8 +948,8 @@ fn handle_equip(
                     "{}{}{}{}",
                     msg,
                     get_inv_data_event(player, world),
-                    get_equip_data_event(player),
-                    get_char_stats_event(player)
+                    get_equip_data_event(player, world),
+                    get_char_stats_event_with_world(player, world)
                 );
             }
 
@@ -926,8 +965,8 @@ fn handle_equip(
                     item.name,
                     slot,
                     get_inv_data_event(player, world),
-                    get_equip_data_event(player),
-                    get_char_stats_event(player)
+                    get_equip_data_event(player, world),
+                    get_char_stats_event_with_world(player, world)
                 )
             } else if let Some(slot_ref) = player.equipement.armor_slot_mut(&slot) {
                 let old = slot_ref.take();
@@ -941,8 +980,8 @@ fn handle_equip(
                     item.name,
                     slot,
                     get_inv_data_event(player, world),
-                    get_equip_data_event(player),
-                    get_char_stats_event(player)
+                    get_equip_data_event(player, world),
+                    get_char_stats_event_with_world(player, world)
                 )
             } else {
                 "S: ERR This item cannot be equipped.\n".to_string()
@@ -969,8 +1008,8 @@ fn handle_unequip(
                 return format!(
                     "S: OK You unequipped the medaillon.\n{}{}{}",
                     get_inv_data_event(player, world),
-                    get_equip_data_event(player),
-                    get_char_stats_event(player)
+                    get_equip_data_event(player, world),
+                    get_char_stats_event_with_world(player, world)
                 );
             }
         }
@@ -992,8 +1031,8 @@ fn handle_unequip(
                 "S: OK You unequipped {}.\n{}{}{}",
                 name,
                 get_inv_data_event(player, world),
-                get_equip_data_event(player),
-                get_char_stats_event(player)
+                get_equip_data_event(player, world),
+                get_char_stats_event_with_world(player, world)
             )
         } else {
             "S: ERR You are not wearing this item.\n".to_string()
@@ -1003,7 +1042,7 @@ fn handle_unequip(
     }
 }
 
-fn handle_equipment(addr: SocketAddr, state: &ServerState) -> String {
+fn handle_equipment(addr: SocketAddr, state: &ServerState, world: &WorldData) -> String {
     if let Some(player) = state.players.get(&addr) {
         let aucun = || "None".to_string();
         let head = player
@@ -1036,8 +1075,8 @@ fn handle_equipment(addr: SocketAddr, state: &ServerState) -> String {
             chest,
             legs,
             weapon,
-            get_equip_data_event(player),
-            get_char_stats_event(player)
+            get_equip_data_event(player, world),
+            get_char_stats_event_with_world(player, world)
         )
     } else {
         "S: ERR utilize_connect_first\n".to_string()
@@ -1600,8 +1639,8 @@ fn handle_talk(
                     player.xp_bar.requiered,
                     player.level,
                     get_inv_data_event(player, world),
-                    get_equip_data_event(player),
-                    get_char_stats_event(player)
+                    get_equip_data_event(player, world),
+                    get_char_stats_event_with_world(player, world)
                 ),
                 target_room: None,
                 target_group: None,
@@ -2096,7 +2135,7 @@ fn handle_statup(
         _ => return "S: ERR unknown_stat\n".to_string(),
     }
     player.stat_points -= 1;
-    let char_stats = get_char_stats_event(player);
+    let char_stats = get_char_stats_event_with_world(player, _world);
     let stats_evt = format!(
         "S: EVT PLAYER_STATS {} {} {} {} {}\n",
         player.hp, player.max_hp, player.xp_bar.current, player.xp_bar.requiered, player.level
@@ -2147,14 +2186,7 @@ fn handle_attack_magic(
         current_room_id = player.current_room.clone();
         player_name = player.username.clone();
         player.last_attack = Some(Instant::now());
-        // Base: special_damage stat + medaillon bonus
-        player_spe_dmg += player.stats.special_damage;
-        // Add medaillon special_damage bonus
-        if let Some(mid) = &player.equipped_medaillon_id.clone() {
-            if let Some(item) = world.world.items.iter().find(|i| &i.id == mid) {
-                player_spe_dmg += item.special_damage.unwrap_or(0);
-            }
-        }
+        player_spe_dmg += player_special_attack_total(player, world);
         player_armor += player.stats.special_defense + player.equipement.total_defense();
     } else {
         return "S: ERR utilize_connect_first\n".to_string();
@@ -2406,12 +2438,7 @@ fn apply_bonus_hit(
     // Calculate the 75% bonus damage
     let bonus = if let Some(player) = state.players.get(&addr) {
         if magic {
-            let mut atk = 5 + player.stats.special_damage;
-            if let Some(mid) = &player.equipped_medaillon_id.clone() {
-                if let Some(item) = world.world.items.iter().find(|i| &i.id == mid) {
-                    atk += item.special_damage.unwrap_or(0);
-                }
-            }
+            let atk = player_special_attack_total(player, world);
             let target_spe_def = world
                 .world
                 .npcs
@@ -2422,12 +2449,7 @@ fn apply_bonus_hit(
             let base_final = (atk - target_spe_def).max(1);
             ((base_final as f32) * 0.75).round() as i32
         } else {
-            let mut atk = 10 + player.stats.damage + player.equipement.weapon_damage();
-            if let Some(mid) = &player.equipped_medaillon_id.clone() {
-                if let Some(item) = world.world.items.iter().find(|i| &i.id == mid) {
-                    atk += item.damage.unwrap_or(0);
-                }
-            }
+            let atk = player_physical_attack_total(player, world);
             let target_def = world
                 .world
                 .npcs
@@ -2691,13 +2713,7 @@ fn handle_attack(
         current_room_id = player.current_room.clone();
         player_name = player.username.clone();
         player.last_attack = Some(Instant::now());
-        // Damage = base stats + weapon + medaillon bonus; armor = defense stat + equipped pieces.
-        player_damage += player.stats.damage + player.equipement.weapon_damage();
-        if let Some(mid) = &player.equipped_medaillon_id.clone() {
-            if let Some(item) = world.world.items.iter().find(|i| &i.id == mid) {
-                player_damage += item.damage.unwrap_or(0);
-            }
-        }
+        player_damage += player_physical_attack_total(player, world);
         player_armor += player.stats.defense + player.equipement.total_defense();
     } else {
         return "S: ERR utilize_connect_first\n".to_string();

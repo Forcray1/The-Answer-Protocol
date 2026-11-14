@@ -221,6 +221,13 @@ pub struct Inventory {
 }
 
 impl Inventory {
+    fn normalize_item_id(id: &str) -> String {
+        id.to_ascii_lowercase()
+            .replace('_', "")
+            .replace('-', "")
+            .replace(' ', "")
+    }
+
     fn bucket_mut(&mut self, bucket: ItemBucket) -> &mut HashMap<ItemId, u32> {
         match bucket {
             ItemBucket::Item => &mut self.items,
@@ -234,26 +241,52 @@ impl Inventory {
     }
 
     pub fn contains(&self, id: &ItemId) -> bool {
-        self.items.contains_key(id)
-            || self.weapons.contains_key(id)
-            || self.key_items.contains_key(id)
+        let target = Self::normalize_item_id(id.as_str());
+        self.items.keys().any(|key| Self::normalize_item_id(key.as_str()) == target)
+            || self.weapons.keys().any(|key| Self::normalize_item_id(key.as_str()) == target)
+            || self.key_items.keys().any(|key| Self::normalize_item_id(key.as_str()) == target)
     }
 
     pub fn count(&self, id: &ItemId) -> u32 {
-        self.items.get(id).copied().unwrap_or(0)
-            + self.weapons.get(id).copied().unwrap_or(0)
-            + self.key_items.get(id).copied().unwrap_or(0)
+        let target = Self::normalize_item_id(id.as_str());
+        self.items
+            .iter()
+            .filter(|(key, _)| Self::normalize_item_id(key.as_str()) == target)
+            .map(|(_, count)| *count)
+            .sum::<u32>()
+            + self
+                .weapons
+                .iter()
+                .filter(|(key, _)| Self::normalize_item_id(key.as_str()) == target)
+                .map(|(_, count)| *count)
+                .sum::<u32>()
+            + self
+                .key_items
+                .iter()
+                .filter(|(key, _)| Self::normalize_item_id(key.as_str()) == target)
+                .map(|(_, count)| *count)
+                .sum::<u32>()
     }
 
     pub fn remove_one(&mut self, id: &ItemId) -> bool {
+        let target = Self::normalize_item_id(id.as_str());
         for map in [&mut self.items, &mut self.weapons, &mut self.key_items] {
-            if let Some(count) = map.get_mut(id) {
-                if *count > 1 {
-                    *count -= 1;
-                } else {
-                    map.remove(id);
+            let mut exact_match = None;
+            for key in map.keys().cloned().collect::<Vec<_>>() {
+                if Self::normalize_item_id(key.as_str()) == target {
+                    exact_match = Some(key);
+                    break;
                 }
-                return true;
+            }
+            if let Some(key) = exact_match {
+                if let Some(count) = map.get_mut(&key) {
+                    if *count > 1 {
+                        *count -= 1;
+                    } else {
+                        map.remove(&key);
+                    }
+                    return true;
+                }
             }
         }
         false
