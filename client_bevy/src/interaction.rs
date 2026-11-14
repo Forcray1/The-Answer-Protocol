@@ -284,11 +284,31 @@ fn handle_dialogue_advance_input(
         }
     }
 
-    // Do not advance while showing choices (handled by handle_choice_click).
-    if dialogue_state.showing_choices {
+    if !dialogue_state.active {
         return;
     }
-    if !dialogue_state.active || !input.just_pressed(KeyCode::KeyE) {
+
+    let advance_pressed = input.just_pressed(KeyCode::KeyE)
+        || input.just_pressed(KeyCode::Enter)
+        || input.just_pressed(KeyCode::NumpadEnter);
+    let close_pressed = input.just_pressed(KeyCode::Escape);
+
+    if !advance_pressed && !close_pressed {
+        return;
+    }
+
+    if close_pressed {
+        close_dialogue(
+            &mut dialogue_state,
+            &mut popup_q,
+            &mut portrait_q,
+            &mut text_q,
+        );
+        return;
+    }
+
+    // Do not advance while showing choices (handled by handle_choice_click).
+    if dialogue_state.showing_choices {
         return;
     }
 

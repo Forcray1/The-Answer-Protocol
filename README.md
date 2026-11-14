@@ -511,6 +511,11 @@ AI has been used to help with research, and to fasten the code, as in righting b
 		- Finished all of the bugs and robustness section
 		- implemented sprite for all PNJ and Player
 		- Respawn done
+14/11/2026:
+		- Sprites for some items linked
+		- XP medaillon implemented
+		- world.yaml cleared
+		- zone descriptions finished
 ````
 
 TODO:
@@ -532,8 +537,6 @@ TODO:
 ### World and balance
 
 - [ ] Only 2 enemies exist (`SandMonster` with 1 damage, `Final_boss`). Add a few mobs on the main paths.
-- [ ] Only 4 items; add consumables (the subject example has an `ale` that restores energy) and a command to use them.
-
 
 Descriptions world.yaml
 edit inventory to make armùor, medaillon, and weapons only in equip data

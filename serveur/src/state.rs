@@ -156,6 +156,29 @@ impl Player {
         levels_gained
     }
 
+    /// Adds XP using the currently equipped medaillon's YAML-defined boost when present.
+    pub fn add_xp_with_world(&mut self, amount: i32, world: &WorldData) -> i32 {
+        let mut xp_gain = amount;
+        if let Some(mid) = &self.equipped_medaillon_id {
+            if let Some(item) = world.world.items.iter().find(|i| &i.id == mid) {
+                if let Some(boost) = item.boostpercentage {
+                    xp_gain += (amount * boost) / 100;
+                }
+            }
+        }
+
+        self.xp_bar.current += xp_gain;
+        let mut levels_gained = 0;
+        while self.xp_bar.current >= self.xp_bar.requiered {
+            self.xp_bar.current -= self.xp_bar.requiered;
+            self.level += 1;
+            levels_gained += 1;
+            self.xp_bar.requiered = xp_required_for_level(self.level);
+            self.stat_points += 3; // 3 stat points per level
+        }
+        levels_gained
+    }
+
     pub fn add_money(&mut self, amount: i32) {
         self.money += amount;
     }

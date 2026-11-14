@@ -184,6 +184,9 @@ pub struct Item {
     /// Heal amount (as % of max HP, e.g. 50 = heal 50% max HP). Only used if consumable = true.
     #[serde(default)]
     pub heal_percent: Option<u32>,
+    /// Bonus XP multiplier when the item is equipped as a medaillon (as a % integer, e.g. 50 = +50%).
+    #[serde(default)]
+    pub boostpercentage: Option<i32>,
 }
 
 impl Item {

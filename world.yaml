@@ -374,7 +374,7 @@ world:
       lines:
       - Thanks again for the diamonds, I might finally get out of here.
   - id: Final_boss
-    name: blank
+    name: Basilic
     role: enemy
     sprite: SandMonster
     combat_sprite: SandMonster
@@ -389,6 +389,9 @@ world:
     respawn_time: 9999
     dialogue:
     - '...'
+    drops:
+    - item_id: graal
+      chance: 100
   - id: Panneau
     name: Notice Board
     role: board
@@ -423,33 +426,43 @@ world:
     slot: weapon
     obtainable: true
     description: Simple dague
+    sprite: item/weapons/Dague
   - id: urbosas_cimeter
     name: Urbosa's Cimeter
     obtainable: true
     type: quest
-    description: A sacred blade stolen from the royal treasury. The Queen needs it back.
-    sprite: sword_icone
+    description: A sacred blade from the royal treasury.
+    sprite: item/weapons/Urbosa_cimeter
+  - id: graal
+    name: Graal
+    obtainable: true
+    type: quest
+    description: The royal treasure recovered from the basilic's lair.
+    sprite: item/others/graal
   - id: magical_strength_medaillon
     name: Magical Strength Medaillon
     obtainable: true
     type: quest
     slot: medaillon
     description: A mysterious medaillon that radiates magical power. Dory gave it to you as a reward.
-    sprite: QuestUI
+    sprite: item/medaillon/magical_medaillon
   - id: bone
     name: Bone
     obtainable: true
-    description: A bone from a skeleton. Jamato is looking for these.
+    description: A bone from a skeleton.
+    sprite: item/others/bone
   - id: bone_armor
     name: Bone Armor
     defense: 5
     slot: chest
     obtainable: true
     description: A chestplate Jamato crafted out of ten bones.
+    sprite: item/armor/bone_armor
   - id: diamond
     name: Diamond
     obtainable: true
     description: A rare diamond. Remy would love to get his hands on some.
+    sprite: item/others/diamond
   - id: PMsword
     name: PM Sword
     damage: 5
@@ -457,6 +470,7 @@ world:
     obtainable: true
     type: quest
     description: A sword from the new Pocket Monsters merch. Soufiane wants it.
+    sprite: item/weapons/PM_sword
   - id: strength_medaillon
     name: Strength Medaillon
     obtainable: true
@@ -465,72 +479,56 @@ world:
     damage: 5
     special_damage: 3
     description: A medaillon Soufiane bought from a strange merchant a long time ago.
+    sprite: item/medaillon/strength_medaillon
   - id: healing_potion
     name: Healing Potion
     obtainable: true
     consumable: true
     heal_percent: 50
     description: A potion that restores 50% of your max health.
+    sprite: item/consumable/health_potion
+  - id: healing_herb
+    name: Healing Herb
+    obtainable: true
+    consumable: true
+    heal_percent: 25
+    description: A plant that restores 25% of your max health.
+    sprite: item/consumable/healing_herb
   - id: steel_sword
     name: Steel Sword
     damage: 12
     slot: weapon
     obtainable: true
     description: A solid steel blade from the forge.
+    sprite: item/weapons/steel_sword
+  - id: magic_staff
+    name: Magic Staff
+    damage: 12
+    slot: weapon
+    obtainable: true
+    description: A staff improving magic powers.
+    sprite: item/weapons/magic_staff
   - id: leather_armor
     name: Leather Armor
     defense: 3
     slot: chest
     obtainable: true
     description: Light leather armor, better than nothing.
+    sprite: item/armor/leather_armor
   - id: steel_armor
     name: Steel Armor
     defense: 7
     slot: chest
     obtainable: true
     description: Heavy steel armor from the forge.
-  - id: gold_coin
-    name: Gold Coin
+    sprite: item/armor/steel_armor
+  - id: xp_medaillon
+    name: Experience Medaillon
+    boostpercentage: 50
+    slot: medaillon
     obtainable: true
-    description: A shiny gold coin. Someone must have dropped it.
-    sprite: UI/XPUI
-  - id: iron_scrap
-    name: Iron Scrap
-    obtainable: true
-    description: A rusted piece of iron. Could be useful someday.
-  - id: old_flask
-    name: Old Flask
-    obtainable: true
-    description: An empty, scratched flask. Still smells faintly of something.
-  - id: herb_bundle
-    name: Herb Bundle
-    obtainable: true
-    description: A bundle of dried medicinal herbs found along the path.
-  - id: dusty_scroll
-    name: Dusty Scroll
-    obtainable: true
-    description: A rolled-up scroll covered in dust. The ink is faded.
-  - id: cracked_gem
-    name: Cracked Gem
-    obtainable: true
-    description: A small gemstone, cracked but still somewhat pretty.
-    sprite: UI/HealthBarUI
-  - id: leather_pouch
-    name: Leather Pouch
-    obtainable: true
-    description: A worn leather pouch, empty inside.
-  - id: worn_key
-    name: Worn Key
-    obtainable: true
-    description: A weathered iron key. Hard to tell what it once opened.
-  - id: cave_crystal
-    name: Cave Crystal
-    obtainable: true
-    description: A pale crystal that glows faintly in the dark.
-  - id: temple_relic
-    name: Temple Relic
-    obtainable: true
-    description: A small carved stone bearing an ancient symbol.
+    description: a medaillon boosting the xp you get.
+    sprite: item/medaillon/xp_medaillon
   quests:
   - id: main_quest
     name: The Answer Protocol
@@ -543,12 +541,13 @@ world:
     - stage: 1
       objective:
         type: fetch_item
-        item: urbosas_cimeter
+        item: graal
     - stage: 2
       objective:
         type: kill_mob
         npc: Final_boss
         count: 1
+    reward_item: urbosas_cimeter
     reward_exp: 1000
   - id: quest_dory
     name: Dory's Gift
@@ -626,10 +625,12 @@ world:
       - diamond
       - diamond
       to: Remy
+    reward_items:
+    - xp_medaillon
     reward_exp: 250
   - id: quest_zek
     name: Zek's Potions
-    description: Zek hands out healing potions to travelers of the dangerous region.
+    description: Zek hands out healing potions to travelers of the region.
     giver_id: Zek
     objective:
       type: talk_to_npc
@@ -641,25 +642,23 @@ world:
   locations:
     Wild1:
       name: Wild1
-      description: ''
+      description: 'A wild zone where squeleton are found'
       exits:
         south: Wild3
         east: Wild2
       npcs: []
-      items:
-      - gold_coin
+      items: []
     Wild2:
       name: Wild2
-      description: ''
+      description: 'A wild zone where squeleton are found'
       exits:
         west: Wild1
         south: Start_oasis
       npcs: []
-      items:
-      - iron_scrap
+      items: []
     City:
       name: City
-      description: ''
+      description: 'The capital of the region, where the queen took refuge'
       exits:
         south: Wild4
         east: Castle
@@ -673,7 +672,7 @@ world:
       items: []
     Castle:
       name: Castle
-      description: ''
+      description: 'The garden leading to the temple'
       exits:
         west: City
         east: Temple1
@@ -681,7 +680,7 @@ world:
       items: []
     Wild3:
       name: Wild3
-      description: ''
+      description: 'A wild zone where squeleton are found'
       exits:
         north: Wild1
         east: Start_oasis
@@ -690,7 +689,7 @@ world:
       items: []
     Start_oasis:
       name: Start_oasis
-      description: ''
+      description: 'A peacefull oasis in the center of the region'
       exits:
         north: Wild2
         east: Wild4
@@ -701,11 +700,10 @@ world:
       - Jamato
       - Fatih
       - Panneau
-      items:
-      - Excalibur
+      items: []
     Wild4:
       name: Wild4
-      description: ''
+      description: 'wild zone next to the city and the two oasis'
       exits:
         north: City
         east: Wild5
@@ -714,11 +712,10 @@ world:
       npcs:
       - Guard1
       - Guard2
-      items:
-      - leather_pouch
+      items: []
     Wild5:
       name: Wild5
-      description: ''
+      description: 'A zone ruled by bandits'
       exits:
         west: Wild4
       npcs:
@@ -726,17 +723,16 @@ world:
       items: []
     Wild6:
       name: Wild6
-      description: ''
+      description: 'A wild zone leading to the cave'
       exits:
         west: Cave1
         north: Start_oasis
       npcs:
       - Mage
-      items:
-      - cave_crystal
+      items: []
     Oasis2:
       name: Oasis2
-      description: ''
+      description: 'An oasis lead by anwar'
       exits:
         north: Wild4
         east: Wild7
@@ -748,10 +744,9 @@ world:
       - Panneau2
       items:
       - PMsword
-      - gold_coin
     Wild7:
       name: Wild7
-      description: ''
+      description: 'A wild zone where golems are usually found'
       exits:
         west: Oasis2
       npcs:
@@ -759,43 +754,38 @@ world:
       items: []
     Cave1:
       name: Cave1
-      description: ''
+      description: 'One of the room of the cave'
       exits:
         west: Cave2
         east: Wild6
       npcs: []
-      items:
-      - cave_crystal
+      items: []
     Cave2:
       name: Cave2
-      description: ''
+      description: 'One of the room of the cave'
       exits:
         south: Cave3
         east: Cave1
       npcs: []
-      items:
-      - cave_crystal
+      items: []
     Cave3:
       name: Cave3
-      description: ''
+      description: 'One of the room of the cave'
       exits:
         south: Cave4
         north: Cave2
       npcs: []
-      items:
-      - cracked_gem
+      items: []
     Cave4:
       name: Cave4
-      description: ''
+      description: 'The bottom of the cave, where lay the sbire of the one which has taken the temple'
       exits:
         north: Cave3
       npcs: []
-      items:
-      - urbosas_cimeter
-      - cracked_gem
+      items: []
     Temple1:
       name: Temple1
-      description: ''
+      description: 'One of the chamber of the temple'
       exits:
         west: Castle
         east: Temple2
@@ -803,7 +793,7 @@ world:
       items: []
     Temple2:
       name: Temple2
-      description: ''
+      description: 'One of the chamber of the temple'
       exits:
         west: Temple1
         east: Temple3
@@ -811,7 +801,7 @@ world:
       items: []
     Temple3:
       name: Temple3
-      description: ''
+      description: 'One of the chamber of the temple'
       exits:
         west: Temple2
         east: Temple4
@@ -819,7 +809,7 @@ world:
       items: []
     Temple4:
       name: Temple4
-      description: ''
+      description: 'Last chamber of the temple, where lay the dragon'
       exits:
         west: Temple3
       npcs:

@@ -474,7 +474,12 @@ fn handle_ground_item_events(
             let y: f32 = parts[8].parse().unwrap_or(0.0);
 
             let texture: Handle<Image> = if sprite_path != "none" {
-                asset_server.load(format!("{}.png", sprite_path))
+                let normalized = if sprite_path.starts_with("UI/") {
+                    sprite_path.to_string()
+                } else {
+                    format!("UI/{}", sprite_path)
+                };
+                asset_server.load(format!("{}.png", normalized))
             } else {
                 asset_server.load("UI/QuestUI.png")
             };

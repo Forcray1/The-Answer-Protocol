@@ -80,7 +80,7 @@ fn reward_quest(player: &mut Player, q: &crate::world::Quest, world: &WorldData)
         msg.push_str(&format!(" (+{} gold)", gold));
     }
     if let Some(xp) = q.reward_exp {
-        player.add_xp(xp);
+        player.add_xp_with_world(xp, world);
         msg.push_str(&format!(" (+{} EXP)", xp));
     }
 
@@ -1089,7 +1089,7 @@ fn handle_take(
                                 {
                                     player.completed_quests.push(q.id.clone());
                                     if let Some(xp) = q.reward_exp {
-                                        player.add_xp(xp);
+                                        player.add_xp_with_world(xp, world);
                                         quest_msg =
                                             format!(" [QUEST COMPLETE] {}! (+{} EXP)", q.name, xp);
                                     }
@@ -2209,7 +2209,7 @@ fn handle_attack_magic(
             let mut drop_names = Vec::new();
             let mut stat_str = String::new();
             if let Some(player) = state.players.get_mut(&addr) {
-                player.add_xp(exp_gained);
+                player.add_xp_with_world(exp_gained, world);
                 for drop in monster_drops {
                     if rand::thread_rng().gen_range(1..=100) <= drop.chance {
                         let bucket = world
@@ -2753,7 +2753,7 @@ fn handle_attack(
             let mut drop_names = Vec::new();
             let mut stat_str = String::new();
             if let Some(player) = state.players.get_mut(&addr) {
-                player.add_xp(exp_gained);
+                player.add_xp_with_world(exp_gained, world);
                 for drop in monster_drops {
                     if rand::thread_rng().gen_range(1..=100) <= drop.chance {
                         let bucket = world
