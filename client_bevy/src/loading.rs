@@ -24,6 +24,7 @@ impl Plugin for LoadingPlugin {
 const FADE_DURATION: f32 = 0.7;
 const OVERLAY_Z: f32 = 9999.0;
 const OVERLAY_SIZE: f32 = 8000.0; // large enough to cover any camera view
+const TEMPLE_GATE_REJECT_POINT: Vec2 = Vec2::new(1149.0, 113.0);
 
 // ── Events ─────────────────────────────────────────────────────────────
 
@@ -121,6 +122,7 @@ fn animate_transition(
     time: Res<Time>,
     game_state: Res<GameState>,
     sender: Res<NetworkSender>,
+    mut server_events: EventReader<crate::net::ServerMessageEvent>,
     mut transition: ResMut<RoomTransition>,
     mut overlay_q: Query<&mut Sprite, With<TransitionOverlay>>,
     mut player_q: Query<&mut Transform, With<LocalPlayer>>,
@@ -164,6 +166,22 @@ fn animate_transition(
         TransitionPhase::WaitingForRoom { from_room, .. } => {
             // Keep screen black while waiting.
             sprite.color.set_a(1.0);
+
+            let move_rejected = server_events
+                .read()
+                .any(|ev| ev.0.starts_with("S: ERR "));
+            if move_rejected {
+                if let Ok(mut player_tf) = player_q.get_single_mut() {
+                    player_tf.translation.x = TEMPLE_GATE_REJECT_POINT.x;
+                    player_tf.translation.y = TEMPLE_GATE_REJECT_POINT.y;
+                }
+                transition.phase = TransitionPhase::FadingIn { timer: 0.0 };
+                println!(
+                    "[LOADING] Move rejected by server; returning player to ({}, {}).",
+                    TEMPLE_GATE_REJECT_POINT.x, TEMPLE_GATE_REJECT_POINT.y
+                );
+                return;
+            }
 
             // Check if the room has changed in GameState.
             if game_state.current_room != *from_room {

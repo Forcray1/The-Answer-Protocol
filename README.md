@@ -512,11 +512,16 @@ AI has been used to help with research, and to fasten the code, as in righting b
 		- implemented sprite for all PNJ and Player
 		- Respawn done
 14/11/2026:
+	mlorenzo:
 		- Sprites for some items linked
 		- XP medaillon implemented
 		- world.yaml cleared
 		- zone descriptions finished
 		- rework medaillon strength and magic
+15/11/2026:
+	mlorenzo:
+		- Locked the temple
+		- improved world.yaml to add mobs and items
 ````
 
 TODO:
@@ -540,8 +545,8 @@ TODO:
 - [ ] Only 2 enemies exist (`SandMonster` with 1 damage, `Final_boss`). Add a few mobs on the main paths.
 
 Descriptions world.yaml
-edit inventory to make armùor, medaillon, and weapons only in equip data
+edit inventory to make armor, medaillon, and weapons only in equip data
 only quests implemented and not quest
-add events [player] leave Room [x] and [player] enter room [x] for each concerned room (if you move from wild1 to wild2, an event will be brroadcast to both map)
+add events [player] leave Room [x] and [player] enter room [x] for each concerned room (if you move from wild1 to wild2, an event will be broadcast to both map)
 MAJ README
 pass lint

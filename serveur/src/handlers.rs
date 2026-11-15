@@ -658,6 +658,15 @@ fn handle_move(
             },
             None => return "S: ERR room_error\n".to_string(),
         };
+
+        if player.current_room.as_str() == "Castle"
+            && direction == Direction::East
+            && next_room.as_str() == "Temple1"
+            && !player.inventory.contains(&ItemId::from("temple_pass"))
+        {
+            return "S: ERR temple_pass_required\n".to_string();
+        }
+
         let old_room = player.current_room.clone();
         let username = player.username.clone();
         let skin = player.skin.clone();
@@ -1324,6 +1333,16 @@ fn pick_quest_dialogue<'a>(
         }
 
         if player.completed_quests.contains(&q.id) {
+            if q.id.as_str() == "main_quest" && player.inventory.contains(&ItemId::from("dragon_eye")) {
+                let maybe = npc
+                    .quest_dialogues
+                    .iter()
+                    .find(|qd| qd.quest_id == q.id && qd.stage == 256);
+                if maybe.is_some() {
+                    return maybe;
+                }
+            }
+
             // stage 255 = already completed
             let maybe = npc
                 .quest_dialogues
@@ -1403,7 +1422,28 @@ fn handle_talk(
         None => return "S: ERR There is nobody by that name here.\n".to_string(),
     };
 
+    let Some(player) = state.players.get(&addr) else {
+        return "S: ERR utilize_connect_first\n".to_string();
+    };
+
     // ── 2. Quest resolution (legacy: DeliverItem / TalkToNpc) ──────────
+    if npc.id == domain::NpcId::from("Temple_guard") {
+        let has_pass = player.inventory.contains(&ItemId::from("temple_pass"));
+        let lines = if has_pass {
+            vec!["The queen's pass opens the way. You may proceed.".to_string()]
+        } else {
+            vec!["The temple is sealed. Present the queen's pass to enter.".to_string()]
+        };
+        let _ = tx.send(GlobalEvent {
+            sender_addr: None,
+            message: format!("S: EVT DIALOGUE {} {}\n", npc.name.replace(' ', "_"), lines.join("|")),
+            target_room: None,
+            target_group: None,
+            target_player: Some(addr),
+        });
+        return format!("S: OK npc={}\n", npc.name);
+    }
+
     let mut quest_msgs: Vec<String> = Vec::new();
     // Quests completed during this very conversation (selects the "just completed" dialogue).
     let mut completed_now: Vec<domain::QuestId> = Vec::new();

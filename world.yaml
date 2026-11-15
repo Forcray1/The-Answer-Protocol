@@ -1,11 +1,53 @@
 world:
   name: The Answer Protocol
   npcs:
-  - id: SandMonster
-    name: SandMonster
+  - id: Drake
+    name: Dragon
+    role: enemy
+    sprite: Drake
+    combat_sprite: drake_anim
+    spawn_pos:
+    - 0
+    - 0
+    scale: 0.8
+    hp: 600
+    damage: 50
+    defense: 30
+    special_damage: 30
+    special_defense: 30
+    exp_reward: 1000
+    respawn_time: 2400
+    dialogue:
+    - null
+    drops:
+    - item_id: dragon_eye
+      chance: 100
+  - id: Basilic
+    name: Basilic
+    role: enemy
+    sprite: basilic
+    combat_sprite: basilic_anim
+    spawn_pos:
+    - 0
+    - 0
+    scale: 0.8
+    hp: 300
+    damage: 30
+    defense: 20
+    special_damage: 20
+    special_defense: 10
+    exp_reward: 500
+    respawn_time: 240
+    dialogue:
+    - null
+    drops:
+    - item_id: graal
+      chance: 100
+  - id: Squeletton
+    name: Squeletton
     role: enemy
     sprite: IdleSqueleton
-    combat_sprite: Squelette
+    combat_sprite: Squeletton
     spawn_pos:
     - 300
     - -200
@@ -22,8 +64,113 @@ world:
     drops:
     - item_id: bone
       chance: 80
+  - id: leader_Squeletton
+    name: Squeletton leader
+    role: enemy
+    sprite: IdleSqueleton
+    combat_sprite: Squeletton
+    spawn_pos:
+    - 300
+    - -200
+    scale: 0.8
+    hp: 200
+    damage: 20
+    defense: 10
+    special_damage: 20
+    special_defense: 10
+    exp_reward: 265
+    respawn_time: 20
+    dialogue:
+    - null
+    drops:
+    - item_id: bone
+      chance: 80
+    - item_id: dagger
+      chance: 5
+  - id: Golem1
+    name: Golem
+    role: enemy
+    sprite: null
+    combat_sprite: golem
+    spawn_pos:
+    - 670
+    - -180
+    scale: 0.8
+    hp: 100
+    damage: 10
+    defense: 15
+    special_damage: 3
+    special_defense: 5
+    exp_reward: 100
+    respawn_time: 10
+    dialogue:
+    - null
+    drops:
     - item_id: diamond
-      chance: 20
+      chance: 70
+  - id: Golem2
+    name: Golem
+    role: enemy
+    sprite: null
+    combat_sprite: golem
+    spawn_pos:
+    - -1100
+    - 300
+    scale: 0.8
+    hp: 100
+    damage: 10
+    defense: 15
+    special_damage: 3
+    special_defense: 5
+    exp_reward: 100
+    respawn_time: 10
+    dialogue:
+    - null
+    drops:
+    - item_id: diamond
+      chance: 70
+  - id: bandit1
+    name: Bandit
+    role: enemy
+    sprite: null
+    combat_sprite: bandit
+    spawn_pos:
+    - 670
+    - -180
+    scale: 0.8
+    hp: 120
+    damage: 20
+    defense: 15
+    special_damage: 5
+    special_defense: 5
+    exp_reward: 150
+    respawn_time: 15
+    dialogue:
+    - null
+    drops:
+    - item_id: healing_herb
+      chance: 50
+  - id: bandit2
+    name: Bandit
+    role: enemy
+    sprite: null
+    combat_sprite: bandit
+    spawn_pos:
+    - 670
+    - -180
+    scale: 0.8
+    hp: 120
+    damage: 20
+    defense: 15
+    special_damage: 5
+    special_defense: 5
+    exp_reward: 150
+    respawn_time: 15
+    dialogue:
+    - null
+    drops:
+    - item_id: healing_herb
+      chance: 50
   - id: Guard1
     name: guard
     role: None
@@ -69,6 +216,18 @@ world:
     spawn_pos:
     - 139.0
     - 339.0
+    scale: 0.6
+  - id: Temple_guard
+    name: Temple Guard
+    role: None
+    sprite: ../skin/Guard
+    hp: 50
+    dialogue:
+    - The temple is sealed. Present the queen's pass to enter.
+    - The queen's pass opens the way. You may proceed.
+    spawn_pos:
+    - 293.0
+    - 197.0
     scale: 0.6
   - id: Gragas
     name: Sir Gragas
@@ -134,6 +293,10 @@ world:
       stage: 255
       lines:
       - Y-You did it ! Thank you so much. I don't know how to repay you.
+    - quest_id: main_quest
+      stage: 256
+      lines:
+      - The dragon eye is proof of your victory. Keep it close, but the temple is now safe.
   - id: Dory
     name: Dory
     role: Quest_giver
@@ -373,25 +536,6 @@ world:
       stage: 255
       lines:
       - Thanks again for the diamonds, I might finally get out of here.
-  - id: Final_boss
-    name: Basilic
-    role: enemy
-    sprite: SandMonster
-    combat_sprite: SandMonster
-    spawn_pos:
-    - 0.0
-    - 0.0
-    scale: 1.2
-    hp: 300
-    damage: 20
-    defense: 8
-    exp_reward: 500
-    respawn_time: 9999
-    dialogue:
-    - '...'
-    drops:
-    - item_id: graal
-      chance: 100
   - id: Panneau
     name: Notice Board
     role: board
@@ -413,6 +557,31 @@ world:
     - -125.0
     scale: 0.6
   items:
+  - id: graal
+    name: Graal
+    slot: key
+    obtainable: true
+    description: The sacred treasure of the queen, stolen by the basilic.
+    sprite: item/key/graal
+  - id: dragon_eye
+    name: Dragon_eye
+    slot: key
+    obtainable: true
+    description: The eye you picked up from the body of a dragon.
+    sprite: item/key/dragon_eye
+  - id: temple_pass
+    name: Temple_Pass
+    slot: key
+    obtainable: true
+    description: The pass mandatory to enter the temple, the queen gave it to you.
+    sprite: item/key/pass_temple
+  - id: dagger
+    name: dagger
+    damage: 5
+    slot: weapon
+    obtainable: true
+    description: A dagger in steel you found.
+    sprite: item/weapons/dagger
   - id: Excalibur
     name: Excalibur
     damage: 999
@@ -420,25 +589,12 @@ world:
     obtainable: true
     description: A legendary sword.
     sprite: sword/Excalibur
-  - id: dagger
-    name: dagger
-    damage: 1
-    slot: weapon
-    obtainable: true
-    description: A steel dagger
-    sprite: item/weapons/dagger
   - id: urbosas_cimeter
     name: Urbosa's Cimeter
     obtainable: true
     type: quest
     description: A sacred blade from the royal treasury.
     sprite: item/weapons/Urbosa_cimeter
-  - id: graal
-    name: Graal
-    obtainable: true
-    type: quest
-    description: The royal treasure recovered from the basilic's lair.
-    sprite: item/others/graal
   - id: magical_strength_medaillon
     name: Magical Strength Medaillon
     obtainable: true
@@ -543,10 +699,12 @@ world:
         item: graal
     - stage: 2
       objective:
-        type: kill_mob
-        npc: Final_boss
+        type: fetch_item
+        npc: Dragon_eye
         count: 1
     reward_item: urbosas_cimeter
+    reward_items:
+    - temple_pass
     reward_exp: 1000
   - id: quest_dory
     name: Dory's Gift
@@ -646,7 +804,8 @@ world:
         south: Wild3
         east: Wild2
       npcs: []
-      items: []
+      items:
+      - healing_herb
     Wild2:
       name: Wild2
       description: A wild zone where squeleton are found
@@ -654,7 +813,8 @@ world:
         west: Wild1
         south: Start_oasis
       npcs: []
-      items: []
+      items:
+      - healing_herb
     City:
       name: City
       description: The capital of the region, where the queen took refuge
@@ -675,7 +835,8 @@ world:
       exits:
         west: City
         east: Temple1
-      npcs: []
+      npcs:
+      - Temple_guard
       items: []
     Wild3:
       name: Wild3
@@ -684,8 +845,9 @@ world:
         north: Wild1
         east: Start_oasis
       npcs:
-      - SandMonster
-      items: []
+      - Squeletton
+      items:
+      - healing_herb
     Start_oasis:
       name: Start_oasis
       description: A peacefull oasis in the center of the region
@@ -711,7 +873,8 @@ world:
       npcs:
       - Guard1
       - Guard2
-      items: []
+      items:
+      - healing_herb
     Wild5:
       name: Wild5
       description: A zone ruled by bandits
@@ -719,7 +882,10 @@ world:
         west: Wild4
       npcs:
       - Zek
-      items: []
+      - bandit1
+      - bandit2
+      items:
+      - healing_herb
     Wild6:
       name: Wild6
       description: A wild zone leading to the cave
@@ -728,7 +894,8 @@ world:
         north: Start_oasis
       npcs:
       - Mage
-      items: []
+      items:
+      - healing_herb
     Oasis2:
       name: Oasis2
       description: An oasis lead by anwar
@@ -750,7 +917,10 @@ world:
         west: Oasis2
       npcs:
       - Remy
-      items: []
+      - Golem1
+      - Golem2
+      items:
+      - healing_herb
     Cave1:
       name: Cave1
       description: One of the room of the cave
@@ -780,7 +950,8 @@ world:
       description: The bottom of the cave, where lay the sbire of the one which has taken the temple
       exits:
         north: Cave3
-      npcs: []
+      npcs:
+      - Basilic
       items: []
     Temple1:
       name: Temple1
@@ -812,5 +983,5 @@ world:
       exits:
         west: Temple3
       npcs:
-      - Final_boss
+      - Drake
       items: []
