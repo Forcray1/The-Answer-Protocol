@@ -1033,7 +1033,9 @@ world:
       - Jamato
       - Fatih
       - Panneau
-      items: []
+      items:
+      - bone
+      - bone
     Wild4:
       name: Wild4
       description: wild zone next to the city and the two oasis

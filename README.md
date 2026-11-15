@@ -525,6 +525,7 @@ AI has been used to help with research, and to fasten the code, as in righting b
 		- Corrected bugs
 		- descriptions in the world.yaml
 		- reworked the board quest and queen quest
+		- requierments added
 ````
 
 TODO:
@@ -534,11 +535,7 @@ TODO:
 
 ### Blocking: likely evaluation failures
 
-- [ ] **`CONNECT <name>` without password** answers `ERR password_required`, so a client following the RFC cannot log in (clients must be interchangeable between groups). Make the password optional or document the deviation prominently.
-- [ ] **Reply formats vs the subject.** Subject examples: `OK room=loc.bakery`, `OK taken=item.herbs`, `OK dropped=item.herbs`, JSON for `LOOK`/`INVENTORY`/`WHO`, `EVT ROOM PRESENCE LEAVE alice`. Code sends `OK room-loc.X`, prose for `TAKE`/`DROP`/`LOOK`/`INVENTORY`, and `EVT ROOM <room> PRESENCE ...`. Align with RFC 42TAP, or list each difference in "Protocol Implementation".
-- [ ] **Combat requirements.** Subject asks for turn-based combat with initiative order, `DEFEND`/`FLEE` style commands, respawn at a safe place with **reduced** health, and combat results **broadcast** to relevant players. Currently: one exchange per `ATTACK`, no initiative, no `DEFEND`, `FLEE` always succeeds, death restores full HP, hits are not broadcast to the room. On death the player is moved to `Start_oasis` without `PRESENCE LEAVE/ENTER` events, so other clients keep a ghost.
-- [ ] **Logging requirements.** Needed: always on (not only with `--logs`), levels INFO/WARN/ERROR, every command received (with player and parameters), every response and error code, NPC interactions, quest progress/completion, abuse patterns (command flooding, rapid connections) and precise timestamps. Currently only `CONNECT`, `DISCONNECT`, `AUTH_FAIL`, `TAKE`, `DROP`, `DEATH` are logged, `logs.json` is re-opened on every call, and cooldown rejections are not logged.
-- [ ] **TAKE/DROP do not notify the room**, so other players' views go stale. Subject: room view must update after TAKE/DROP. Emit an event to the room.
+- [ ] **Combat requirements.** Subject asks for turn-based combat with initiative order, `DEFEND`/`FLEE` style commands, respawn at a safe place with **reduced** health, and combat results **broadcast** to relevant players. For this implementation; announce the outcome to the relevant players; and on death, emit the room leave/enter events as a personal message such as `Player got back to spawn after dying`, while still not adding a `DEFEND` section or touching the attack logic. Currently: one exchange per `ATTACK`, no initiative, no `DEFEND`, `FLEE` always succeeds, death restores full HP, hits are not broadcast to the room. On death the player is moved to `Start_oasis` without `PRESENCE LEAVE/ENTER` events, so other clients keep a ghost.
 - [ ] **GUI required controls.** Subject lists buttons for LOOK, MOVE, TAKE, DROP, TALK, ATTACK, STATUS, QUEST, QUESTS, WHO, GROUP, QUIT, plus counters for players in the room and on the server. No `LOOK`, `TAKE`, `TALK`, `STATUS`, `WHO` or `QUIT` is sent by a button *(verify in the UI)*, and no counters were found. Picking up ground items seems possible only through the text console *(verify)*.
 
 edit inventory to make armor, medaillon, and weapons only in equip data

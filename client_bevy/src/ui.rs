@@ -990,9 +990,9 @@ fn handle_inventory_data(
                         slot: parts[2].to_string(),
                         name: parts[3].to_string(),
                         damage: parts[4].parse().unwrap_or(0),
-                        sprite: parts.get(5).copied().unwrap_or("none").to_string(),
-                        is_equipped: parts.get(6).copied().unwrap_or("0") == "1",
-                        consumable: parts.get(7).copied().unwrap_or("0") == "1",
+                        sprite: "none".to_string(),
+                        is_equipped: parts.get(5).copied().unwrap_or("0") == "1",
+                        consumable: parts.get(6).copied().unwrap_or("0") == "1",
                     });
                 }
             }
@@ -2429,11 +2429,12 @@ fn process_chat_events(
                             });
 
                         if !is_recent_self {
-                            history.add(
-                                ChatChannel::Room,
-                                format!("[Room] {}: {}", sender, message),
-                                Color::rgb(0.85, 1.0, 0.88),
-                            );
+                            let display = if message.starts_with('[') && message.contains(" has dropped ") {
+                                format!("[Room] {}", message)
+                            } else {
+                                format!("[Room] {}: {}", sender, message)
+                            };
+                            history.add(ChatChannel::Room, display, Color::rgb(0.85, 1.0, 0.88));
                             if console.active_channel != ChatChannel::Room {
                                 console.unread_room += 1;
                             }

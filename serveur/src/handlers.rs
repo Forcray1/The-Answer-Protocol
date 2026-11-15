@@ -180,7 +180,7 @@ pub fn process_command(
         GameCommand::GroupInfo => (handle_group_info(addr, state), false),
         GameCommand::Quests => (handle_quests(addr, state, world), false),
         GameCommand::Quest(c) => (handle_quest(addr, c, state, world), false),
-        GameCommand::Flee => (handle_flee(addr, state), false),
+        GameCommand::Flee => (handle_flee(addr, state, tx), false),
         GameCommand::Answer { npc, answer } => {
             (handle_answer(addr, npc, answer, state, world, tx), false)
         }
@@ -336,6 +336,11 @@ pub async fn process_connect(
     tx: &Sender<GlobalEvent>,
     pool: &DbPool,
 ) -> String {
+    if password.trim().is_empty() {
+        log_event("AUTH_FAIL", &pseudo, json!({"ip": addr.to_string(), "reason": "password_required"}));
+        return "S: ERR password_required\n".to_string();
+    }
+
     {
         let guard = state.lock().await;
         if guard.players.contains_key(&addr) {
@@ -694,13 +699,13 @@ fn handle_move(
         target_player: None,
     });
     let exits = format_exits(world, &next_room);
-    format!(
-        "S: OK room=loc.{}{}\n{}{}{}",
-        next_room,
-        exits,
-        room_presence_roster(addr, state, &next_room),
-        room_mob_roster(&next_room, state, world),
-        room_item_roster(&next_room, state, world)
+    format!("S: OK room=loc.{}{}\n", next_room, exits)
+}
+
+fn is_bevy_inventory_slot(slot: &str) -> bool {
+    matches!(
+        slot,
+        "weapon" | "head" | "chest" | "legs" | "boot" | "medaillon" | "key" | "none"
     )
 }
 
@@ -711,16 +716,17 @@ fn get_inv_data_event(player: &crate::state::Player, world: &WorldData) -> Strin
     let mut data_objets = Vec::new();
     for (id, count) in player.inventory.iter() {
         let item_opt = world.world.items.iter().find(|i| &i.id == id);
-        let name = item_opt
-            .map(|i| i.name.clone())
-            .unwrap_or_else(|| id.to_string());
         let slot = item_opt
             .and_then(|i| i.slot.clone())
             .unwrap_or_else(|| "none".to_string());
+        if !is_bevy_inventory_slot(&slot) {
+            continue;
+        }
+
+        let name = item_opt
+            .map(|i| i.name.clone())
+            .unwrap_or_else(|| id.to_string());
         let damage = item_opt.and_then(|i| i.damage).unwrap_or(0);
-        let sprite = item_opt
-            .and_then(|i| i.sprite.clone())
-            .unwrap_or_else(|| "none".to_string());
         let equipped = if player.equipped_medaillon_id.as_ref() == Some(id) {
             1u8
         } else {
@@ -732,85 +738,41 @@ fn get_inv_data_event(player: &crate::state::Player, world: &WorldData) -> Strin
             0u8
         };
         data_objets.push(format!(
-            "{}:{}:{}:{}:{}:{}:{}:{}",
-            id, count, slot, name, damage, sprite, equipped, consumable
+            "{}:{}:{}:{}:{}:{}:{}",
+            id, count, slot, name, damage, equipped, consumable
         ));
+    }
+    if data_objets.is_empty() {
+        return "S: EVT INV_DATA empty\n".to_string();
     }
     format!("S: EVT INV_DATA {}\n", data_objets.join("|"))
 }
 
-fn get_equip_data_event(player: &crate::state::Player, world: &WorldData) -> String {
-    let head = player
-        .equipement
-        .helmet
-        .as_ref()
-        .map(|a| {
-            format!(
-                "{}:{}:{}:{}",
-                a.id,
-                a.name,
-                a.defense,
-                a.sprite.as_deref().unwrap_or("none")
-            )
-        })
-        .unwrap_or_else(|| "none".to_string());
+fn get_equip_data_event(player: &crate::state::Player, _world: &WorldData) -> String {
     let chest = player
         .equipement
         .chestplate
         .as_ref()
-        .map(|a| {
-            format!(
-                "{}:{}:{}:{}",
-                a.id,
-                a.name,
-                a.defense,
-                a.sprite.as_deref().unwrap_or("none")
-            )
-        })
-        .unwrap_or_else(|| "none".to_string());
-    let legs = player
-        .equipement
-        .legging
-        .as_ref()
-        .map(|a| {
-            format!(
-                "{}:{}:{}:{}",
-                a.id,
-                a.name,
-                a.defense,
-                a.sprite.as_deref().unwrap_or("none")
-            )
-        })
+        .map(|a| format!("{}:{}:{}", a.id, a.name, a.defense))
         .unwrap_or_else(|| "none".to_string());
     let weapon = player
         .equipement
         .weapon
         .as_ref()
-        .map(|w| {
-            format!(
-                "{}:{}:{}:{}",
-                w.id,
-                w.name,
-                w.damages,
-                w.sprite.as_deref().unwrap_or("none")
-            )
-        })
+        .map(|w| format!("{}:{}:{}", w.id, w.name, w.damages))
         .unwrap_or_else(|| "none".to_string());
-    let medaillon = if let Some(mid) = &player.equipped_medaillon_id {
-        let sprite = world
-            .world
-            .items
-            .iter()
-            .find(|item| &item.id == mid)
-            .and_then(|item| item.sprite.as_deref())
-            .unwrap_or("none");
-        format!("{}:equipped:0:{}", mid, sprite)
+    let medaillon = if player.equipped_medaillon_id.is_some() {
+        player
+            .equipped_medaillon_id
+            .as_ref()
+            .map(|mid| format!("{}:equipped:0", mid))
+            .unwrap_or_else(|| "none".to_string())
     } else {
         "none".to_string()
     };
     format!(
-        "S: EVT EQUIP_DATA head:{}|chest:{}|legs:{}|weapon:{}|medaillon:{}\n",
-        head, chest, legs, weapon, medaillon
+        "S: EVT EQUIP_DATA chest:{}|weapon:{}|medaillon:{}\n",
+        chest, weapon, medaillon
     )
 }
 
@@ -1207,6 +1169,18 @@ fn handle_drop(
                             pos_y: drop_y,
                         });
                     log_event("DROP", &player.username, json!({"item_id": item_id}));
+                    let _ = tx.send(GlobalEvent {
+                        sender_addr: Some(addr),
+                        message: format!(
+                            "S: EVT ROOM CHAT {} [{}] has dropped {}\n",
+                            player.username,
+                            player.username,
+                            item.name
+                        ),
+                        target_room: Some(current_room_id.clone()),
+                        target_group: None,
+                        target_player: None,
+                    });
                     // Broadcast spawn to all players in the room.
                     let _ = tx.send(GlobalEvent {
                         sender_addr: None,
@@ -1891,12 +1865,31 @@ fn get_combat_bg_for_room(room: &RoomId) -> u32 {
     }
 }
 
-pub fn handle_flee(addr: SocketAddr, state: &mut ServerState) -> String {
-    if let Some(player) = state.players.get_mut(&addr) {
-        player.combat = CombatState::Idle;
+pub fn handle_flee(addr: SocketAddr, state: &mut ServerState, tx: &Sender<GlobalEvent>) -> String {
+    let Some(player) = state.players.get(&addr) else {
+        return "S: ERR utilize_connect_first\n".to_string();
+    };
+
+    let room = player.current_room.clone();
+    let username = player.username.clone();
+    let success = rand::thread_rng().gen_range(0..100) < 75;
+
+    if success {
+        if let Some(player) = state.players.get_mut(&addr) {
+            player.combat = CombatState::Idle;
+        }
+        state.active_combats.remove(&addr);
+        let _ = tx.send(GlobalEvent {
+            sender_addr: Some(addr),
+            message: format!("S: EVT GLOBAL CHAT {} fled from combat and escaped.\n", username),
+            target_room: Some(room.clone()),
+            target_group: None,
+            target_player: None,
+        });
+        return "S: EVT COMBAT END flee\nS: OK You fled from combat.\n".to_string();
     }
-    state.active_combats.remove(&addr);
-    "S: EVT COMBAT END flee\nS: OK You fled from combat.\n".to_string()
+
+    "S: EVT COMBAT END flee_failed\nS: OK Your escape attempt failed. You remain in combat.\n".to_string()
 }
 
 fn start_combat(addr: SocketAddr, npc: &Npc, state: &mut ServerState) -> String {
@@ -2582,12 +2575,19 @@ fn notify_player_respawn(
         ),
         target_room: Some(RoomId::from(START_ROOM)),
         target_group: None,
-        target_player: Some(addr),
+        target_player: None,
     });
     let _ = tx.send(GlobalEvent {
         sender_addr: Some(addr),
         message: "S: OK room=loc.Start_oasis\n".to_string(),
         target_room: Some(RoomId::from(START_ROOM)),
+        target_group: None,
+        target_player: Some(addr),
+    });
+    let _ = tx.send(GlobalEvent {
+        sender_addr: Some(addr),
+        message: "S: OK Player got back to spawn after dying.\n".to_string(),
+        target_room: None,
         target_group: None,
         target_player: Some(addr),
     });

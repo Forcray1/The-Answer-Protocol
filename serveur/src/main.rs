@@ -36,22 +36,20 @@ pub struct GlobalEvent {
 static LOG_MODE: AtomicBool = AtomicBool::new(false);
 
 pub fn log_event(event_type: &str, player: &str, details: serde_json::Value) {
-    if LOG_MODE.load(Ordering::SeqCst) {
-        let log_entry = json!({
-            "timestamp": Local::now().format("%Y-%m-%dT%H:%M:%S").to_string(),
-            "event": event_type,
-            "player": player,
-            "details": details
-        });
-        let log_string = log_entry.to_string();
-        println!("{}", log_string);
-        if let Ok(mut file) = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open("logs.json")
-        {
-            let _ = writeln!(file, "{}", log_string);
-        }
+    let log_entry = json!({
+        "timestamp": Local::now().format("%Y-%m-%dT%H:%M:%S").to_string(),
+        "event": event_type,
+        "player": player,
+        "details": details
+    });
+    let log_string = log_entry.to_string();
+    println!("{}", log_string);
+    if let Ok(mut file) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("logs.json")
+    {
+        let _ = writeln!(file, "{}", log_string);
     }
 }
 
@@ -237,7 +235,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             break;
                         };
 
+                        let player_name = {
+                            let guard = state.lock().await;
+                            guard.players.get(&addr).map(|p| p.username.clone())
+                        };
                         let commande = GameCommand::parse(&line);
+                        if let Some(name) = &player_name {
+                            log_event("COMMAND", name, json!({"raw": line.clone()}));
+                        } else {
+                            log_event("COMMAND", "anonymous", json!({"addr": addr.to_string(), "raw": line.clone()}));
+                        }
                         let (reponse, quitter) = match commande {
                             GameCommand::Connect { username, password } => {
                                 let response = handlers::process_connect(
@@ -257,6 +264,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 handlers::process_command(addr, other, &mut guard, &world, &tx)
                             }
                         };
+                        let effective_player = player_name.as_deref().unwrap_or("anonymous");
+                        log_event("RESPONSE", effective_player, json!({"raw": line, "response": reponse.clone()}));
 
                         if writer.write_all(reponse.as_bytes()).await.is_err() {
                             break;
