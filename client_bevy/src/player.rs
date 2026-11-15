@@ -262,9 +262,9 @@ const T3_TO_T2: Vec2 = Vec2::new(1255.0, 427.0);
 const T2_TO_T1: Vec2 = Vec2::new(1255.0, 427.0);
 const T1_TO_T: Vec2 = Vec2::new(1255.0, 106.0);
 const W3_TO_O: Vec2 = Vec2::new(-1255.0, 0.0);
-const W2_TO_O: Vec2 = Vec2::new(0.0, 750.0);
+const W2_TO_O: Vec2 = Vec2::new(0.0, 720.0);
 const W4_TO_O: Vec2 = Vec2::new(1255.0, 0.0);
-const W6_TO_O: Vec2 = Vec2::new(0.0, -750.0);
+const W6_TO_O: Vec2 = Vec2::new(0.0, -720.0);
 
 fn arrival_point(from_room: &str, dir: &str) -> Vec2 {
     match (from_room, dir) {

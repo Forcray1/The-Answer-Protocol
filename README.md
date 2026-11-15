@@ -522,6 +522,7 @@ AI has been used to help with research, and to fasten the code, as in righting b
 	mlorenzo:
 		- Locked the temple
 		- improved world.yaml to add mobs and items
+		- Corrected bugs
 ````
 
 TODO:

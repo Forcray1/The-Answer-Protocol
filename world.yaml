@@ -699,8 +699,8 @@ world:
         item: graal
     - stage: 2
       objective:
-        type: fetch_item
-        npc: Dragon_eye
+        type: kill_mob
+        npc: Drake
         count: 1
     reward_item: urbosas_cimeter
     reward_items:
