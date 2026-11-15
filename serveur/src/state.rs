@@ -255,6 +255,8 @@ impl ServerState {
     }
 
     pub fn initialize_from_world(&mut self, world_data: &WorldData) {
+        self.board_quests.refresh();
+
         for (room_id, location) in &world_data.world.locations {
             let n = location.items.len();
             let runtime_items: Vec<RuntimeItem> = location

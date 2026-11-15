@@ -45,6 +45,78 @@ world:
     drops:
     - item_id: graal
       chance: 100
+  - id: Rat
+    name: Rat
+    description: A rat who flew out of the cave
+    role: enemy
+    sprite: rat
+    combat_sprite: rat_anim
+    spawn_pos:
+    - -300
+    - -75
+    scale: 0.8
+    hp: 100
+    damage: 10
+    defense: 5
+    special_damage: 4
+    special_defense: 4
+    exp_reward: 115
+    respawn_time: 20
+    dialogue:
+    - null
+    drops:
+    - item_id: healing_herb
+      chance: 30
+    - item_id: bone
+      chance: 20
+  - id: Rat1
+    name: Rat
+    description: A rat who flew out of the cave
+    role: enemy
+    sprite: rat
+    combat_sprite: rat_anim
+    spawn_pos:
+    - -600
+    - 0
+    scale: 0.8
+    hp: 100
+    damage: 10
+    defense: 5
+    special_damage: 4
+    special_defense: 4
+    exp_reward: 115
+    respawn_time: 20
+    dialogue:
+    - null
+    drops:
+    - item_id: healing_herb
+      chance: 30
+    - item_id: bone
+      chance: 20
+  - id: Rat2
+    name: Rat
+    description: A rat who flew out of the cave
+    role: enemy
+    sprite: rat
+    combat_sprite: rat_anim
+    spawn_pos:
+    - -785
+    - 360
+    scale: 0.8
+    hp: 100
+    damage: 10
+    defense: 5
+    special_damage: 4
+    special_defense: 4
+    exp_reward: 115
+    respawn_time: 20
+    dialogue:
+    - null
+    drops:
+    - item_id: healing_herb
+      chance: 30
+    - item_id: bone
+      chance: 20
   - id: Squeletton
     name: Squeletton
     description: Weak undead warrior roaming the wilds.
@@ -63,7 +135,51 @@ world:
     exp_reward: 65
     respawn_time: 10
     dialogue:
-    - Grahhhh !
+    - null
+    drops:
+    - item_id: bone
+      chance: 80
+  - id: Squeletton1
+    name: Squeletton
+    description: Weak undead warrior roaming the wilds.
+    role: enemy
+    sprite: IdleSqueleton
+    combat_sprite: Squeletton
+    spawn_pos:
+    - -215
+    - 210
+    scale: 0.8
+    hp: 50
+    damage: 1
+    defense: 2
+    special_damage: 3
+    special_defense: 1
+    exp_reward: 65
+    respawn_time: 10
+    dialogue:
+    - null
+    drops:
+    - item_id: bone
+      chance: 80
+  - id: Squeletton2
+    name: Squeletton
+    description: Weak undead warrior roaming the wilds.
+    role: enemy
+    sprite: IdleSqueleton
+    combat_sprite: Squeletton
+    spawn_pos:
+    - 0
+    - 255
+    scale: 0.8
+    hp: 50
+    damage: 1
+    defense: 2
+    special_damage: 3
+    special_defense: 1
+    exp_reward: 65
+    respawn_time: 10
+    dialogue:
+    - null
     drops:
     - item_id: bone
       chance: 80
@@ -309,6 +425,22 @@ world:
       lines:
       - Y-You did it ! Thank you so much. I don't know how to repay you.
     - quest_id: main_quest
+      stage: 256
+      lines:
+      - The dragon eye is proof of your victory. Keep it close, but the temple is now safe.
+    - quest_id: quest_dragon_eye
+      stage: 0
+      lines:
+      - The dragon still roams the temple. Defeat it and bring me proof of your victory.
+    - quest_id: quest_dragon_eye
+      stage: 1
+      lines:
+      - The dragon still roams the temple. Defeat it and bring me proof of your victory.
+    - quest_id: quest_dragon_eye
+      stage: 255
+      lines:
+      - Y-You did it ! Thank you so much. I don't know how to repay you.
+    - quest_id: quest_dragon_eye
       stage: 256
       lines:
       - The dragon eye is proof of your victory. Keep it close, but the temple is now safe.
@@ -716,7 +848,7 @@ world:
   quests:
   - id: main_quest
     name: The Answer Protocol
-    description: Help the Queen reclaim the royal treasure and defeat the evil that has taken the temple.
+    description: Help the Queen reclaim the royal treasure and defend the temple.
     giver_id: Queen
     objective:
       type: talk_to_npc
@@ -726,15 +858,24 @@ world:
       objective:
         type: fetch_item
         item: graal
-    - stage: 2
-      objective:
-        type: kill_mob
-        npc: Drake
-        count: 1
     reward_item: urbosas_cimeter
     reward_items:
     - temple_pass
     reward_exp: 1000
+  - id: quest_dragon_eye
+    name: Temple Threat
+    description: Defeat the dragon in the temple and bring proof back to the Queen.
+    giver_id: Queen
+    objective:
+      type: talk_to_npc
+      npc: Queen
+    stages:
+    - stage: 1
+      objective:
+        type: kill_mob
+        npc: Drake
+        count: 1
+    reward_exp: 500
   - id: quest_dory
     name: Dory's Gift
     description: Did you know Dory made this city? Check poiscapute on instagram and he might give you something.
@@ -832,7 +973,8 @@ world:
       exits:
         south: Wild3
         east: Wild2
-      npcs: []
+      npcs:
+      - Squeletton1
       items:
       - healing_herb
     Wild2:
@@ -841,7 +983,8 @@ world:
       exits:
         west: Wild1
         south: Start_oasis
-      npcs: []
+      npcs:
+      - Squeletton2
       items:
       - healing_herb
     City:
@@ -923,6 +1066,7 @@ world:
         north: Start_oasis
       npcs:
       - Mage
+      - Rat
       items:
       - healing_herb
     Oasis2:
@@ -956,7 +1100,8 @@ world:
       exits:
         west: Cave2
         east: Wild6
-      npcs: []
+      npcs:
+      - Rat1
       items: []
     Cave2:
       name: Cave2
@@ -964,7 +1109,8 @@ world:
       exits:
         south: Cave3
         east: Cave1
-      npcs: []
+      npcs:
+      - Rat2
       items: []
     Cave3:
       name: Cave3
@@ -972,7 +1118,8 @@ world:
       exits:
         south: Cave4
         north: Cave2
-      npcs: []
+      npcs:
+      - leader_Squeletton
       items: []
     Cave4:
       name: Cave4

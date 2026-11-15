@@ -15,17 +15,39 @@
 
 use rand::Rng;
 
+fn canonical_mob_key(raw: &str) -> String {
+    let mut value = raw.trim().to_string();
+    while value
+        .chars()
+        .last()
+        .map(|ch| ch.is_ascii_digit())
+        .unwrap_or(false)
+    {
+        value.pop();
+    }
+    value
+        .replace(['-', '_', ' '], "")
+        .to_ascii_lowercase()
+}
+
 /// Registry of mobs that can appear in board kill quests.
 /// Fields: (mob_id, display_name, location_hint)
 ///
-/// Add new rows here as new mobs are added to world.yaml.
+/// Boss-tier and special-quest mobs are intentionally excluded from the board pool.
 pub static MOB_POOL: &[(&str, &str, &str)] = &[
-    ("SandMonster", "Sand Monster", "in the Wild areas"),
-    // Future entries:
-    // ("Goblin",      "Goblin",       "in Cave1"),
-    // ("Basilisk",    "Basilisk",     "in Cave4"),     ← exclude from board quests if desired
-    // ("OasisSpider", "Oasis Spider", "near Oasis2"),
+    ("Squeletton", "Squeletton", "in the wild areas"),
+    ("Squeletton1", "Squeletton", "in the wild areas"),
+    ("Squeletton2", "Squeletton", "in the wild areas"),
+    ("leader_Squeletton", "Squeletton Leader", "in the wild areas"),
+    ("Golem1", "Golem", "in the wild areas"),
+    ("Golem2", "Golem", "in the wild areas"),
+    ("bandit1", "Bandit", "by the roads and ruins"),
+    ("bandit2", "Bandit", "by the roads and ruins"),
 ];
+
+fn is_allowed_board_mob(mob_id: &str) -> bool {
+    !matches!(mob_id, "Basilic" | "Drake" | "SandMonster" | "Sandmonster")
+}
 
 // ── Slot ─────────────────────────────────────────────────────────────────────
 
@@ -54,7 +76,14 @@ impl BoardQuestSlot {
     /// Generate a new random slot.
     pub fn generate(slot_id: usize) -> Self {
         let mut rng = rand::thread_rng();
-        let mob = &MOB_POOL[rng.gen_range(0..MOB_POOL.len())];
+        let available_mobs: Vec<_> = MOB_POOL
+            .iter()
+            .copied()
+            .filter(|(mob_id, _, _)| is_allowed_board_mob(mob_id))
+            .collect();
+        let mob = available_mobs
+            .get(rng.gen_range(0..available_mobs.len()))
+            .unwrap_or(&MOB_POOL[0]);
         let kill_count = rng.gen_range(2..=10_u32);
         let gold_per_kill = rng.gen_range(10..=20_i32);
         BoardQuestSlot {
@@ -72,6 +101,12 @@ impl BoardQuestSlot {
     /// True when no player holds this slot.
     pub fn is_available(&self) -> bool {
         self.taken_by.is_none()
+    }
+
+    /// True when the mob killed by a player matches this quest slot, even when the
+    /// world uses numbered variants like `Squeletton1` or `Golem2`.
+    pub fn matches_mob(&self, mob_id: &str) -> bool {
+        canonical_mob_key(&self.mob_id) == canonical_mob_key(mob_id)
     }
 
     /// Human-readable one-line summary.
@@ -134,6 +169,11 @@ impl BoardQuestPool {
         Self { slots }
     }
 
+    /// Rebuild the board from scratch to refresh a server reset or board reset.
+    pub fn refresh(&mut self) {
+        *self = Self::new();
+    }
+
     /// Return the slot currently held by `player`, if any.
     pub fn player_slot(&self, player: &str) -> Option<&BoardQuestSlot> {
         self.slots
@@ -160,5 +200,28 @@ impl BoardQuestPool {
 impl Default for BoardQuestPool {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{canonical_mob_key, BoardQuestSlot};
+
+    #[test]
+    fn variants_match_same_family() {
+        let slot = BoardQuestSlot {
+            slot_id: 0,
+            mob_id: "Squeletton".to_string(),
+            mob_name: "Squeletton".to_string(),
+            location_hint: "in the wild areas".to_string(),
+            kill_count: 3,
+            gold_reward: 30,
+            taken_by: Some("alice".to_string()),
+            kills_done: 0,
+        };
+
+        assert!(slot.matches_mob("Squeletton1"));
+        assert!(slot.matches_mob("squeletton2"));
+        assert_eq!(canonical_mob_key("Golem2"), "golem");
     }
 }

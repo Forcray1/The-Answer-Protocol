@@ -1333,7 +1333,9 @@ fn pick_quest_dialogue<'a>(
         }
 
         if player.completed_quests.contains(&q.id) {
-            if q.id.as_str() == "main_quest" && player.inventory.contains(&ItemId::from("dragon_eye")) {
+            if q.giver_id.as_ref() == Some(&npc.id)
+                && player.inventory.contains(&ItemId::from("dragon_eye"))
+            {
                 let maybe = npc
                     .quest_dialogues
                     .iter()
@@ -1568,8 +1570,12 @@ fn handle_talk(
                 }
                 crate::world::QuestObjective::TalkToNpc { npc: target_npc } => {
                     if &npc.id == target_npc {
-                        quest_msgs.push(complete_legacy_quest(addr, q, player, world, tx));
-                        completed_now.push(q.id.clone());
+                        let can_complete = q.id.as_str() != "quest_dragon_eye"
+                            || player.inventory.contains(&ItemId::from("dragon_eye"));
+                        if can_complete {
+                            quest_msgs.push(complete_legacy_quest(addr, q, player, world, tx));
+                            completed_now.push(q.id.clone());
+                        }
                     }
                 }
                 crate::world::QuestObjective::FetchItem { .. }
@@ -3652,7 +3658,7 @@ pub fn process_board_quest_kill(
     let mut gold_reward = 0i32;
 
     if let Some(slot) = state.board_quests.player_slot_mut(player_name) {
-        if ci_eq(&slot.mob_id, mob_id) {
+        if slot.matches_mob(mob_id) {
             slot.kills_done += 1;
             if slot.kills_done >= slot.kill_count {
                 completed_slot_idx = Some(slot.slot_id);

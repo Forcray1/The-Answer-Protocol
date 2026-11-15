@@ -524,12 +524,11 @@ AI has been used to help with research, and to fasten the code, as in righting b
 		- improved world.yaml to add mobs and items
 		- Corrected bugs
 		- descriptions in the world.yaml
+		- reworked the board quest and queen quest
 ````
 
 TODO:
 	- finish the world.yaml with all the informations
-	- Upgrade the UI (chatbox disapear after 5s), Create Group UI and main menu UI with leave option.
-	- Fix bug respawn mob system, they respawn only if the players moves
 	- Help Command
 
 
@@ -542,7 +541,6 @@ TODO:
 - [ ] **TAKE/DROP do not notify the room**, so other players' views go stale. Subject: room view must update after TAKE/DROP. Emit an event to the room.
 - [ ] **GUI required controls.** Subject lists buttons for LOOK, MOVE, TAKE, DROP, TALK, ATTACK, STATUS, QUEST, QUESTS, WHO, GROUP, QUIT, plus counters for players in the room and on the server. No `LOOK`, `TAKE`, `TALK`, `STATUS`, `WHO` or `QUIT` is sent by a button *(verify in the UI)*, and no counters were found. Picking up ground items seems possible only through the text console *(verify)*.
 
-Descriptions world.yaml
 edit inventory to make armor, medaillon, and weapons only in equip data
 only quests implemented and not quest
 add events [player] leave Room [x] and [player] enter room [x] for each concerned room (if you move from wild1 to wild2, an event will be broadcast to both map)

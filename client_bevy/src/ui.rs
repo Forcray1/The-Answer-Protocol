@@ -72,7 +72,7 @@ impl InventoryTab {
             InventoryTab::Armor => "Armor",
             InventoryTab::Medaillon => "Medaillon",
             InventoryTab::Consumables => "Consumables",
-            InventoryTab::KeyItems => "Other",
+            InventoryTab::KeyItems => "Key",
         }
     }
     fn matches(&self, slot: &str, consumable: bool) -> bool {
@@ -82,7 +82,7 @@ impl InventoryTab {
             InventoryTab::Armor => matches!(slot, "head" | "chest" | "legs" | "boot"),
             InventoryTab::Medaillon => slot == "medaillon",
             InventoryTab::Consumables => consumable,
-            InventoryTab::KeyItems => slot == "none" && !consumable,
+            InventoryTab::KeyItems => slot == "key" || (!consumable && slot == "none"),
         }
     }
 }
