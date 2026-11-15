@@ -3,6 +3,7 @@ world:
   npcs:
   - id: Drake
     name: Dragon
+    description: The beast who took control over the temple.
     role: enemy
     sprite: Drake
     combat_sprite: drake_anim
@@ -24,6 +25,7 @@ world:
       chance: 100
   - id: Basilic
     name: Basilic
+    description: Right arm of the threat in the temple, he's the keeper of the stolen treasure of the queen.
     role: enemy
     sprite: basilic
     combat_sprite: basilic_anim
@@ -45,6 +47,7 @@ world:
       chance: 100
   - id: Squeletton
     name: Squeletton
+    description: Weak undead warrior roaming the wilds.
     role: enemy
     sprite: IdleSqueleton
     combat_sprite: Squeletton
@@ -66,6 +69,7 @@ world:
       chance: 80
   - id: leader_Squeletton
     name: Squeletton leader
+    description: Stronger skeleton commander that drops bones and a rare dagger.
     role: enemy
     sprite: IdleSqueleton
     combat_sprite: Squeletton
@@ -89,6 +93,7 @@ world:
       chance: 5
   - id: Golem1
     name: Golem
+    description: Heavy stone guardian that drops rare diamonds.
     role: enemy
     sprite: null
     combat_sprite: golem
@@ -110,6 +115,7 @@ world:
       chance: 70
   - id: Golem2
     name: Golem
+    description: Heavy stone guardian that drops rare diamonds.
     role: enemy
     sprite: null
     combat_sprite: golem
@@ -131,6 +137,7 @@ world:
       chance: 70
   - id: bandit1
     name: Bandit
+    description: Lone raider stalking the outer roads.
     role: enemy
     sprite: null
     combat_sprite: bandit
@@ -152,6 +159,7 @@ world:
       chance: 50
   - id: bandit2
     name: Bandit
+    description: Lone raider stalking the outer roads.
     role: enemy
     sprite: null
     combat_sprite: bandit
@@ -173,6 +181,7 @@ world:
       chance: 50
   - id: Guard1
     name: guard
+    description: City guard watching the gate into the capital.
     role: None
     sprite: ../skin/Guard
     hp: 50
@@ -184,6 +193,7 @@ world:
     scale: 0.6
   - id: Guard2
     name: guard
+    description: City guard watching the gate into the capital.
     role: None
     sprite: ../skin/Guard
     hp: 50
@@ -195,6 +205,7 @@ world:
     scale: 0.6
   - id: Guard3
     name: guard
+    description: Royal guard protecting the queen's district.
     role: None
     sprite: ../skin/Guard
     hp: 50
@@ -207,6 +218,7 @@ world:
     scale: 0.6
   - id: Guard4
     name: guard
+    description: Royal guard protecting the queen's district.
     role: None
     sprite: ../skin/Guard
     hp: 50
@@ -219,6 +231,7 @@ world:
     scale: 0.6
   - id: Temple_guard
     name: Temple Guard
+    description: Gatekeeper guarding the sealed temple entrance.
     role: None
     sprite: ../skin/Guard
     hp: 50
@@ -231,6 +244,7 @@ world:
     scale: 0.6
   - id: Gragas
     name: Sir Gragas
+    description: Veteran guide sending travelers to help the queen.
     role: Quest_giver
     sprite: ../skin/Chief1
     hp: 50
@@ -263,6 +277,7 @@ world:
       - You can go train north from here there is some monsters you could defeat
   - id: Queen
     name: The Queen
+    description: Ruler of the city, asking for help against the temple threat.
     role: Quest_giver
     sprite: ../skin/Queen
     hp: 60
@@ -299,6 +314,7 @@ world:
       - The dragon eye is proof of your victory. Keep it close, but the temple is now safe.
   - id: Dory
     name: Dory
+    description: City inventor who rewards curious travelers with useful gear.
     role: Quest_giver
     sprite: ../skin/Dory
     hp: 50
@@ -338,6 +354,7 @@ world:
       - Thank you so much ! Here you go, it's for you.
   - id: Oguzhan
     name: Oguzhan
+    description: Local citizen worried about the temple invasion.
     role: None
     sprite: ../skin/Oguzhan
     hp: 50
@@ -350,6 +367,7 @@ world:
     scale: 0.6
   - id: Soufiane
     name: Soufiane
+    description: Collector of rare merch who values a special sword from the oasis.
     role: Quest_giver
     sprite: ../skin/Soufiane
     hp: 50
@@ -381,6 +399,7 @@ world:
       - Thank you again for the sword, it looks great on my shelf.
   - id: Jamato
     name: Jamato
+    description: Craftsperson who makes armor from recovered bones.
     role: Quest_giver
     sprite: ../skin/Jamato
     hp: 50
@@ -410,6 +429,7 @@ world:
       - Don't tell anyone about the armor, I don't want to get too much attention...
   - id: Fatih
     name: Fatih
+    description: Curious townsfolk speaking of old archive leaks.
     role: None
     sprite: ../skin/Fatih
     hp: 50
@@ -421,6 +441,7 @@ world:
     scale: 0.6
   - id: Zek
     name: Zek
+    description: Wary traveler offering healing potions before the dangerous roads.
     role: Quest_giver
     sprite: ../skin/Zek
     hp: 50
@@ -442,6 +463,7 @@ world:
       - Be aware, monsters here are strong.
   - id: Mage
     name: Mage
+    description: Wise spellcaster warning of the danger in the cave.
     role: None
     sprite: ../skin/Mage
     hp: 50
@@ -453,6 +475,7 @@ world:
     scale: 0.6
   - id: Anwar
     name: Anwar
+    description: Oasis leader who knows the local merchants and the region.
     role: None
     sprite: ../skin/Anwar
     hp: 50
@@ -465,6 +488,7 @@ world:
     scale: 0.6
   - id: Forgeon
     name: Forgeon
+    description: Blacksmith and merchant selling weapons and armor.
     role: None
     sprite: ../skin/Forgeon
     hp: 50
@@ -487,6 +511,7 @@ world:
       price: 200
   - id: Axel
     name: Axel
+    description: Traveler talking about the distant lands beyond the borders.
     role: None
     sprite: ../skin/Axel
     hp: 50
@@ -498,6 +523,7 @@ world:
     scale: 0.6
   - id: Elyesa
     name: Elyesa
+    description: Builder working on projects for the neighboring city.
     role: None
     sprite: ../skin/Elyesa
     hp: 50
@@ -509,6 +535,7 @@ world:
     scale: 0.6
   - id: Remy
     name: Remy
+    description: Master-in-training asking for help collecting diamonds.
     role: Quest_giver
     sprite: ../skin/Remy
     hp: 50
@@ -538,6 +565,7 @@ world:
       - Thanks again for the diamonds, I might finally get out of here.
   - id: Panneau
     name: Notice Board
+    description: Board listing local quests and dangerous opportunities.
     role: board
     hp: 1
     dialogue:
@@ -548,6 +576,7 @@ world:
     scale: 0.6
   - id: Panneau2
     name: Notice Board
+    description: Board listing local quests and dangerous opportunities.
     role: board
     hp: 1
     dialogue:

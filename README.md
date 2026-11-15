@@ -523,6 +523,7 @@ AI has been used to help with research, and to fasten the code, as in righting b
 		- Locked the temple
 		- improved world.yaml to add mobs and items
 		- Corrected bugs
+		- descriptions in the world.yaml
 ````
 
 TODO:
@@ -540,10 +541,6 @@ TODO:
 - [ ] **Logging requirements.** Needed: always on (not only with `--logs`), levels INFO/WARN/ERROR, every command received (with player and parameters), every response and error code, NPC interactions, quest progress/completion, abuse patterns (command flooding, rapid connections) and precise timestamps. Currently only `CONNECT`, `DISCONNECT`, `AUTH_FAIL`, `TAKE`, `DROP`, `DEATH` are logged, `logs.json` is re-opened on every call, and cooldown rejections are not logged.
 - [ ] **TAKE/DROP do not notify the room**, so other players' views go stale. Subject: room view must update after TAKE/DROP. Emit an event to the room.
 - [ ] **GUI required controls.** Subject lists buttons for LOOK, MOVE, TAKE, DROP, TALK, ATTACK, STATUS, QUEST, QUESTS, WHO, GROUP, QUIT, plus counters for players in the room and on the server. No `LOOK`, `TAKE`, `TALK`, `STATUS`, `WHO` or `QUIT` is sent by a button *(verify in the UI)*, and no counters were found. Picking up ground items seems possible only through the text console *(verify)*.
-
-### World and balance
-
-- [ ] Only 2 enemies exist (`SandMonster` with 1 damage, `Final_boss`). Add a few mobs on the main paths.
 
 Descriptions world.yaml
 edit inventory to make armor, medaillon, and weapons only in equip data
