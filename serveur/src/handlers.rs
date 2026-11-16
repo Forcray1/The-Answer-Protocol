@@ -699,7 +699,12 @@ fn handle_move(
         target_player: None,
     });
     let exits = format_exits(world, &next_room);
-    format!("S: OK room=loc.{}{}\n", next_room, exits)
+    format!(
+        "S: OK room=loc.{}{}\n{}",
+        next_room,
+        exits,
+        room_mob_roster(&next_room, state, world)
+    )
 }
 
 fn is_bevy_inventory_slot(slot: &str) -> bool {
