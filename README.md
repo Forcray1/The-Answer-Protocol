@@ -532,14 +532,10 @@ TODO:
 	- finish the world.yaml with all the informations
 	- Help Command
 
-
 ### Blocking: likely evaluation failures
 
-- [ ] **Combat requirements.** Subject asks for turn-based combat with initiative order, `DEFEND`/`FLEE` style commands, respawn at a safe place with **reduced** health, and combat results **broadcast** to relevant players. For this implementation; announce the outcome to the relevant players; and on death, emit the room leave/enter events as a personal message such as `Player got back to spawn after dying`, while still not adding a `DEFEND` section or touching the attack logic. Currently: one exchange per `ATTACK`, no initiative, no `DEFEND`, `FLEE` always succeeds, death restores full HP, hits are not broadcast to the room. On death the player is moved to `Start_oasis` without `PRESENCE LEAVE/ENTER` events, so other clients keep a ghost.
 - [ ] **GUI required controls.** Subject lists buttons for LOOK, MOVE, TAKE, DROP, TALK, ATTACK, STATUS, QUEST, QUESTS, WHO, GROUP, QUIT, plus counters for players in the room and on the server. No `LOOK`, `TAKE`, `TALK`, `STATUS`, `WHO` or `QUIT` is sent by a button *(verify in the UI)*, and no counters were found. Picking up ground items seems possible only through the text console *(verify)*.
 
-edit inventory to make armor, medaillon, and weapons only in equip data
 only quests implemented and not quest
-add events [player] leave Room [x] and [player] enter room [x] for each concerned room (if you move from wild1 to wild2, an event will be broadcast to both map)
 MAJ README
 pass lint
