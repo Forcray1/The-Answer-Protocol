@@ -526,6 +526,11 @@ AI has been used to help with research, and to fasten the code, as in righting b
 		- descriptions in the world.yaml
 		- reworked the board quest and queen quest
 		- requierments added
+17/11/2026:
+	mlorenzo:
+		- added xp for eval/tests
+		- corrected a lot of bugs who appeared last commit
+		- cleaned the exit of a dialogue with E 
 ````
 
 TODO:

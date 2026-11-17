@@ -265,6 +265,17 @@ fn format_exits(world: &WorldData, room: &RoomId) -> String {
     exits_str
 }
 
+fn room_change_snapshot(room: &RoomId, state: &ServerState, world: &WorldData) -> String {
+    let exits = format_exits(world, room);
+    format!(
+        "S: OK room=loc.{}{}\n{}{}",
+        room,
+        exits,
+        room_mob_roster(room, state, world),
+        room_item_roster(room, state, world)
+    )
+}
+
 /// Build the `MOB_SPAWN` events for NPCs visible in `room`.
 /// Board NPCs (role = "board") are omitted from the normal mob spawn roster
 /// and instead emitted as `BOARD_SPAWN` events so the client can render them
@@ -698,13 +709,7 @@ fn handle_move(
         target_group: None,
         target_player: None,
     });
-    let exits = format_exits(world, &next_room);
-    format!(
-        "S: OK room=loc.{}{}\n{}",
-        next_room,
-        exits,
-        room_mob_roster(&next_room, state, world)
-    )
+    room_change_snapshot(&next_room, state, world)
 }
 
 fn is_bevy_inventory_slot(slot: &str) -> bool {
@@ -732,6 +737,9 @@ fn get_inv_data_event(player: &crate::state::Player, world: &WorldData) -> Strin
             .map(|i| i.name.clone())
             .unwrap_or_else(|| id.to_string());
         let damage = item_opt.and_then(|i| i.damage).unwrap_or(0);
+        let sprite = item_opt
+            .and_then(|i| i.sprite.clone())
+            .unwrap_or_else(|| "none".to_string());
         let equipped = if player.equipped_medaillon_id.as_ref() == Some(id) {
             1u8
         } else {
@@ -743,8 +751,8 @@ fn get_inv_data_event(player: &crate::state::Player, world: &WorldData) -> Strin
             0u8
         };
         data_objets.push(format!(
-            "{}:{}:{}:{}:{}:{}:{}",
-            id, count, slot, name, damage, equipped, consumable
+            "{}:{}:{}:{}:{}:{}:{}:{}",
+            id, count, slot, name, damage, sprite, equipped, consumable
         ));
     }
     if data_objets.is_empty() {
@@ -753,24 +761,52 @@ fn get_inv_data_event(player: &crate::state::Player, world: &WorldData) -> Strin
     format!("S: EVT INV_DATA {}\n", data_objets.join("|"))
 }
 
-fn get_equip_data_event(player: &crate::state::Player, _world: &WorldData) -> String {
+fn get_equip_data_event(player: &crate::state::Player, world: &WorldData) -> String {
     let chest = player
         .equipement
         .chestplate
         .as_ref()
-        .map(|a| format!("{}:{}:{}", a.id, a.name, a.defense))
+        .map(|a| {
+            format!(
+                "{}:{}:{}:{}",
+                a.id,
+                a.name,
+                a.defense,
+                a.sprite.as_deref().unwrap_or("none")
+            )
+        })
         .unwrap_or_else(|| "none".to_string());
     let weapon = player
         .equipement
         .weapon
         .as_ref()
-        .map(|w| format!("{}:{}:{}", w.id, w.name, w.damages))
+        .map(|w| {
+            format!(
+                "{}:{}:{}:{}",
+                w.id,
+                w.name,
+                w.damages,
+                w.sprite.as_deref().unwrap_or("none")
+            )
+        })
         .unwrap_or_else(|| "none".to_string());
     let medaillon = if player.equipped_medaillon_id.is_some() {
+        let sprite = player
+            .equipped_medaillon_id
+            .as_ref()
+            .and_then(|mid| {
+                world
+                    .world
+                    .items
+                    .iter()
+                    .find(|item| &item.id == mid)
+                    .and_then(|item| item.sprite.as_deref())
+            })
+            .unwrap_or("none");
         player
             .equipped_medaillon_id
             .as_ref()
-            .map(|mid| format!("{}:equipped:0", mid))
+            .map(|mid| format!("{}:equipped:0:{}", mid, sprite))
             .unwrap_or_else(|| "none".to_string())
     } else {
         "none".to_string()
@@ -2396,9 +2432,10 @@ fn handle_attack_magic(
                 });
                 log_event("DEATH", &player_name, json!({"killer": monster_name}));
                 format!(
-                    "S: EVT COMBAT END defeat\nS: OK Magic deals {}. {} retaliates and finishes you off. DEAD! You wake up at the oasis.\nS: OK room=loc.Start_oasis\n{}",
+                    "S: EVT COMBAT END defeat\nS: OK Magic deals {}. {} retaliates and finishes you off. DEAD! You wake up at the oasis.\n{}\n{}",
                     final_damage,
                     monster_name,
+                    room_change_snapshot(&RoomId::from(START_ROOM), state, world),
                     final_stats
                 )
             } else {
@@ -2702,10 +2739,11 @@ fn handle_stunned_turn(
         });
         log_event("DEATH", &player_name, json!({"killer": monster_name}));
         Some(format!(
-            "S: EVT COMBAT STUN {}\nS: EVT COMBAT END defeat\nS: OK {} is stunned by the last attack and can't move. {} attacks and finishes them off. DEAD! You wake up at the oasis.\nS: OK room=loc.Start_oasis\n{}",
+            "S: EVT COMBAT STUN {}\nS: EVT COMBAT END defeat\nS: OK {} is stunned by the last attack and can't move. {} attacks and finishes them off. DEAD! You wake up at the oasis.\n{}\n{}",
             player_name.replace(' ', "_"),
             player_name,
             monster_name,
+            room_change_snapshot(&RoomId::from(START_ROOM), state, world),
             final_stats
         ))
     } else {
@@ -2984,9 +3022,10 @@ fn handle_attack(
                 });
                 log_event("DEATH", &player_name, json!({"killer": monster_name}));
                 format!(
-                    "S: EVT COMBAT END defeat\nS: OK You deal {} damage, but {} finishes you off. You are DEAD! You wake up at the oasis.\nS: OK room=loc.Start_oasis\n{}",
+                    "S: EVT COMBAT END defeat\nS: OK You deal {} damage, but {} finishes you off. You are DEAD! You wake up at the oasis.\n{}\n{}",
                     final_damage,
                     monster_name,
+                    room_change_snapshot(&RoomId::from(START_ROOM), state, world),
                     final_stats
                 )
             } else {

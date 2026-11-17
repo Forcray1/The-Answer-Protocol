@@ -153,11 +153,21 @@ fn read_network_messages(
             }
             _ => {}
         }
-        if !message.contains(" POS ") {
+        if should_print_network_line(&message) {
             println!("[BEVY RECEIVED]: {}", message);
         }
         events.send(ServerMessageEvent(message));
     }
+}
+
+fn should_print_network_line(message: &str) -> bool {
+    !(message.starts_with("S: EVT ROOM POS ")
+        || message.starts_with("S: EVT ROOM PRESENCE ENTER ")
+        || message.starts_with("S: EVT ROOM PRESENCE ROSTER ")
+        || message.starts_with("S: EVT ROOM MOB_SPAWN ")
+        || message.starts_with("S: EVT ROOM ITEM_SPAWN ")
+        || message.starts_with("S: EVT ROOM BOARD_SPAWN ")
+        || message.contains(" pos="))
 }
 
 /// QUIT (`S: OK goodbye`) or a dropped connection while playing: back to the login screen.

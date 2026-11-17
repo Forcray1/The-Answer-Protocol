@@ -43,6 +43,14 @@ pub fn log_event(event_type: &str, player: &str, details: serde_json::Value) {
         "details": details
     });
     let log_string = log_entry.to_string();
+    let suppress_pos_log = matches!(event_type, "COMMAND" | "RESPONSE")
+        && log_entry["details"]["raw"]
+            .as_str()
+            .map(|raw| raw.trim_start().to_ascii_uppercase().starts_with("POS "))
+            .unwrap_or(false);
+    if suppress_pos_log {
+        return;
+    }
     println!("{}", log_string);
     if let Ok(mut file) = OpenOptions::new()
         .create(true)

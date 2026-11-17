@@ -61,6 +61,7 @@ pub enum InventoryTab {
     Armor,
     Medaillon,
     Consumables,
+    Other,
     KeyItems,
 }
 
@@ -72,6 +73,7 @@ impl InventoryTab {
             InventoryTab::Armor => "Armor",
             InventoryTab::Medaillon => "Medaillon",
             InventoryTab::Consumables => "Consumables",
+            InventoryTab::Other => "Other",
             InventoryTab::KeyItems => "Key",
         }
     }
@@ -82,7 +84,14 @@ impl InventoryTab {
             InventoryTab::Armor => matches!(slot, "head" | "chest" | "legs" | "boot"),
             InventoryTab::Medaillon => slot == "medaillon",
             InventoryTab::Consumables => consumable,
-            InventoryTab::KeyItems => slot == "key" || (!consumable && slot == "none"),
+            InventoryTab::Other => {
+                !consumable
+                    && !matches!(
+                        slot,
+                        "weapon" | "head" | "chest" | "legs" | "boot" | "medaillon" | "key"
+                    )
+            }
+            InventoryTab::KeyItems => slot == "key",
         }
     }
 }
@@ -769,6 +778,7 @@ fn setup_inventory_ui(mut commands: Commands) {
                                         spawn_tab_btn(tabs, InventoryTab::Armor, false);
                                         spawn_tab_btn(tabs, InventoryTab::Medaillon, false);
                                         spawn_tab_btn(tabs, InventoryTab::Consumables, false);
+                                        spawn_tab_btn(tabs, InventoryTab::Other, false);
                                         spawn_tab_btn(tabs, InventoryTab::KeyItems, false);
                                     });
 
@@ -984,15 +994,28 @@ fn handle_inventory_data(
             for item in data.trim().split('|') {
                 let parts: Vec<&str> = item.split(':').collect();
                 if parts.len() >= 5 {
+                    let has_sprite_field = parts.len() >= 8;
                     inv_state.cached_items.push(RawInvItem {
                         id: parts[0].to_string(),
                         count: parts[1].parse().unwrap_or(1),
                         slot: parts[2].to_string(),
                         name: parts[3].to_string(),
                         damage: parts[4].parse().unwrap_or(0),
-                        sprite: "none".to_string(),
-                        is_equipped: parts.get(5).copied().unwrap_or("0") == "1",
-                        consumable: parts.get(6).copied().unwrap_or("0") == "1",
+                        sprite: if has_sprite_field {
+                            parts.get(5).copied().unwrap_or("none").to_string()
+                        } else {
+                            "none".to_string()
+                        },
+                        is_equipped: if has_sprite_field {
+                            parts.get(6).copied().unwrap_or("0") == "1"
+                        } else {
+                            parts.get(5).copied().unwrap_or("0") == "1"
+                        },
+                        consumable: if has_sprite_field {
+                            parts.get(7).copied().unwrap_or("0") == "1"
+                        } else {
+                            parts.get(6).copied().unwrap_or("0") == "1"
+                        },
                     });
                 }
             }

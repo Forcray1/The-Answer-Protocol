@@ -307,8 +307,17 @@ fn handle_dialogue_advance_input(
         return;
     }
 
-    // Do not advance while showing choices (handled by handle_choice_click).
+    // When choices are shown, allow keyboard exit with the same advance key.
+    // Choice selection itself is handled by handle_choice_click.
     if dialogue_state.showing_choices {
+        if advance_pressed {
+            close_dialogue(
+                &mut dialogue_state,
+                &mut popup_q,
+                &mut portrait_q,
+                &mut text_q,
+            );
+        }
         return;
     }
 

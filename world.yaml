@@ -45,6 +45,25 @@ world:
     drops:
     - item_id: graal
       chance: 100
+  - id: xp
+    name: Free_xp
+    description: Free xp (pls give us a star).
+    role: enemy
+    sprite: null
+    combat_sprite: null
+    spawn_pos:
+    - 1238
+    - 664
+    scale: 0.8
+    hp: 1
+    damage: 0
+    defense: 0
+    special_damage: 0
+    special_defense: 0
+    exp_reward: 100000
+    respawn_time: 1
+    dialogue:
+    - null
   - id: Rat
     name: Rat
     description: A rat who flew out of the cave
@@ -207,6 +226,63 @@ world:
       chance: 80
     - item_id: dagger
       chance: 5
+  - id: sandmonster1
+    name: Sand Monster
+    description: A strange monster living in the temple right now.
+    role: enemy
+    sprite: SandMonster
+    combat_sprite: SandMonster
+    spawn_pos:
+    - 593
+    - -70
+    scale: 0.8
+    hp: 200
+    damage: 30
+    defense: 15
+    special_damage: 25
+    special_defense: 20
+    exp_reward: 400
+    respawn_time: 30
+    dialogue:
+    - null
+  - id: sandmonster2
+    name: Sand Monster
+    description: A strange monster living in the temple right now.
+    role: enemy
+    sprite: SandMonster
+    combat_sprite: SandMonster
+    spawn_pos:
+    - 593
+    - -70
+    scale: 0.8
+    hp: 200
+    damage: 30
+    defense: 15
+    special_damage: 25
+    special_defense: 20
+    exp_reward: 400
+    respawn_time: 30
+    dialogue:
+    - null
+  - id: sandmonster3
+    name: Sand Monster
+    description: A strange monster living in the temple right now.
+    role: enemy
+    sprite: SandMonster
+    combat_sprite: SandMonster
+    spawn_pos:
+    - 593
+    - -70
+    scale: 0.8
+    hp: 200
+    damage: 30
+    defense: 15
+    special_damage: 25
+    special_defense: 20
+    exp_reward: 400
+    respawn_time: 30
+    dialogue:
+    - null
   - id: Golem1
     name: Golem
     description: Heavy stone guardian that drops rare diamonds.
@@ -1033,6 +1109,7 @@ world:
       - Jamato
       - Fatih
       - Panneau
+      - xp
       items:
       - bone
       - bone
@@ -1137,7 +1214,8 @@ world:
       exits:
         west: Castle
         east: Temple2
-      npcs: []
+      npcs:
+      - sandmonster1
       items: []
     Temple2:
       name: Temple2
@@ -1145,7 +1223,8 @@ world:
       exits:
         west: Temple1
         east: Temple3
-      npcs: []
+      npcs:
+      - sandmonster2
       items: []
     Temple3:
       name: Temple3
@@ -1153,7 +1232,8 @@ world:
       exits:
         west: Temple2
         east: Temple4
-      npcs: []
+      npcs:
+      - sandmonster3
       items: []
     Temple4:
       name: Temple4
