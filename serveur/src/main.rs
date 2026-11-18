@@ -1,10 +1,11 @@
 use chrono::Local;
 use serde_json::json;
+use std::collections::{HashMap, VecDeque};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
 use tokio::sync::{broadcast, mpsc, Mutex};
@@ -36,8 +37,14 @@ pub struct GlobalEvent {
 static LOG_MODE: AtomicBool = AtomicBool::new(false);
 
 pub fn log_event(event_type: &str, player: &str, details: serde_json::Value) {
+    let level = match event_type {
+        "AUTH_FAIL" | "ABUSE_PATTERN" => "WARN",
+        "INTERNAL_ERROR" | "DB_ERROR" => "ERROR",
+        _ => "INFO",
+    };
     let log_entry = json!({
         "timestamp": Local::now().format("%Y-%m-%dT%H:%M:%S").to_string(),
+        "level": level,
         "event": event_type,
         "player": player,
         "details": details
@@ -181,8 +188,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
     }
 
+    let mut recent_connections: HashMap<String, VecDeque<Instant>> = HashMap::new();
     loop {
         let (socket, addr) = listener.accept().await?;
+        let ip = addr.ip().to_string();
+        let now = Instant::now();
+        let entries = recent_connections.entry(ip.clone()).or_default();
+        while entries
+            .front()
+            .is_some_and(|t| now.duration_since(*t) > Duration::from_secs(10))
+        {
+            entries.pop_front();
+        }
+        entries.push_back(now);
+        if entries.len() >= 5 {
+            log_event(
+                "ABUSE_PATTERN",
+                &ip,
+                json!({
+                    "type": "rapid_connections",
+                    "count": entries.len(),
+                    "window_seconds": 10
+                }),
+            );
+        }
 
         let world = Arc::clone(&shared_world);
         let state = Arc::clone(&shared_state);
@@ -194,6 +223,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let (reader, mut writer) = socket.into_split();
             let mut reader = BufReader::new(reader);
             let (line_tx, mut line_rx) = mpsc::unbounded_channel::<String>();
+            let mut recent_commands: VecDeque<Instant> = VecDeque::new();
+            let mut last_flood_log: Option<Instant> = None;
 
             tokio::spawn(async move {
                 let mut line = String::new();
@@ -247,6 +278,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             let guard = state.lock().await;
                             guard.players.get(&addr).map(|p| p.username.clone())
                         };
+
+                        let command_now = Instant::now();
+                        while recent_commands.front().is_some_and(|t| {
+                            command_now.duration_since(*t) > Duration::from_secs(2)
+                        }) {
+                            recent_commands.pop_front();
+                        }
+                        recent_commands.push_back(command_now);
+                        let should_log_flood = recent_commands.len() >= 25
+                            && last_flood_log.is_none_or(|t| {
+                                command_now.duration_since(t) > Duration::from_secs(5)
+                            });
+                        if should_log_flood {
+                            let actor = player_name.as_deref().unwrap_or("anonymous");
+                            log_event(
+                                "ABUSE_PATTERN",
+                                actor,
+                                json!({
+                                    "type": "command_flooding",
+                                    "addr": addr.to_string(),
+                                    "commands_in_2s": recent_commands.len()
+                                }),
+                            );
+                            last_flood_log = Some(command_now);
+                        }
                         let command = GameCommand::parse(&line);
                         if let Some(name) = &player_name {
                             log_event("COMMAND", name, json!({"raw": line.clone()}));

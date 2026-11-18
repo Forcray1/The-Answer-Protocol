@@ -316,6 +316,10 @@ fn room_mob_roster(room: &RoomId, state: &ServerState, world: &WorldData) -> Str
     out
 }
 
+fn presence_roster_line(username: &str, skin: &str, x: i64, y: i64) -> String {
+    format!("S: EVT ROOM PRESENCE ROSTER {} {} {} {}\n", username, skin, x, y)
+}
+
 /// Build the `ITEM_SPAWN` events for every item currently on the ground in `room`.
 fn room_item_roster(room: &RoomId, state: &ServerState, world: &WorldData) -> String {
     let mut out = String::new();
@@ -347,10 +351,7 @@ pub async fn process_connect(
     tx: &Sender<GlobalEvent>,
     pool: &DbPool,
 ) -> String {
-    if password.trim().is_empty() {
-        log_event("AUTH_FAIL", &pseudo, json!({"ip": addr.to_string(), "reason": "password_required"}));
-        return "S: ERR password_required\n".to_string();
-    }
+    let guest = password.trim().is_empty();
 
     {
         let guard = state.lock().await;
@@ -362,32 +363,35 @@ pub async fn process_connect(
         }
     }
 
-    let loaded = match database::load_player(pool, &pseudo).await {
-        Ok(data) => data,
-        Err(e) => {
-            eprintln!("[DB] Player load error: {}", e);
-            return "S: ERR internal_error\n".to_string();
-        }
-    };
-
-    if loaded.is_some() {
-        match database::verify_player(pool, &pseudo, &password).await {
-            Ok(true) => {}
-            Ok(false) => {
-                log_event("AUTH_FAIL", &pseudo, json!({"ip": addr.to_string()}));
-                return "S: ERR bad_credentials\n".to_string();
-            }
+    let loaded = if guest {
+        None
+    } else {
+        let loaded = match database::load_player(pool, &pseudo).await {
+            Ok(data) => data,
             Err(e) => {
-                eprintln!("[DB] Verification error: {}", e);
+                eprintln!("[DB] Player load error: {}", e);
                 return "S: ERR internal_error\n".to_string();
             }
-        }
-    } else {
-        if let Err(e) = database::register_player(pool, &pseudo, &password).await {
+        };
+
+        if loaded.is_some() {
+            match database::verify_player(pool, &pseudo, &password).await {
+                Ok(true) => {}
+                Ok(false) => {
+                    log_event("AUTH_FAIL", &pseudo, json!({"ip": addr.to_string()}));
+                    return "S: ERR bad_credentials\n".to_string();
+                }
+                Err(e) => {
+                    eprintln!("[DB] Verification error: {}", e);
+                    return "S: ERR internal_error\n".to_string();
+                }
+            }
+        } else if let Err(e) = database::register_player(pool, &pseudo, &password).await {
             eprintln!("[DB] Account creation error: {}", e);
             return "S: ERR internal_error\n".to_string();
         }
-    }
+        loaded
+    };
 
     let mut guard = state.lock().await;
     if guard.players.contains_key(&addr) {
@@ -466,10 +470,14 @@ pub async fn process_connect(
         });
         let _ = tx.send(GlobalEvent {
             sender_addr: Some(addr),
-            message: format!(
-                "S: EVT ROOM PRESENCE ENTER {} {} {} {}\n",
-                pseudo, skin, px, py
-            ),
+            message: format!("S: EVT ROOM PRESENCE ENTER {}\n", pseudo),
+            target_room: Some(enter_room.clone()),
+            target_group: None,
+            target_player: None,
+        });
+        let _ = tx.send(GlobalEvent {
+            sender_addr: Some(addr),
+            message: presence_roster_line(&pseudo, &skin, px, py),
             target_room: Some(enter_room.clone()),
             target_group: None,
             target_player: None,
@@ -491,7 +499,6 @@ pub async fn process_connect(
             get_char_stats_event_with_world(p, world),
         );    }
 
-    let guest = password.is_empty();
     guard.add_player(addr, pseudo.clone());
     if guest {
         if let Some(p) = guard.players.get_mut(&addr) {
@@ -519,10 +526,14 @@ pub async fn process_connect(
     let (px, py) = (player.pos_x as i64, player.pos_y as i64);
     let _ = tx.send(GlobalEvent {
         sender_addr: Some(addr),
-        message: format!(
-            "S: EVT ROOM PRESENCE ENTER {} {} {} {}\n",
-            pseudo, skin, px, py
-        ),
+        message: format!("S: EVT ROOM PRESENCE ENTER {}\n", pseudo),
+        target_room: Some(enter_room.clone()),
+        target_group: None,
+        target_player: None,
+    });
+    let _ = tx.send(GlobalEvent {
+        sender_addr: Some(addr),
+        message: presence_roster_line(&pseudo, &skin, px, py),
         target_room: Some(enter_room.clone()),
         target_group: None,
         target_player: None,
@@ -701,15 +712,23 @@ fn handle_move(
     });
     let _ = tx.send(GlobalEvent {
         sender_addr: Some(addr),
-        message: format!(
-            "S: EVT ROOM PRESENCE ENTER {} {} {} {}\n",
-            username, skin, px as i64, py as i64
-        ),
+        message: format!("S: EVT ROOM PRESENCE ENTER {}\n", username),
         target_room: Some(next_room.clone()),
         target_group: None,
         target_player: None,
     });
-    room_change_snapshot(&next_room, state, world)
+    let _ = tx.send(GlobalEvent {
+        sender_addr: Some(addr),
+        message: presence_roster_line(&username, &skin, px as i64, py as i64),
+        target_room: Some(next_room.clone()),
+        target_group: None,
+        target_player: None,
+    });
+    format!(
+        "{}{}",
+        room_change_snapshot(&next_room, state, world),
+        room_presence_roster(addr, state, &next_room)
+    )
 }
 
 fn is_bevy_inventory_slot(slot: &str) -> bool {
@@ -2611,9 +2630,18 @@ fn notify_player_respawn(
     });
     let _ = tx.send(GlobalEvent {
         sender_addr: Some(addr),
-        message: format!(
-            "S: EVT ROOM PRESENCE ENTER {} {} {} {}\n",
-            username, skin, crate::state::DEATH_RESPAWN_X as i64, crate::state::DEATH_RESPAWN_Y as i64
+        message: format!("S: EVT ROOM PRESENCE ENTER {}\n", username),
+        target_room: Some(RoomId::from(START_ROOM)),
+        target_group: None,
+        target_player: None,
+    });
+    let _ = tx.send(GlobalEvent {
+        sender_addr: Some(addr),
+        message: presence_roster_line(
+            username,
+            skin,
+            crate::state::DEATH_RESPAWN_X as i64,
+            crate::state::DEATH_RESPAWN_Y as i64,
         ),
         target_room: Some(RoomId::from(START_ROOM)),
         target_group: None,

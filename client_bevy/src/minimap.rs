@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::AppState;
+use crate::net::{NetworkSender, ServerMessageEvent};
 
 pub const MINIMAP_ASSET: &str = "maps/map.png";
 
@@ -16,8 +17,22 @@ pub struct MinimapPlugin;
 
 impl Plugin for MinimapPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_minimap)
-            .add_systems(Update, toggle_minimap.run_if(in_state(AppState::InGame)));
+        app.init_resource::<MinimapPlayerCounts>()
+            .insert_resource(MinimapWhoRefresh(Timer::from_seconds(
+                1.0,
+                TimerMode::Repeating,
+            )))
+            .add_systems(Startup, spawn_minimap)
+            .add_systems(
+                Update,
+                (
+                    toggle_minimap,
+                    poll_who_while_minimap_open,
+                    update_counts_from_who,
+                    refresh_minimap_count_text,
+                )
+                    .run_if(in_state(AppState::InGame)),
+            );
     }
 }
 
@@ -25,6 +40,18 @@ impl Plugin for MinimapPlugin {
 // hides/shows its children automatically.
 #[derive(Component)]
 struct MinimapOverlay;
+
+#[derive(Component)]
+struct MinimapPlayerCountText;
+
+#[derive(Resource, Default)]
+struct MinimapPlayerCounts {
+    room: usize,
+    server: usize,
+}
+
+#[derive(Resource)]
+struct MinimapWhoRefresh(Timer);
 
 // Spawns the overlay once at startup, hidden by default.
 fn spawn_minimap(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -62,6 +89,23 @@ fn spawn_minimap(mut commands: Commands, asset_server: Res<AssetServer>) {
                 image: UiImage::new(asset_server.load(MINIMAP_ASSET)),
                 ..default()
             });
+            parent.spawn((
+                TextBundle::from_section(
+                    "Server: 0\nRoom: 0",
+                    TextStyle {
+                        font_size: 22.0,
+                        color: Color::rgba(0.95, 0.95, 0.95, 1.0),
+                        ..default()
+                    },
+                )
+                .with_style(Style {
+                    position_type: PositionType::Absolute,
+                    top: Val::Px(16.0),
+                    left: Val::Px(16.0),
+                    ..default()
+                }),
+                MinimapPlayerCountText,
+            ));
         });
 }
 
@@ -71,6 +115,7 @@ fn toggle_minimap(
     keys: Res<ButtonInput<KeyCode>>,
     console: Res<crate::ui::ChatConsole>,
     mut query: Query<&mut Visibility, With<MinimapOverlay>>,
+    sender: Option<Res<NetworkSender>>,
     combat: Option<Res<crate::combat::CombatResource>>,
 ) {
     if let Some(ref combat) = combat {
@@ -96,5 +141,83 @@ fn toggle_minimap(
             Visibility::Hidden => Visibility::Visible,
             _ => Visibility::Hidden,
         };
+        if *visibility == Visibility::Visible {
+            if let Some(sender) = &sender {
+                let _ = sender.0.send("WHO\n".to_string());
+            }
+        }
     }
+}
+
+fn poll_who_while_minimap_open(
+    time: Res<Time>,
+    mut refresh: ResMut<MinimapWhoRefresh>,
+    sender: Option<Res<NetworkSender>>,
+    query: Query<&Visibility, With<MinimapOverlay>>,
+) {
+    let Ok(visibility) = query.get_single() else {
+        return;
+    };
+    if *visibility != Visibility::Visible {
+        refresh.0.reset();
+        return;
+    }
+
+    refresh.0.tick(time.delta());
+    if refresh.0.just_finished() {
+        if let Some(sender) = &sender {
+            let _ = sender.0.send("WHO\n".to_string());
+        }
+    }
+}
+
+fn update_counts_from_who(
+    mut events: EventReader<ServerMessageEvent>,
+    mut counts: ResMut<MinimapPlayerCounts>,
+) {
+    for ev in events.read() {
+        if let Some((room, server)) = parse_who_counts(&ev.0) {
+            counts.room = room;
+            counts.server = server;
+        }
+    }
+}
+
+fn refresh_minimap_count_text(
+    counts: Res<MinimapPlayerCounts>,
+    mut text_query: Query<&mut Text, With<MinimapPlayerCountText>>,
+) {
+    if !counts.is_changed() {
+        return;
+    }
+    let Ok(mut text) = text_query.get_single_mut() else {
+        return;
+    };
+    text.sections[0].value = format!("Server: {}\nRoom: {}", counts.server, counts.room);
+}
+
+fn parse_who_counts(message: &str) -> Option<(usize, usize)> {
+    let payload = message.strip_prefix("S: OK ")?;
+    if !payload.contains("\"server\":") || !payload.contains("\"room\":[") {
+        return None;
+    }
+
+    let room_start = payload.find("\"room\":[")? + "\"room\":[".len();
+    let room_end = payload[room_start..].find(']')? + room_start;
+    let room_slice = payload[room_start..room_end].trim();
+    let room_count = if room_slice.is_empty() {
+        0
+    } else {
+        room_slice.split(',').count()
+    };
+
+    let server_tail = payload.split("\"server\":").nth(1)?;
+    let server_digits: String = server_tail
+        .chars()
+        .skip_while(|c| !c.is_ascii_digit())
+        .take_while(|c| c.is_ascii_digit())
+        .collect();
+    let server_count = server_digits.parse::<usize>().ok()?;
+
+    Some((room_count, server_count))
 }

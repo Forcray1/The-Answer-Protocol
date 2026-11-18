@@ -537,6 +537,9 @@ AI has been used to help with research, and to fasten the code, as in righting b
 		- quest implemented
 		- Adjustment size sandmonster
 		- Translated all french to english
+		- added connect in temporary account without password
+		- Cleaned the enter broadcast
+		- Synced view of player between client_bevy and client
 ````
 
 TODO:

@@ -177,10 +177,6 @@ fn spawn_local_player_on_connect(
         commands.insert_resource(LocalPlayerSkin(skin.to_string()));
         let entity = spawn_player_visual(&mut commands, &asset_server, skin, name, spawn);
         commands.entity(entity).insert(LocalPlayer);
-        println!(
-            "[PLAYER] Avatar local '{}' (skin '{}') spawned at ({}, {}).",
-            name, skin, spawn.x, spawn.y
-        );
     }
 }
 
@@ -506,10 +502,6 @@ fn handle_presence_events(
                             false,
                             Vec2::ZERO,
                         );
-                        println!(
-                            "[PLAYER] Death respawn: snapped to ({}, {}).",
-                            DEATH_RESPAWN_POINT.x, DEATH_RESPAWN_POINT.y
-                        );
                     }
                 }
             }
@@ -535,10 +527,6 @@ fn handle_presence_events(
                             // On normal movement: use the server position as-is.
                             let final_pos = if pending_death.0 {
                                 pending_death.0 = false;
-                                println!(
-                                    "[PLAYER] Death respawn: forcing coords to ({}, {}).",
-                                    DEATH_RESPAWN_POINT.x, DEATH_RESPAWN_POINT.y
-                                );
                                 DEATH_RESPAWN_POINT
                             } else {
                                 server_pos
@@ -556,10 +544,6 @@ fn handle_presence_events(
                                     false,
                                     Vec2::ZERO,
                                 );
-                                println!(
-                                    "[PLAYER] Local player '{}' positioned at ({}, {}).",
-                                    name, final_pos.x, final_pos.y
-                                );
                             }
                             continue;
                         }
@@ -573,10 +557,6 @@ fn handle_presence_events(
                             name: name.to_string(),
                             target: server_pos,
                         });
-                        println!(
-                            "[PLAYER] Remote player '{}' appeared (skin '{}').",
-                            name, skin
-                        );
                     }
                     "LEAVE" => {
                         if Some(name) == local_name.0.as_deref() {

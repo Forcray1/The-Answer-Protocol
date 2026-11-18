@@ -26,7 +26,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         break;
                     }
                     Ok(_) => {
-                        print!("{}", server_line); // Affiche le message du serveur
+                        if should_print_server_line(server_line.trim()) {
+                            print!("{}", server_line);
+                        }
                         if server_line.trim() == "S: OK goodbye" {
                             println!("[CLIENT] Clean program shutdown. See you soon!");
                             std::process::exit(0); // Quitte le terminal sans erreur
@@ -57,4 +59,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+fn should_print_server_line(line: &str) -> bool {
+    !(line.starts_with("S: EVT ROOM POS ")
+        || line.starts_with("S: EVT ROOM PRESENCE ROSTER "))
 }
