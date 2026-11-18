@@ -17,7 +17,7 @@ CARGO_FLAGS :=
 endif
 
 # Packages (see the [workspace] members in Cargo.toml)
-SERVER_PKG  := serveur
+SERVER_PKG  := server
 CLI_PKG     := client
 GUI_PKG     := client_bevy
 
