@@ -69,7 +69,7 @@ world:
     description: A rat who flew out of the cave
     role: enemy
     sprite: rat
-    combat_sprite: rat_anim
+    combat_sprite: rat
     spawn_pos:
     - -300
     - -75
@@ -93,7 +93,7 @@ world:
     description: A rat who flew out of the cave
     role: enemy
     sprite: rat
-    combat_sprite: rat_anim
+    combat_sprite: rat
     spawn_pos:
     - -600
     - 0
@@ -117,7 +117,7 @@ world:
     description: A rat who flew out of the cave
     role: enemy
     sprite: rat
-    combat_sprite: rat_anim
+    combat_sprite: rat
     spawn_pos:
     - -785
     - 360
@@ -140,8 +140,8 @@ world:
     name: Squeletton
     description: Weak undead warrior roaming the wilds.
     role: enemy
-    sprite: IdleSqueleton
-    combat_sprite: Squeletton
+    sprite: squeletton
+    combat_sprite: squeletton
     spawn_pos:
     - 300
     - -200
@@ -162,8 +162,8 @@ world:
     name: Squeletton
     description: Weak undead warrior roaming the wilds.
     role: enemy
-    sprite: IdleSqueleton
-    combat_sprite: Squeletton
+    sprite: squeletton
+    combat_sprite: squeletton
     spawn_pos:
     - -215
     - 210
@@ -184,8 +184,8 @@ world:
     name: Squeletton
     description: Weak undead warrior roaming the wilds.
     role: enemy
-    sprite: IdleSqueleton
-    combat_sprite: Squeletton
+    sprite: squeletton
+    combat_sprite: squeletton
     spawn_pos:
     - 0
     - 255
@@ -206,8 +206,8 @@ world:
     name: Squeletton leader
     description: Stronger skeleton commander that drops bones and a rare dagger.
     role: enemy
-    sprite: IdleSqueleton
-    combat_sprite: Squeletton
+    sprite: squeletton
+    combat_sprite: squeletton
     spawn_pos:
     - 300
     - -200
@@ -235,7 +235,7 @@ world:
     spawn_pos:
     - 593
     - -70
-    scale: 1.5
+    scale: 0.8
     hp: 200
     damage: 30
     defense: 15
@@ -254,7 +254,7 @@ world:
     spawn_pos:
     - 593
     - -70
-    scale: 1.5
+    scale: 0.8
     hp: 200
     damage: 30
     defense: 15
@@ -273,7 +273,7 @@ world:
     spawn_pos:
     - 593
     - -70
-    scale: 1.5
+    scale: 0.8
     hp: 200
     damage: 30
     defense: 15
@@ -287,7 +287,7 @@ world:
     name: Golem
     description: Heavy stone guardian that drops rare diamonds.
     role: enemy
-    sprite: null
+    sprite: golem
     combat_sprite: golem
     spawn_pos:
     - 670
@@ -309,7 +309,7 @@ world:
     name: Golem
     description: Heavy stone guardian that drops rare diamonds.
     role: enemy
-    sprite: null
+    sprite: golem
     combat_sprite: golem
     spawn_pos:
     - -1100
@@ -331,7 +331,7 @@ world:
     name: Bandit
     description: Lone raider stalking the outer roads.
     role: enemy
-    sprite: null
+    sprite: bandit
     combat_sprite: bandit
     spawn_pos:
     - 670
@@ -353,10 +353,10 @@ world:
     name: Bandit
     description: Lone raider stalking the outer roads.
     role: enemy
-    sprite: null
+    sprite: bandit
     combat_sprite: bandit
     spawn_pos:
-    - 670
+    - 850
     - -180
     scale: 0.8
     hp: 120
@@ -1109,6 +1109,7 @@ world:
       - Jamato
       - Fatih
       - Panneau
+      - xp
       items:
       - bone
       - bone
