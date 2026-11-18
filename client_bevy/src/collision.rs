@@ -77,11 +77,11 @@ fn load_mask_on_room_change(
     mask.grid = load_mask(room);
     match &mask.grid {
         Some(m) => println!(
-            "[COLLISION] Masque chargé pour '{}' ({}x{}).",
+            "[COLLISION] Loaded collision mask for '{}' ({}x{}).",
             room, m.width, m.height
         ),
         None => println!(
-            "[COLLISION] Aucun masque pour '{}' (déplacement libre).",
+            "[COLLISION] No collision mask for '{}' (free movement).",
             room
         ),
     }

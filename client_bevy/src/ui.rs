@@ -2506,7 +2506,7 @@ fn process_chat_events(
             console.room_change_time = Some(std::time::Instant::now());
             history.add(
                 ChatChannel::Room,
-                format!("[Room] Arrivée dans : {}", room),
+                format!("[Room] Arrived in: {}", room),
                 Color::rgb(0.40, 0.80, 0.90),
             );
             continue;
@@ -2546,7 +2546,7 @@ fn process_chat_events(
                         let user = parts[4];
                         history.add(
                             ChatChannel::Group,
-                            format!("[Group] {} a rejoint le groupe", user),
+                            format!("[Group] {} joined the group", user),
                             Color::rgb(0.50, 0.85, 1.0),
                         );
                         if local_name.0.as_deref() == Some(user) {
@@ -2557,7 +2557,7 @@ fn process_chat_events(
                         let user = parts[4];
                         history.add(
                             ChatChannel::Group,
-                            format!("[Group] {} a quitté le groupe", user),
+                            format!("[Group] {} left the group", user),
                             Color::rgb(0.70, 0.75, 0.90),
                         );
                         if local_name.0.as_deref() == Some(user) {
@@ -2571,7 +2571,7 @@ fn process_chat_events(
                         let user = parts[4];
                         history.add(
                             ChatChannel::Group,
-                            format!("[Group] {} a créé le groupe", user),
+                            format!("[Group] {} created the group", user),
                             Color::rgb(0.50, 0.85, 1.0),
                         );
                         if local_name.0.as_deref() == Some(user) {
@@ -2612,24 +2612,24 @@ fn process_chat_events(
             console.in_group = true;
             history.add(
                 ChatChannel::Room,
-                "[Group] Vous avez rejoint le groupe !".to_string(),
+                "[Group] You joined the group!".to_string(),
                 Color::rgb(0.5, 0.85, 1.0),
             );
             history.add(
                 ChatChannel::Group,
-                "[Group] Vous avez rejoint le groupe !".to_string(),
+                "[Group] You joined the group!".to_string(),
                 Color::rgb(0.5, 0.85, 1.0),
             );
         } else if line == "S: OK group_created" {
             console.in_group = true;
             history.add(
                 ChatChannel::Room,
-                "[Group] Groupe créé !".to_string(),
+                "[Group] Group created!".to_string(),
                 Color::rgb(0.5, 0.85, 1.0),
             );
             history.add(
                 ChatChannel::Group,
-                "[Group] Groupe créé !".to_string(),
+                "[Group] Group created!".to_string(),
                 Color::rgb(0.5, 0.85, 1.0),
             );
         } else if line == "S: OK you_left_the_group" {
@@ -2639,7 +2639,7 @@ fn process_chat_events(
             }
             history.add(
                 ChatChannel::Room,
-                "[Group] Vous avez quitté le groupe.".to_string(),
+                "[Group] You left the group.".to_string(),
                 Color::rgb(0.7, 0.7, 0.8),
             );
         } else if line == "S: OK group_disbanded" {
@@ -2649,14 +2649,14 @@ fn process_chat_events(
             }
             history.add(
                 ChatChannel::Room,
-                "[Group] Le groupe a été dissous.".to_string(),
+                "[Group] The group was disbanded.".to_string(),
                 Color::rgb(1.0, 0.6, 0.4),
             );
         } else if let Some(members) = line.strip_prefix("S: OK Group members: ") {
             console.in_group = true;
             history.add(
                 ChatChannel::Group,
-                format!("[Group] Membres : {}", members),
+                format!("[Group] Members: {}", members),
                 Color::rgb(0.5, 0.85, 1.0),
             );
         } else if line == "S: OK No group" {
@@ -2667,13 +2667,13 @@ fn process_chat_events(
         } else if let Some(target) = line.strip_prefix("S: OK you invited ") {
             history.add(
                 console.active_channel,
-                format!("[Group] Invitation envoyée à {}", target),
+                format!("[Group] Invitation sent to {}", target),
                 Color::rgb(1.0, 0.85, 0.4),
             );
         } else if line == "S: ERR chat_spam_forbidden" {
             history.add(
                 console.active_channel,
-                "[System] Ralentissez ! Anti-spam actif (2s).".to_string(),
+                "[System] Slow down! Anti-spam is active (2s).".to_string(),
                 Color::rgb(1.0, 0.4, 0.4),
             );
         } else if line == "S: ERR you_have_no_group" {
@@ -2683,7 +2683,7 @@ fn process_chat_events(
             }
             history.add(
                 console.active_channel,
-                "[System] Vous n'êtes pas dans un groupe.".to_string(),
+                "[System] You are not in a group.".to_string(),
                 Color::rgb(1.0, 0.4, 0.4),
             );
         } else if line == "S: ERR player_not_found" {
@@ -2701,25 +2701,25 @@ fn process_chat_events(
         } else if line == "S: ERR cannot_invite_yourself" {
             history.add(
                 console.active_channel,
-                "[System] Impossible de vous inviter vous-même.".to_string(),
+                "[System] You cannot invite yourself.".to_string(),
                 Color::rgb(1.0, 0.4, 0.4),
             );
         } else if line == "S: ERR you_already_have_a_group" {
             history.add(
                 console.active_channel,
-                "[System] Vous avez déjà un groupe.".to_string(),
+                "[System] You already have a group.".to_string(),
                 Color::rgb(1.0, 0.4, 0.4),
             );
         } else if line == "S: ERR no_pending_invite" {
             history.add(
                 console.active_channel,
-                "[System] Aucune invitation en attente.".to_string(),
+                "[System] No pending invitation.".to_string(),
                 Color::rgb(1.0, 0.4, 0.4),
             );
         } else if line == "S: ERR group_no_longer_exists" {
             history.add(
                 console.active_channel,
-                "[System] Le groupe n'existe plus.".to_string(),
+                "[System] The group no longer exists.".to_string(),
                 Color::rgb(1.0, 0.4, 0.4),
             );
         }
@@ -2978,7 +2978,7 @@ fn update_chat_messages_ui(
     if relevant.is_empty() {
         sections.push(TextSection::new(
             format!(
-                "(Aucun message dans le canal {})\n",
+                "(No messages in channel {})\n",
                 console.active_channel.name()
             ),
             TextStyle {

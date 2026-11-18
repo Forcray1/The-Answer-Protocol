@@ -20,8 +20,8 @@ use domain::{GroupId, RoomId};
 use state::ServerState;
 use world::WorldData;
 
-// Le pool SQLite est partagé entre tous les handlers via Arc
-// SqlitePool est déjà thread-safe, pas besoin de Mutex autour
+// The SQLite pool is shared across handlers through Arc.
+// SqlitePool is already thread-safe, so no Mutex is needed around it.
 pub type DbPool = Arc<sqlx::SqlitePool>;
 
 #[derive(Clone, Debug)]
@@ -68,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("[SERVER] JSON log mode enabled.");
     }
 
-    // 1. Initialise la BDD — crée game.db + tables si nécessaire
+    // 1. Initialize the database — creates game.db + tables when needed.
     println!("[SERVER] Initializing database...");
     let pool = database::init_db("sqlite://game.db").await?;
     let shared_pool: DbPool = Arc::new(pool);
@@ -85,7 +85,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let shared_world = Arc::new(world_data);
 
-    // 3. Initialise l'état en mémoire (inchangé)
+    // 3. Initialize in-memory game state.
     let mut initial_state = ServerState::new();
     initial_state.initialize_from_world(&shared_world);
     let shared_state = Arc::new(Mutex::new(initial_state));
@@ -187,7 +187,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let world = Arc::clone(&shared_world);
         let state = Arc::clone(&shared_state);
         let tx = Arc::clone(&shared_tx);
-        let pool = Arc::clone(&shared_pool); // clone du Arc, pas du pool
+        let pool = Arc::clone(&shared_pool); // clone of the Arc, not the pool itself
         let mut rx = tx.subscribe();
 
         tokio::spawn(async move {
@@ -247,13 +247,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             let guard = state.lock().await;
                             guard.players.get(&addr).map(|p| p.username.clone())
                         };
-                        let commande = GameCommand::parse(&line);
+                        let command = GameCommand::parse(&line);
                         if let Some(name) = &player_name {
                             log_event("COMMAND", name, json!({"raw": line.clone()}));
                         } else {
                             log_event("COMMAND", "anonymous", json!({"addr": addr.to_string(), "raw": line.clone()}));
                         }
-                        let (reponse, quitter) = match commande {
+                        let (response, should_quit) = match command {
                             GameCommand::Connect { username, password } => {
                                 let response = handlers::process_connect(
                                     addr,
@@ -273,13 +273,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         };
                         let effective_player = player_name.as_deref().unwrap_or("anonymous");
-                        log_event("RESPONSE", effective_player, json!({"raw": line, "response": reponse.clone()}));
+                        log_event("RESPONSE", effective_player, json!({"raw": line, "response": response.clone()}));
 
-                        if writer.write_all(reponse.as_bytes()).await.is_err() {
+                        if writer.write_all(response.as_bytes()).await.is_err() {
                             break;
                         }
 
-                        if quitter {
+                        if should_quit {
                             let removed_player = {
                                 let mut guard = state.lock().await;
                                 guard.remove_player(addr)

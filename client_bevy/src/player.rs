@@ -429,7 +429,7 @@ fn send_local_position(
     };
     let pos = transform.translation.truncate();
     if last_sent.map_or(false, |p| p.distance(pos) < 1.0) {
-        return; // position inchangée : rien à envoyer
+        return; // Position unchanged: nothing to send.
     }
     *last_sent = Some(pos);
     let _ = sender.0.send(format!(

@@ -165,6 +165,7 @@ Framing: TCP, UTF-8, one message per line terminated by `\n`. Server lines start
 | `TALK <npc>` | Dialogue; also advances quests. |
 | `ATTACK <enemy>` | See [Combat System](#combat-system). |
 | `STATUS` | HP, level, XP, gold, location. |
+| `QUEST [id or name]` | Without argument, returns details for the first active quest; with an id/name, returns detailed status for that quest. |
 | `QUESTS` | Replies with an `EVT QUEST_DATA` line. |
 | `WHO` | `OK { "room": [...], "server": N }`. |
 | `CHAT <GLOBAL\|ROOM\|GROUP> <text>` | Global, room and group channels. |
@@ -184,7 +185,7 @@ Framing: TCP, UTF-8, one message per line terminated by `\n`. Server lines start
 | Presence events | `EVT ROOM <room> PRESENCE ENTER <name> <skin> <x> <y>` carries the room id, a skin and a position. | The GUI needs to place players in the room. |
 | Extra commands | `POS <x> <y>`, `INTERACT <npc>`, `ANSWER <npc> <answer>`, `EQUIP`, `UNEQUIP`, `EQUIPMENT`, `INFO`, `FLEE`. | Needed by the GUI (position sync, NPC interaction, choice dialogues, equipment). |
 | Extra events | `MOB_SPAWN`, `MOB_DESPAWN`, `POS`, `PLAYER_STATS`, `INV_DATA`, `EQUIP_DATA`, `CHAR_STATS`, `QUEST_DATA`, `QUEST_UPDATE`, `QUEST_RESET`, `DIALOGUE`, `DIALOGUE_CHOICE`, `COMBAT *`. | Same reason. A client that only knows the base RFC can ignore them. |
-| `QUEST <id>` | Parsed but not yet implemented (answers `OK command received but not implemented yet`). | See the developer notes. |
+| `QUEST` | Implemented. Returns one quest detail object (`OK { ... }`) for a specific id/name or for the first active quest when called without an argument. | Keeps `QUESTS` as the multi-quest listing command. |
 | Errors | Error tokens are snake_case codes for protocol errors (`malformed_command`, `utilize_connect_first`, `unknown_channel`, ...) and English sentences for gameplay errors. | Historical; to be unified. |
 
 ## Combat System
@@ -531,6 +532,11 @@ AI has been used to help with research, and to fasten the code, as in righting b
 		- added xp for eval/tests
 		- corrected a lot of bugs who appeared last commit
 		- cleaned the exit of a dialogue with E 
+18/11/2026:
+	mlorenzo:
+		- quest implemented
+		- Adjustment size sandmonster
+		- Translated all french to english
 ````
 
 TODO:
@@ -541,6 +547,5 @@ TODO:
 
 - [ ] **GUI required controls.** Subject lists buttons for LOOK, MOVE, TAKE, DROP, TALK, ATTACK, STATUS, QUEST, QUESTS, WHO, GROUP, QUIT, plus counters for players in the room and on the server. No `LOOK`, `TAKE`, `TALK`, `STATUS`, `WHO` or `QUIT` is sent by a button *(verify in the UI)*, and no counters were found. Picking up ground items seems possible only through the text console *(verify)*.
 
-only quests implemented and not quest
 MAJ README
 pass lint

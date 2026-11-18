@@ -235,7 +235,7 @@ world:
     spawn_pos:
     - 593
     - -70
-    scale: 0.8
+    scale: 1.5
     hp: 200
     damage: 30
     defense: 15
@@ -254,7 +254,7 @@ world:
     spawn_pos:
     - 593
     - -70
-    scale: 0.8
+    scale: 1.5
     hp: 200
     damage: 30
     defense: 15
@@ -273,7 +273,7 @@ world:
     spawn_pos:
     - 593
     - -70
-    scale: 0.8
+    scale: 1.5
     hp: 200
     damage: 30
     defense: 15
@@ -1109,7 +1109,6 @@ world:
       - Jamato
       - Fatih
       - Panneau
-      - xp
       items:
       - bone
       - bone

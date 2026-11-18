@@ -99,7 +99,7 @@ impl GameCommand {
             "TALK" if parts.len() > 1 => GameCommand::Talk(parts[1..].join(" ")),
             "INTERACT" if parts.len() > 1 => GameCommand::Interact(parts[1..].join(" ")),
             "QUESTS" => GameCommand::Quests,
-            "QUEST" if parts.len() > 1 => GameCommand::Quest(parts[1..].join(" ")),
+            "QUEST" => GameCommand::Quest(parts.get(1..).unwrap_or(&[]).join(" ")),
 
             "WHO" => GameCommand::Who,
 

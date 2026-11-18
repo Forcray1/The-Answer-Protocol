@@ -1056,31 +1056,31 @@ fn handle_unequip(
 
 fn handle_equipment(addr: SocketAddr, state: &ServerState, world: &WorldData) -> String {
     if let Some(player) = state.players.get(&addr) {
-        let aucun = || "None".to_string();
+        let none_value = || "None".to_string();
         let head = player
             .equipement
             .helmet
             .as_ref()
             .map(|a| a.name.clone())
-            .unwrap_or_else(aucun);
+            .unwrap_or_else(none_value);
         let chest = player
             .equipement
             .chestplate
             .as_ref()
             .map(|a| a.name.clone())
-            .unwrap_or_else(aucun);
+            .unwrap_or_else(none_value);
         let legs = player
             .equipement
             .legging
             .as_ref()
             .map(|a| a.name.clone())
-            .unwrap_or_else(aucun);
+            .unwrap_or_else(none_value);
         let weapon = player
             .equipement
             .weapon
             .as_ref()
             .map(|w| w.name.clone())
-            .unwrap_or_else(aucun);
+            .unwrap_or_else(none_value);
         format!(
             "S: OK --- EQUIPMENT ---\n  Head: {}\n  Chest: {}\n  Legs: {}\n  Weapon: {}\n{}{}",
             head,
@@ -3513,13 +3513,25 @@ fn handle_quest(addr: SocketAddr, query: String, state: &ServerState, world: &Wo
     let Some(player) = state.players.get(&addr) else {
         return "S: ERR utilize_connect_first\n".to_string();
     };
-    let Some(q) = world
-        .world
-        .quests
-        .iter()
-        .find(|q| ci_eq(q.id.as_str(), &query) || ci_eq(&q.name, &query))
-    else {
-        return "S: ERR unknown_quest\n".to_string();
+    let normalized_query = query.trim();
+    let quest_opt = if normalized_query.is_empty() {
+        player
+            .quest_progress
+            .first()
+            .and_then(|progress| world.world.quests.iter().find(|q| q.id == progress.quest_id))
+    } else {
+        world
+            .world
+            .quests
+            .iter()
+            .find(|q| ci_eq(q.id.as_str(), normalized_query) || ci_eq(&q.name, normalized_query))
+    };
+    let Some(q) = quest_opt else {
+        return if normalized_query.is_empty() {
+            "S: ERR no_active_quest\n".to_string()
+        } else {
+            "S: ERR unknown_quest\n".to_string()
+        };
     };
 
     let prog = quest_progress_for(player, &q.id);

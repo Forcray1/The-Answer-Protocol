@@ -1,9 +1,8 @@
 // serveur/src/state.rs
 //
-// L'état de jeu VIVANT, en RAM (le "placement" : qui est où, quels objets au sol,
-// les PV courants). Le `Player` runtime a été enrichi pour épouser le modèle de
-// `domain` (adapté de classes.rs) : niveau, argent, barre d'XP, stats, équipement
-// structuré, inventaire à trois sacs, état de combat…
+// Live in-memory game state (placement: who is where, which items are on the ground,
+// current HP). The runtime `Player` mirrors the `domain` model: level, gold, XP bar,
+// stats, structured equipment, three-bag inventory, and combat state.
 
 use std::collections::HashMap;
 use std::collections::HashSet;
