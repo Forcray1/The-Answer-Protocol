@@ -206,8 +206,8 @@ world:
     name: Squeletton leader
     description: Stronger skeleton commander that drops bones and a rare dagger.
     role: enemy
-    sprite: squeletton
-    combat_sprite: squeletton
+    sprite: IdleSqueleton
+    combat_sprite: Squeletton
     spawn_pos:
     - 300
     - -200
@@ -235,7 +235,7 @@ world:
     spawn_pos:
     - 593
     - -70
-    scale: 0.8
+    scale: 1.3
     hp: 200
     damage: 30
     defense: 15
@@ -254,7 +254,7 @@ world:
     spawn_pos:
     - 593
     - -70
-    scale: 0.8
+    scale: 1.3
     hp: 200
     damage: 30
     defense: 15
@@ -273,7 +273,7 @@ world:
     spawn_pos:
     - 593
     - -70
-    scale: 0.8
+    scale: 1.3
     hp: 200
     damage: 30
     defense: 15
@@ -1111,7 +1111,6 @@ world:
       - Panneau
       - xp
       items:
-      - bone
       - bone
     Wild4:
       name: Wild4
