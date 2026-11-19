@@ -152,20 +152,13 @@ pub struct Armor {
 
 #[derive(Debug, Clone, Default)]
 pub struct Equipement {
-    pub helmet: Option<Armor>,
     pub chestplate: Option<Armor>,
-    pub legging: Option<Armor>,
-    pub boot: Option<Armor>,
     pub weapon: Option<Weapon>,
 }
 
 impl Equipement {
     pub fn total_defense(&self) -> i32 {
-        [&self.helmet, &self.chestplate, &self.legging, &self.boot]
-            .iter()
-            .filter_map(|slot| slot.as_ref())
-            .map(|armor| armor.defense)
-            .sum()
+        self.chestplate.as_ref().map(|armor| armor.defense).unwrap_or(0)
     }
 
     pub fn weapon_damage(&self) -> i32 {
@@ -174,27 +167,15 @@ impl Equipement {
 
     pub fn armor_slot_mut(&mut self, slot: &str) -> Option<&mut Option<Armor>> {
         match slot {
-            "head" | "helmet" => Some(&mut self.helmet),
             "chest" | "chestplate" => Some(&mut self.chestplate),
-            "legs" | "legging" | "leggings" => Some(&mut self.legging),
-            "boot" | "boots" => Some(&mut self.boot),
             _ => None,
         }
     }
 
     pub fn equipped(&self) -> Vec<(&'static str, ItemId, String)> {
         let mut out = Vec::new();
-        if let Some(a) = &self.helmet {
-            out.push(("head", a.id.clone(), a.name.clone()));
-        }
         if let Some(a) = &self.chestplate {
             out.push(("chest", a.id.clone(), a.name.clone()));
-        }
-        if let Some(a) = &self.legging {
-            out.push(("legs", a.id.clone(), a.name.clone()));
-        }
-        if let Some(a) = &self.boot {
-            out.push(("boot", a.id.clone(), a.name.clone()));
         }
         if let Some(w) = &self.weapon {
             out.push(("weapon", w.id.clone(), w.name.clone()));

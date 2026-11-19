@@ -540,15 +540,13 @@ AI has been used to help with research, and to fasten the code, as in righting b
 		- added connect in temporary account without password
 		- Cleaned the enter broadcast
 		- Synced view of player between client_bevy and client
+18/11/2026:
+	mlorenzo:
+		- Big rework and clean of the server and domain
 ````
 
 TODO:
 	- finish the world.yaml with all the informations
 	- Help Command
-
-### Blocking: likely evaluation failures
-
-- [ ] **GUI required controls.** Subject lists buttons for LOOK, MOVE, TAKE, DROP, TALK, ATTACK, STATUS, QUEST, QUESTS, WHO, GROUP, QUIT, plus counters for players in the room and on the server. No `LOOK`, `TAKE`, `TALK`, `STATUS`, `WHO` or `QUIT` is sent by a button *(verify in the UI)*, and no counters were found. Picking up ground items seems possible only through the text console *(verify)*.
-
-MAJ README
-pass lint
+	- MAJ README
+	- pass lint

@@ -1,23 +1,23 @@
-use chrono::Local;
-use serde_json::json;
 use std::collections::{HashMap, VecDeque};
-use std::fs::OpenOptions;
-use std::io::Write;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use std::time::Instant;
+
 use tokio::net::TcpListener;
-use tokio::sync::{broadcast, mpsc, Mutex};
+use tokio::sync::{broadcast, Mutex};
 
 pub mod board_quests;
 mod commands;
+mod connection;
+mod events;
 pub mod handlers;
+mod logging;
+mod persistence;
 mod state;
+mod tasks;
 mod world;
 
-use commands::GameCommand;
-use domain::{GroupId, RoomId};
+use events::GlobalEvent;
 use state::ServerState;
 use world::WorldData;
 
@@ -25,53 +25,10 @@ use world::WorldData;
 // SqlitePool is already thread-safe, so no Mutex is needed around it.
 pub type DbPool = Arc<sqlx::SqlitePool>;
 
-#[derive(Clone, Debug)]
-pub struct GlobalEvent {
-    pub sender_addr: Option<std::net::SocketAddr>,
-    message: String,
-    target_room: Option<RoomId>,
-    target_group: Option<GroupId>,
-    target_player: Option<std::net::SocketAddr>,
-}
-
-static LOG_MODE: AtomicBool = AtomicBool::new(false);
-
-pub fn log_event(event_type: &str, player: &str, details: serde_json::Value) {
-    let level = match event_type {
-        "AUTH_FAIL" | "ABUSE_PATTERN" => "WARN",
-        "INTERNAL_ERROR" | "DB_ERROR" => "ERROR",
-        _ => "INFO",
-    };
-    let log_entry = json!({
-        "timestamp": Local::now().format("%Y-%m-%dT%H:%M:%S").to_string(),
-        "level": level,
-        "event": event_type,
-        "player": player,
-        "details": details
-    });
-    let log_string = log_entry.to_string();
-    let suppress_pos_log = matches!(event_type, "COMMAND" | "RESPONSE")
-        && log_entry["details"]["raw"]
-            .as_str()
-            .map(|raw| raw.trim_start().to_ascii_uppercase().starts_with("POS "))
-            .unwrap_or(false);
-    if suppress_pos_log {
-        return;
-    }
-    println!("{}", log_string);
-    if let Ok(mut file) = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("logs.json")
-    {
-        let _ = writeln!(file, "{}", log_string);
-    }
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if std::env::args().any(|arg| arg == "--logs") {
-        LOG_MODE.store(true, Ordering::SeqCst);
+        logging::LOG_MODE.store(true, Ordering::SeqCst);
         println!("[SERVER] JSON log mode enabled.");
     }
 
@@ -100,353 +57,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (tx, _rx) = broadcast::channel::<GlobalEvent>(32);
     let shared_tx = Arc::new(tx);
 
-    // Respawn loop: independent timer so NPC respawns do not depend on player commands.
-    {
-        let world_for_respawn = Arc::clone(&shared_world);
-        let state_for_respawn = Arc::clone(&shared_state);
-        let tx_for_respawn = Arc::clone(&shared_tx);
-        tokio::spawn(async move {
-            let mut ticker = tokio::time::interval(Duration::from_secs(1));
-            loop {
-                ticker.tick().await;
-                let mut events_to_emit: Vec<(RoomId, String)> = Vec::new();
-                {
-                    let mut guard = state_for_respawn.lock().await;
-                    let respawned = guard.update_respawns(&world_for_respawn);
-                    for (npc_id, room_id) in respawned {
-                        if let Some(npc) =
-                            world_for_respawn.world.npcs.iter().find(|n| n.id == npc_id)
-                        {
-                            let (x, y) = npc
-                                .spawn_pos
-                                .map(|p| (p[0] as i64, p[1] as i64))
-                                .unwrap_or((0, 0));
-                            if npc.role == "board" {
-                                events_to_emit.push((
-                                    room_id.clone(),
-                                    format!("S: EVT ROOM BOARD_SPAWN {} {} {}\n", npc_id, x, y),
-                                ));
-                            } else {
-                                let sprite = npc.map_sprite();
-                                let hp = guard.npc_hps.get(&npc_id).copied().unwrap_or(npc.hp);
-                                let scale = npc.scale.unwrap_or(1.0);
-                                events_to_emit.push((
-                                    room_id.clone(),
-                                    format!(
-                                        "S: EVT ROOM MOB_SPAWN {} {} {} {} {} {} {} {} {}\n",
-                                        npc_id,
-                                        sprite,
-                                        x,
-                                        y,
-                                        hp,
-                                        npc.hp,
-                                        scale,
-                                        npc.name.replace(' ', "_"),
-                                        npc.role
-                                    ),
-                                ));
-                            }
-                        }
-                    }
-                }
-                for (room_id, message) in events_to_emit {
-                    let _ = tx_for_respawn.send(GlobalEvent {
-                        sender_addr: None,
-                        message,
-                        target_room: Some(room_id),
-                        target_group: None,
-                        target_player: None,
-                    });
-                }
-            }
-        });
-    }
+    tasks::spawn_respawn_loop(
+        Arc::clone(&shared_world),
+        Arc::clone(&shared_state),
+        Arc::clone(&shared_tx),
+    );
 
     let listener = TcpListener::bind("127.0.0.1:4243").await?;
     println!("[SERVER] Listening on port 4243...");
 
-    // Spawn a task that waits for SIGINT (Ctrl-C) and saves world state before exit.
-    {
-        let state_for_shutdown = Arc::clone(&shared_state);
-        let pool_for_shutdown = Arc::clone(&shared_pool);
-        tokio::spawn(async move {
-            if tokio::signal::ctrl_c().await.is_ok() {
-                println!("[SERVER] Shutdown signal received. Saving player data and world state…");
-                let (players_to_save, room_items) = {
-                    let guard = state_for_shutdown.lock().await;
-                    let players = guard.players.values().cloned().collect::<Vec<_>>();
-                    let room_items = guard.room_items.clone();
-                    (players, room_items)
-                };
-                for player in &players_to_save {
-                    handlers::save_player_to_db(&pool_for_shutdown, player).await;
-                }
-                save_world_state(&room_items, "world.yaml");
-                println!("[SERVER] All data saved. Goodbye.");
-                std::process::exit(0);
-            }
-        });
-    }
+    tasks::spawn_shutdown_handler(Arc::clone(&shared_state), Arc::clone(&shared_pool));
 
     let mut recent_connections: HashMap<String, VecDeque<Instant>> = HashMap::new();
     loop {
         let (socket, addr) = listener.accept().await?;
-        let ip = addr.ip().to_string();
-        let now = Instant::now();
-        let entries = recent_connections.entry(ip.clone()).or_default();
-        while entries
-            .front()
-            .is_some_and(|t| now.duration_since(*t) > Duration::from_secs(10))
-        {
-            entries.pop_front();
-        }
-        entries.push_back(now);
-        if entries.len() >= 5 {
-            log_event(
-                "ABUSE_PATTERN",
-                &ip,
-                json!({
-                    "type": "rapid_connections",
-                    "count": entries.len(),
-                    "window_seconds": 10
-                }),
-            );
-        }
+        connection::note_connection(&mut recent_connections, &addr.ip().to_string(), Instant::now());
 
-        let world = Arc::clone(&shared_world);
-        let state = Arc::clone(&shared_state);
-        let tx = Arc::clone(&shared_tx);
-        let pool = Arc::clone(&shared_pool); // clone of the Arc, not the pool itself
-        let mut rx = tx.subscribe();
-
-        tokio::spawn(async move {
-            let (reader, mut writer) = socket.into_split();
-            let mut reader = BufReader::new(reader);
-            let (line_tx, mut line_rx) = mpsc::unbounded_channel::<String>();
-            let mut recent_commands: VecDeque<Instant> = VecDeque::new();
-            let mut last_flood_log: Option<Instant> = None;
-
-            tokio::spawn(async move {
-                let mut line = String::new();
-                loop {
-                    line.clear();
-                    match reader.read_line(&mut line).await {
-                        Ok(0) => break,
-                        Ok(_) => {
-                            let trimmed = line.trim_end_matches(['\r', '\n']).to_string();
-                            if line_tx.send(trimmed).is_err() {
-                                break;
-                            }
-                        }
-                        Err(_) => break,
-                    }
-                }
-            });
-
-            let _ = writer.write_all(b"S: OK hello proto=1\n").await;
-
-            loop {
-                tokio::select! {
-                    maybe_line = line_rx.recv() => {
-                        let Some(line) = maybe_line else {
-                            let removed_player = {
-                                let mut guard = state.lock().await;
-                                guard.remove_player(addr)
-                            };
-                            if let Some(player) = removed_player {
-                                handlers::save_player_to_db(&pool, &player).await;
-                                log_event("DISCONNECT", &player.username, json!({"reason": "connection_lost"}));
-                                let _ = tx.send(GlobalEvent {
-                                    sender_addr: Some(addr),
-                                    message: format!("S: EVT ROOM PRESENCE LEAVE {}\n", player.username),
-                                    target_room: Some(player.current_room.clone()),
-                                    target_group: None,
-                                    target_player: None,
-                                });
-                                let _ = tx.send(GlobalEvent {
-                                    sender_addr: Some(addr),
-                                    message: format!("S: EVT GLOBAL CHAT Server {} lost connection.\n", player.username),
-                                    target_room: None,
-                                    target_group: None,
-                                    target_player: None,
-                                });
-                            }
-                            break;
-                        };
-
-                        let player_name = {
-                            let guard = state.lock().await;
-                            guard.players.get(&addr).map(|p| p.username.clone())
-                        };
-
-                        let command_now = Instant::now();
-                        while recent_commands.front().is_some_and(|t| {
-                            command_now.duration_since(*t) > Duration::from_secs(2)
-                        }) {
-                            recent_commands.pop_front();
-                        }
-                        recent_commands.push_back(command_now);
-                        let should_log_flood = recent_commands.len() >= 25
-                            && last_flood_log.is_none_or(|t| {
-                                command_now.duration_since(t) > Duration::from_secs(5)
-                            });
-                        if should_log_flood {
-                            let actor = player_name.as_deref().unwrap_or("anonymous");
-                            log_event(
-                                "ABUSE_PATTERN",
-                                actor,
-                                json!({
-                                    "type": "command_flooding",
-                                    "addr": addr.to_string(),
-                                    "commands_in_2s": recent_commands.len()
-                                }),
-                            );
-                            last_flood_log = Some(command_now);
-                        }
-                        let command = GameCommand::parse(&line);
-                        if let Some(name) = &player_name {
-                            log_event("COMMAND", name, json!({"raw": line.clone()}));
-                        } else {
-                            log_event("COMMAND", "anonymous", json!({"addr": addr.to_string(), "raw": line.clone()}));
-                        }
-                        let (response, should_quit) = match command {
-                            GameCommand::Connect { username, password } => {
-                                let response = handlers::process_connect(
-                                    addr,
-                                    username,
-                                    password,
-                                    &state,
-                                    &world,
-                                    &tx,
-                                    &pool,
-                                )
-                                .await;
-                                (response, false)
-                            }
-                            other => {
-                                let mut guard = state.lock().await;
-                                handlers::process_command(addr, other, &mut guard, &world, &tx)
-                            }
-                        };
-                        let effective_player = player_name.as_deref().unwrap_or("anonymous");
-                        log_event("RESPONSE", effective_player, json!({"raw": line, "response": response.clone()}));
-
-                        if writer.write_all(response.as_bytes()).await.is_err() {
-                            break;
-                        }
-
-                        if should_quit {
-                            let removed_player = {
-                                let mut guard = state.lock().await;
-                                guard.remove_player(addr)
-                            };
-                            if let Some(player) = removed_player {
-                                handlers::save_player_to_db(&pool, &player).await;
-                                log_event("DISCONNECT", &player.username, json!({"reason": "QUIT"}));
-                                let _ = tx.send(GlobalEvent {
-                                    sender_addr: Some(addr),
-                                    message: format!("S: EVT ROOM PRESENCE LEAVE {}\n", player.username),
-                                    target_room: Some(player.current_room.clone()),
-                                    target_group: None,
-                                    target_player: None,
-                                });
-                                let _ = tx.send(GlobalEvent {
-                                    sender_addr: Some(addr),
-                                    message: format!("S: EVT GLOBAL CHAT Server {} left the world.\n", player.username),
-                                    target_room: None,
-                                    target_group: None,
-                                    target_player: None,
-                                });
-                            }
-                            break;
-                        }
-                    }
-                    Ok(event) = rx.recv() => {
-                        if event.sender_addr != Some(addr) {
-                            if let Some(ref target) = event.target_player {
-                                // If it's a direct message, ONLY send to that player.
-                                // We don't skip the sender check here since the target might be the sender in weird cases, but normally they differ.
-                                // Actually we skip the `sender_addr != addr` check for direct messages if we want, but it's already inside `if event.sender_addr != addr`.
-                                if addr == *target {
-                                    let _ = writer.write_all(event.message.as_bytes()).await;
-                                }
-                            } else if let Some(ref target) = event.target_room {
-                                let guard = state.lock().await;
-                                if let Some(player) = guard.players.get(&addr) {
-                                    if &player.current_room == target {
-                                        let _ = writer.write_all(event.message.as_bytes()).await;
-                                    }
-                                }
-                            } else if let Some(ref target_g) = event.target_group {
-                                let guard = state.lock().await;
-                                if let Some(player) = guard.players.get(&addr) {
-                                    if player.group.as_ref() == Some(target_g) {
-                                        let _ = writer.write_all(event.message.as_bytes()).await;
-                                    }
-                                }
-                            } else {
-                                let _ = writer.write_all(event.message.as_bytes()).await;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-    }
-}
-
-// ── World state persistence ───────────────────────────────────────────────────
-//
-// On clean shutdown (SIGINT / Ctrl-C), all items currently on the ground
-// (whether originally from world.yaml or dropped by a player) are written
-// back into the `items:` arrays in world.yaml.  On the next startup they
-// will be loaded as regular World items and appear on the ground again.
-
-fn save_world_state(
-    room_items: &std::collections::HashMap<domain::RoomId, Vec<state::RuntimeItem>>,
-    world_path: &str,
-) {
-    let content = match std::fs::read_to_string(world_path) {
-        Ok(c) => c,
-        Err(e) => {
-            eprintln!("[SAVE] Cannot read {}: {}", world_path, e);
-            return;
-        }
-    };
-
-    let mut value: serde_yaml::Value = match serde_yaml::from_str(&content) {
-        Ok(v) => v,
-        Err(e) => {
-            eprintln!("[SAVE] Cannot parse world.yaml: {}", e);
-            return;
-        }
-    };
-
-    if let Some(locations) = value
-        .get_mut("world")
-        .and_then(|w| w.get_mut("locations"))
-        .and_then(|l| l.as_mapping_mut())
-    {
-        for (room_id, items) in room_items {
-            let key = serde_yaml::Value::String(room_id.0.clone());
-            if let Some(room_entry) = locations.get_mut(&key) {
-                let item_ids: Vec<serde_yaml::Value> = items
-                    .iter()
-                    .map(|ri| serde_yaml::Value::String(ri.item_id.0.clone()))
-                    .collect();
-                room_entry["items"] = serde_yaml::Value::Sequence(item_ids);
-            }
-        }
-    }
-
-    match serde_yaml::to_string(&value) {
-        Ok(output) => {
-            if let Err(e) = std::fs::write(world_path, output) {
-                eprintln!("[SAVE] Cannot write world.yaml: {}", e);
-            } else {
-                println!("[SAVE] world.yaml updated with current ground items.");
-            }
-        }
-        Err(e) => eprintln!("[SAVE] Cannot serialize world.yaml: {}", e),
+        tokio::spawn(connection::handle_client(
+            socket,
+            addr,
+            Arc::clone(&shared_state),
+            Arc::clone(&shared_world),
+            Arc::clone(&shared_tx),
+            Arc::clone(&shared_pool), // clone of the Arc, not the pool itself
+            shared_tx.subscribe(),
+        ));
     }
 }

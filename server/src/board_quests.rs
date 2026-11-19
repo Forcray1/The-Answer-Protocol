@@ -1,5 +1,3 @@
-// serveur/src/board_quests.rs
-//
 // Board quest system.
 //
 // Notice boards ("Panneau" NPCs) in Start_oasis and Oasis2 share a single pool
@@ -7,11 +5,8 @@
 // rewards 10-20 gold per required kill.
 //
 // Lifecycle:
-//   available  →  taken (locked to one player)  →  completed (slot regenerated)
-//   taken → abandoned (slot returns to "available", counter reset)
-//
-// Extending: add new mobs to MOB_POOL below and they will automatically appear
-// in generated quests.
+//   available -> taken (locked to one player) -> completed (slot regenerated)
+//   taken -> abandoned (slot returns to "available", counter reset)
 
 use rand::Rng;
 
@@ -32,7 +27,6 @@ fn canonical_mob_key(raw: &str) -> String {
 
 /// Registry of mobs that can appear in board kill quests.
 /// Fields: (mob_id, display_name, location_hint)
-///
 /// Boss-tier and special-quest mobs are intentionally excluded from the board pool.
 pub static MOB_POOL: &[(&str, &str, &str)] = &[
     ("Squeletton", "Squeletton", "in the wild areas"),
@@ -49,8 +43,6 @@ fn is_allowed_board_mob(mob_id: &str) -> bool {
     !matches!(mob_id, "Basilic" | "Drake" | "SandMonster" | "Sandmonster")
 }
 
-// ── Slot ─────────────────────────────────────────────────────────────────────
-
 /// One slot on the board: a single generated kill quest.
 #[derive(Debug, Clone)]
 pub struct BoardQuestSlot {
@@ -58,13 +50,12 @@ pub struct BoardQuestSlot {
     pub slot_id: usize,
     /// Mob id to kill (matches NPC id in world.yaml).
     pub mob_id: String,
-    /// Human-readable mob name.
     pub mob_name: String,
     /// Where the mob can be found (display hint for the player).
     pub location_hint: String,
     /// Number of kills required (2–10).
     pub kill_count: u32,
-    /// Total gold reward (kill_count × gold_per_kill, where gold_per_kill ∈ [10, 20]).
+    /// Total gold reward (kill_count × gold_per_kill, where gold_per_kill between [10, 20]).
     pub gold_reward: i32,
     /// Username of the player who accepted this quest, or None if available.
     pub taken_by: Option<String>,
@@ -109,7 +100,7 @@ impl BoardQuestSlot {
         canonical_mob_key(&self.mob_id) == canonical_mob_key(mob_id)
     }
 
-    /// Human-readable one-line summary.
+    /// readable one-line summary.
     pub fn summary(&self) -> String {
         match &self.taken_by {
             None => format!(
@@ -153,8 +144,6 @@ impl BoardQuestSlot {
         )
     }
 }
-
-// ── Pool ─────────────────────────────────────────────────────────────────────
 
 /// Shared board quest pool — both boards (Start_oasis and Oasis2) use the same instance.
 #[derive(Debug)]
