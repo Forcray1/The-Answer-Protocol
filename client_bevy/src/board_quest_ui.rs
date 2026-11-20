@@ -1,12 +1,3 @@
-// client_bevy/src/board_quest_ui.rs
-//
-// Board Quest UI — displays the 6 kill quests from the notice board
-// and lets the player accept or abandon a quest.
-//
-// Triggered by the server event `S: EVT BOARD_QUESTS <wire_data>`.
-// Wire format per slot (pipe-separated):
-//   slot:mob_id:mob_name:kill_count:gold_reward:status:taker:kills_done
-
 use crate::AppState;
 use crate::net::{NetworkSender, ServerMessageEvent};
 use bevy::prelude::*;
@@ -27,7 +18,7 @@ impl Plugin for BoardQuestPlugin {
     }
 }
 
-// ── Data ─────────────────────────────────────────────────────────────────────
+// Data
 
 #[derive(Debug, Clone)]
 pub struct BoardSlot {
@@ -53,7 +44,7 @@ pub struct BoardQuestState {
     pub my_slot: Option<usize>,
 }
 
-// ── Components ────────────────────────────────────────────────────────────────
+// Components
 
 #[derive(Component)]
 struct BoardQuestRoot;
@@ -61,7 +52,7 @@ struct BoardQuestRoot;
 #[derive(Component)]
 struct BoardSlotRow(usize);
 
-// ── Systems ──────────────────────────────────────────────────────────────────
+// Systems
 
 fn handle_board_quest_event(
     mut events: EventReader<ServerMessageEvent>,

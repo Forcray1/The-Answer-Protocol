@@ -41,7 +41,7 @@ impl DialogueState {
     }
 }
 
-// ── Composants UI ─────────────────────────────────────────────────────────
+// Composants UI
 
 #[derive(Component)]
 struct NpcDialoguePopupRoot;
@@ -156,7 +156,7 @@ fn show_npc_dialogue_popup(
     };
 
     for ev in events.read() {
-        // ── Choice dialogue ───────────────────────────────────────────────
+        // Choice dialogue
         // Format: `S: EVT DIALOGUE_CHOICE <npc_key> <pages>||CHOICES||<text>:<ans>|…`
         if let Some(rest) = ev.0.strip_prefix("S: EVT DIALOGUE_CHOICE ") {
             let mut split = rest.splitn(2, ' ');
@@ -216,7 +216,7 @@ fn show_npc_dialogue_popup(
             continue;
         }
 
-        // ── Dialogue simple ───────────────────────────────────────────────
+        // Classic Dialogue
         let Some(rest) = ev.0.strip_prefix("S: EVT DIALOGUE ") else {
             continue;
         };

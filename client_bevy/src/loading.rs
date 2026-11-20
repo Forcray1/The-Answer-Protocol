@@ -19,14 +19,14 @@ impl Plugin for LoadingPlugin {
     }
 }
 
-// ── Constants ──────────────────────────────────────────────────────────
+// Constants
 
 const FADE_DURATION: f32 = 0.7;
 const OVERLAY_Z: f32 = 9999.0;
 const OVERLAY_SIZE: f32 = 8000.0; // large enough to cover any camera view
 const TEMPLE_GATE_REJECT_POINT: Vec2 = Vec2::new(1149.0, 113.0);
 
-// ── Events ─────────────────────────────────────────────────────────────
+// Events
 
 /// Fired by the player module when the player reaches a room edge.
 #[derive(Event)]
@@ -35,7 +35,7 @@ pub struct RoomTransitionRequest {
     pub arrival_point: Vec2,
 }
 
-// ── Resources ──────────────────────────────────────────────────────────
+// Resources
 
 #[derive(Resource, Default)]
 pub struct RoomTransition {
@@ -65,12 +65,12 @@ impl RoomTransition {
     }
 }
 
-// ── Components ─────────────────────────────────────────────────────────
+// Components
 
 #[derive(Component)]
 struct TransitionOverlay;
 
-// ── Systems ────────────────────────────────────────────────────────────
+// Systems
 
 fn spawn_overlay(mut commands: Commands) {
     commands.spawn((

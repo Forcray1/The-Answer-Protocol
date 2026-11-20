@@ -11,7 +11,7 @@ use bevy::prelude::*;
 use crate::AppState;
 use crate::net::{NetworkSender, ServerMessageEvent};
 
-// ── Plugin ────────────────────────────────────────────────────────────────
+// Plugin
 
 pub struct ShopPlugin;
 
@@ -33,7 +33,7 @@ impl Plugin for ShopPlugin {
     }
 }
 
-// ── Resource ──────────────────────────────────────────────────────────────
+// Resource
 
 #[derive(Debug, Clone)]
 pub struct ShopEntry {
@@ -56,7 +56,7 @@ pub struct ShopState {
     pub dirty: bool,
 }
 
-// ── Components ────────────────────────────────────────────────────────────
+// Components
 
 #[derive(Component)]
 pub struct ShopWindowRoot;
@@ -74,7 +74,7 @@ struct BuyButton {
     can_buy: bool,
 }
 
-// ── Setup ─────────────────────────────────────────────────────────────────
+// Setup
 
 fn setup_shop_ui(mut commands: Commands) {
     // Root: fullscreen overlay, hidden by default
@@ -99,7 +99,7 @@ fn setup_shop_ui(mut commands: Commands) {
             ShopWindowRoot,
         ))
         .with_children(|overlay| {
-            // ── The actual shop panel ──────────────────────────────────────
+            // The actual shop panel
             overlay
                 .spawn(NodeBundle {
                     style: Style {
@@ -115,7 +115,7 @@ fn setup_shop_ui(mut commands: Commands) {
                     ..default()
                 })
                 .with_children(|panel| {
-                    // ── Header row ─────────────────────────────────────────
+                    // Header row
                     panel
                         .spawn(NodeBundle {
                             style: Style {
@@ -160,7 +160,7 @@ fn setup_shop_ui(mut commands: Commands) {
                         ..default()
                     });
 
-                    // ── Items container (rebuilt by render_shop_items) ──────
+                    // Items container (rebuilt by render_shop_items) 
                     panel.spawn((
                         NodeBundle {
                             style: Style {
@@ -188,7 +188,7 @@ fn setup_shop_ui(mut commands: Commands) {
         });
 }
 
-// ── Systems ───────────────────────────────────────────────────────────────
+// Systems
 
 /// Parses `S: EVT SHOP` and `S: EVT GOLD` messages.
 fn handle_shop_events(

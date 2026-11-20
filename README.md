@@ -540,9 +540,13 @@ AI has been used to help with research, and to fasten the code, as in righting b
 		- added connect in temporary account without password
 		- Cleaned the enter broadcast
 		- Synced view of player between client_bevy and client
-18/11/2026:
+19/11/2026:
 	mlorenzo:
 		- Big rework and clean of the server and domain
+20/11/2026:
+	mlorenzo:
+		- Rework database
+		- Rework client_bevy
 ````
 
 TODO:

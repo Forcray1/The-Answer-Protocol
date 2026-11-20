@@ -1,12 +1,3 @@
-//! Quest system shared types.
-//!
-//! This module provides:
-//! - QuestStage, StageObjective, QuestProgress types used by server and clients.
-//! - Listens to `S: EVT QUEST_UPDATE` server events to
-//!   update the tracker.
-//! - Syncs the UI (QuestPlugin in ui.rs) by sending
-//!   the `QUESTS` command after each update.
-
 use bevy::prelude::*;
 use domain::quest::{QuestProgress, QuestStage};
 
@@ -34,7 +25,7 @@ impl Plugin for QuestTrackerPlugin {
     }
 }
 
-// ── Resource ──────────────────────────────────────────────────────────────
+// Resource
 
 /// Holds the list of active quests for the local player.
 #[derive(Resource, Default)]
@@ -70,7 +61,7 @@ impl QuestTracker {
     }
 }
 
-// ── Internal Event ────────────────────────────────────────────────────────
+// Internal Event 
 
 /// Fired every time a quest changes stage.
 #[derive(Event)]
@@ -80,7 +71,7 @@ pub struct QuestUpdatedEvent {
     pub counter: u32,
 }
 
-// ── Systems ───────────────────────────────────────────────────────────────
+// Systems
 
 /// Parses `S: EVT QUEST_UPDATE <quest_id> <stage> <counter>`
 /// and `S: EVT QUEST_RESET <quest_id>` messages, updating the `QuestTracker`.
