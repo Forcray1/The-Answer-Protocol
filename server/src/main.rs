@@ -66,8 +66,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Arc::clone(&shared_tx),
     );
 
-    let listener = TcpListener::bind("10.13.3.9:4243").await?;
-    println!("[SERVER] Listening on port 4243...");
+    let listener = TcpListener::bind("127.0.0.1:4243").await?;
+    println!("[SERVER] Listening on 4243...");
 
     tasks::spawn_shutdown_handler(Arc::clone(&shared_state), Arc::clone(&shared_pool));
 
