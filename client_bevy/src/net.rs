@@ -8,7 +8,7 @@ use tokio::net::TcpStream;
 use crate::AppState;
 use crate::menu::LoginData;
 
-const SERVER_ADDR: &str = "10.13.3.9:4243";
+const SERVER_ADDR: &str = "127.0.0.1:4243";
 
 /// Seconds between two connection attempts while the login screen is shown
 /// and the server is not connected.
