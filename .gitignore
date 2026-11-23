@@ -6,6 +6,7 @@ logs.json
 yaml_format.md
 
 game.db
+game.db.bak
 game.db-shm
 game.db-wal
 game.db.backup-*

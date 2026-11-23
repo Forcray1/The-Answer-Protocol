@@ -5,12 +5,12 @@ world:
     name: Dragon
     description: The beast who took control over the temple.
     role: enemy
-    sprite: Drake
-    combat_sprite: drake_anim
+    sprite: drake
+    combat_sprite: drake
     spawn_pos:
-    - 0
-    - 0
-    scale: 0.8
+    - -14
+    - -106
+    scale: 3.0
     hp: 600
     damage: 50
     defense: 30
@@ -28,11 +28,11 @@ world:
     description: Right arm of the threat in the temple, he's the keeper of the stolen treasure of the queen.
     role: enemy
     sprite: basilic
-    combat_sprite: basilic_anim
+    combat_sprite: basilic
     spawn_pos:
-    - 0
-    - 0
-    scale: 0.8
+    - 69
+    - 30
+    scale: 3.0
     hp: 300
     damage: 30
     defense: 20
@@ -1051,8 +1051,7 @@ world:
         east: Wild2
       npcs:
       - Squeletton1
-      items:
-      - healing_herb
+      items: []
     Wild2:
       name: Wild2
       description: A wild zone where squeleton are found
@@ -1061,8 +1060,7 @@ world:
         south: Start_oasis
       npcs:
       - Squeletton2
-      items:
-      - healing_herb
+      items: []
     City:
       name: City
       description: The capital of the region, where the queen took refuge
@@ -1094,8 +1092,7 @@ world:
         east: Start_oasis
       npcs:
       - Squeletton
-      items:
-      - healing_herb
+      items: []
     Start_oasis:
       name: Start_oasis
       description: A peacefull oasis in the center of the region
@@ -1123,8 +1120,7 @@ world:
       npcs:
       - Guard1
       - Guard2
-      items:
-      - healing_herb
+      items: []
     Wild5:
       name: Wild5
       description: A zone ruled by bandits
@@ -1134,8 +1130,7 @@ world:
       - Zek
       - bandit1
       - bandit2
-      items:
-      - healing_herb
+      items: []
     Wild6:
       name: Wild6
       description: A wild zone leading to the cave
@@ -1145,8 +1140,7 @@ world:
       npcs:
       - Mage
       - Rat
-      items:
-      - healing_herb
+      items: []
     Oasis2:
       name: Oasis2
       description: An oasis lead by anwar
@@ -1170,8 +1164,7 @@ world:
       - Remy
       - Golem1
       - Golem2
-      items:
-      - healing_herb
+      items: []
     Cave1:
       name: Cave1
       description: One of the room of the cave
