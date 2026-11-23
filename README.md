@@ -605,11 +605,10 @@ AI has been used to help with research, and to fasten the code, as in righting b
 23/11/2026:
 	mlorenzo:
 		- Update README
+		- Button pannel for each mandatory commands (press 'n')
 ````
 
 TODO:
-	- finish the world.yaml with all the informations
 	- Help Command
-	- Make a pannel for each command to be clickable (mandatory)
 	- MAJ README
 	- pass lint

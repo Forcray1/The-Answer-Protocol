@@ -7,6 +7,7 @@ mod remote;
 mod spawn;
 
 pub(crate) use animation::*;
+pub(crate) use arrival::*;
 pub(crate) use components::*;
 pub(crate) use config::*;
 pub(crate) use movement::*;

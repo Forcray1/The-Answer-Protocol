@@ -3,6 +3,8 @@ use bevy::prelude::*;
 mod board_quest_ui;
 mod collision;
 mod combat;
+mod command_button;
+mod command_menu;
 mod debug;
 mod game;
 mod interaction;
@@ -55,6 +57,7 @@ fn main() {
             minimap::MinimapPlugin,
         ))
         .add_plugins(interaction::InteractionPlugin)
+        .add_plugins(command_menu::CommandMenuPlugin)
         .add_plugins(quest::QuestTrackerPlugin)
         .add_plugins(shop::ShopPlugin)
         .add_plugins(board_quest_ui::BoardQuestPlugin)
