@@ -1,8 +1,4 @@
 use bevy::prelude::*;
-use crate::AppState;
-use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
 use crate::ui::inventory::components::{EquipmentSlot, InventorySlotInfo, PlayerSilhouette};
 use crate::ui::inventory::style::TEXT_DIM;
 

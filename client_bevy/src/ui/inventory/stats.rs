@@ -1,20 +1,16 @@
 use bevy::prelude::*;
-use crate::AppState;
-use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
+use crate::net::NetworkSender;
 use crate::ui::inventory::components::{InventoryGoldText, InventoryState, StatPointsText, StatUpBtn, StatValueText};
 
 pub(crate) fn handle_char_stats(
     mut events: EventReader<crate::net::ServerMessageEvent>,
     mut stat_texts: Query<(&mut Text, &StatValueText)>,
-    mut inv_state: ResMut<InventoryState>,
     mut sp_text_q: Query<&mut Text, (With<StatPointsText>, Without<StatValueText>)>,
     mut statup_btn_q: Query<&mut Visibility, With<StatUpBtn>>,
 ) {
     for ev in events.read() {
         if let Some(data) = ev.0.strip_prefix("S: EVT CHAR_STATS ") {
-            let parts: Vec<&str> = data.trim().split_whitespace().collect();
+            let parts: Vec<&str> = data.split_whitespace().collect();
             let values: Vec<i32> = parts.iter().filter_map(|p| p.parse().ok()).collect();
             if values.len() >= 5 {
                 for (mut text, stat_marker) in stat_texts.iter_mut() {
@@ -25,7 +21,6 @@ pub(crate) fn handle_char_stats(
             }
             if values.len() >= 6 {
                 let points = values[5];
-                inv_state.stat_points = points;
                 if let Ok(mut t) = sp_text_q.get_single_mut() {
                     t.sections[0].value = points.to_string();
                 }
@@ -49,12 +44,10 @@ pub(crate) fn handle_gold_event(
     mut gold_q: Query<&mut Text, With<InventoryGoldText>>,
 ) {
     for ev in events.read() {
-        if let Some(rest) = ev.0.strip_prefix("S: EVT GOLD ") {
-            if let Ok(gold) = rest.trim().parse::<i32>() {
-                inv_state.player_gold = gold;
-                if let Ok(mut t) = gold_q.get_single_mut() {
-                    t.sections[0].value = gold.to_string();
-                }
+        if let Some(rest) = ev.0.strip_prefix("S: EVT GOLD ") && let Ok(gold) = rest.trim().parse::<i32>() {
+            inv_state.player_gold = gold;
+            if let Ok(mut t) = gold_q.get_single_mut() {
+                t.sections[0].value = gold.to_string();
             }
         }
     }
@@ -62,35 +55,32 @@ pub(crate) fn handle_gold_event(
 
 pub(crate) fn handle_stat_points_event(
     mut events: EventReader<crate::net::ServerMessageEvent>,
-    mut inv_state: ResMut<InventoryState>,
     mut sp_text_q: Query<&mut Text, With<StatPointsText>>,
     mut statup_btn_q: Query<&mut Visibility, With<StatUpBtn>>,
 ) {
     for ev in events.read() {
-        if let Some(rest) = ev.0.strip_prefix("S: EVT STAT_POINTS ") {
-            if let Ok(points) = rest.trim().parse::<i32>() {
-                inv_state.stat_points = points;
-                if let Ok(mut t) = sp_text_q.get_single_mut() {
-                    t.sections[0].value = points.to_string();
-                }
-                let vis = if points > 0 {
-                    Visibility::Inherited
-                } else {
-                    Visibility::Hidden
-                };
-                for mut v in statup_btn_q.iter_mut() {
-                    *v = vis;
-                }
+        if let Some(rest) = ev.0.strip_prefix("S: EVT STAT_POINTS ") && let Ok(points) = rest.trim().parse::<i32>() {
+            if let Ok(mut t) = sp_text_q.get_single_mut() {
+                t.sections[0].value = points.to_string();
+            }
+            let vis = if points > 0 {
+                Visibility::Inherited
+            } else {
+                Visibility::Hidden
+            };
+            for mut v in statup_btn_q.iter_mut() {
+                *v = vis;
             }
         }
     }
 }
 
+// Named query types: they keep the system signatures short and readable
+// (a long inline Query type triggers clippy::type_complexity).
+type StatUpButtonQuery<'w, 's> = Query<'w, 's, (&'static Interaction, &'static StatUpBtn, &'static mut BackgroundColor), (Changed<Interaction>, With<Button>)>;
+
 pub(crate) fn handle_statup_click(
-    mut btn_q: Query<
-        (&Interaction, &StatUpBtn, &mut BackgroundColor),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut btn_q: StatUpButtonQuery,
     sender: Option<Res<NetworkSender>>,
 ) {
     let Some(sender) = sender else { return };

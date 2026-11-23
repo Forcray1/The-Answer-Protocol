@@ -7,7 +7,6 @@ mod state;
 mod view;
 
 pub(crate) use bubbles::*;
-pub(crate) use components::*;
 pub(crate) use input::*;
 pub(crate) use messages::*;
 pub(crate) use setup::*;
@@ -16,9 +15,6 @@ pub(crate) use view::*;
 
 use bevy::prelude::*;
 use crate::AppState;
-use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
 
 pub(crate) const MAX_CHAT_LINES: usize = 10;
 

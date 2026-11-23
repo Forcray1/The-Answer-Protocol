@@ -1,3 +1,5 @@
+//! Inventory commands: `INVENTORY`, `INFO`, `EQUIPMENT`, `TAKE`, `DROP`, `USE`, `STATUP`.
+
 use std::net::SocketAddr;
 use serde_json::json;
 use tokio::sync::broadcast::Sender;

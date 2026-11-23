@@ -1,5 +1,3 @@
-use crate::AppState;
-use crate::net::{NetworkSender, ServerMessageEvent};
 use crate::player::{LocalPlayerName, LocalPlayerSkin};
 use crate::ui::PlayerStats;
 use bevy::prelude::*;

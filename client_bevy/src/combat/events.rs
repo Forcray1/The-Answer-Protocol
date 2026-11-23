@@ -1,7 +1,7 @@
-use crate::AppState;
-use crate::net::{NetworkSender, ServerMessageEvent};
+use crate::net::ServerMessageEvent;
 use crate::player::{LocalPlayerName, LocalPlayerSkin};
 use crate::ui::PlayerStats;
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use crate::combat::arena::spawn_combat_arena;
 use crate::combat::components::{CombatEntity, CombatOverlay};
@@ -129,10 +129,8 @@ pub(crate) fn listen_combat_events(
 
         // Extract damage numbers when defeating a monster (server sends OK line without EVT COMBAT HIT)
         if let Some(rest) = line.strip_prefix("S: OK You dealt ") {
-            if let Some(dmg_str) = rest.split_whitespace().next() {
-                if let Ok(dmg) = dmg_str.parse::<i32>() {
-                    combat.pending_dealt = dmg;
-                }
+            if let Some(dmg_str) = rest.split_whitespace().next() && let Ok(dmg) = dmg_str.parse::<i32>() {
+                combat.pending_dealt = dmg;
             }
         } else if let Some(rest) = line.strip_prefix("S: OK Magic deals ") {
             if let Some(token) = rest.split_whitespace().next() {
@@ -170,17 +168,29 @@ pub(crate) fn listen_combat_events(
     }
 }
 
+/// What the combat arena needs to know about the local player, grouped to keep the
+/// system's parameter list short (clippy::too_many_arguments).
+#[derive(SystemParam)]
+pub(crate) struct LocalPlayerInfo<'w> {
+    local_name: Res<'w, LocalPlayerName>,
+    local_skin: Res<'w, LocalPlayerSkin>,
+    stats: Res<'w, PlayerStats>,
+}
+
 pub(crate) fn handle_combat_transition(
     mut commands: Commands,
     time: Res<Time>,
     asset_server: Res<AssetServer>,
-    local_name: Res<LocalPlayerName>,
-    local_skin: Res<LocalPlayerSkin>,
-    stats: Res<PlayerStats>,
+    player_info: LocalPlayerInfo,
     mut combat: ResMut<CombatResource>,
     mut overlay_q: Query<(&mut BackgroundColor, &mut Style), With<CombatOverlay>>,
     combat_entities_q: Query<Entity, With<CombatEntity>>,
 ) {
+    let LocalPlayerInfo {
+        local_name,
+        local_skin,
+        stats,
+    } = player_info;
     let dt = time.delta_seconds();
 
     match combat.phase {

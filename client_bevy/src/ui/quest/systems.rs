@@ -1,48 +1,61 @@
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use crate::AppState;
 use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
 use crate::ui::chat::ChatConsole;
 use crate::ui::inventory::InventoryState;
 use crate::ui::quest::components::{QUEST_ENTRY_BG, QUEST_ENTRY_BORDER, QUEST_ENTRY_HOVER, QUEST_ENTRY_SELECTED, QUEST_ENTRY_TEXT, QuestDetailDescription, QuestDetailObjective, QuestDetailTitle, QuestEmptyText, QuestEntry, QuestEntrySlot, QuestListPanel, QuestState, QuestUiRoot, SelectedQuest};
+
+// Named query types: they keep the system signatures short and readable
+// (a long inline Query type triggers clippy::type_complexity).
+type QuestDescriptionQuery<'w, 's> = Query<'w, 's, &'static mut Text, ( With<QuestDetailDescription>, Without<QuestDetailTitle>, Without<QuestDetailObjective>, )>;
+type QuestObjectiveQuery<'w, 's> = Query<'w, 's, &'static mut Text, ( With<QuestDetailObjective>, Without<QuestDetailTitle>, Without<QuestDetailDescription>, )>;
+type QuestEntryButtonQuery<'w, 's> = Query<'w, 's, (&'static Interaction, &'static QuestEntry, &'static mut BackgroundColor), (Changed<Interaction>, With<Button>, With<QuestEntrySlot>)>;
+
+/// Game state that can block or change the journal, grouped to keep the system's
+/// parameter list short (clippy::too_many_arguments).
+#[derive(SystemParam)]
+pub(crate) struct QuestUiContext<'w> {
+    console: Res<'w, ChatConsole>,
+    inventory: Res<'w, InventoryState>,
+    sender: Res<'w, crate::net::NetworkSender>,
+    combat: Option<Res<'w, CombatResource>>,
+}
+
+/// The three detail texts of the journal, grouped to keep the system's parameter list
+/// short (clippy::too_many_arguments).
+#[derive(SystemParam)]
+pub(crate) struct QuestDetailTexts<'w, 's> {
+    title_q: Query<'w, 's, &'static mut Text, With<QuestDetailTitle>>,
+    desc_q: QuestDescriptionQuery<'w, 's>,
+    obj_q: QuestObjectiveQuery<'w, 's>,
+}
 
 pub(crate) fn toggle_quest_ui(
     keys: Res<ButtonInput<KeyCode>>,
     mut state: ResMut<QuestState>,
     mut query: Query<&mut Visibility, With<QuestUiRoot>>,
-    console: Res<ChatConsole>,
-    inventory: Res<InventoryState>,
-    sender: Res<crate::net::NetworkSender>,
-    combat: Option<Res<CombatResource>>,
+    context: QuestUiContext,
     mut selected: ResMut<SelectedQuest>,
-    mut title_q: Query<&mut Text, With<QuestDetailTitle>>,
-    mut desc_q: Query<
-        &mut Text,
-        (
-            With<QuestDetailDescription>,
-            Without<QuestDetailTitle>,
-            Without<QuestDetailObjective>,
-        ),
-    >,
-    mut obj_q: Query<
-        &mut Text,
-        (
-            With<QuestDetailObjective>,
-            Without<QuestDetailTitle>,
-            Without<QuestDetailDescription>,
-        ),
-    >,
+    texts: QuestDetailTexts,
 ) {
+    let QuestDetailTexts {
+        mut title_q,
+        mut desc_q,
+        mut obj_q,
+    } = texts;
+    let QuestUiContext {
+        console,
+        inventory,
+        sender,
+        combat,
+    } = context;
     if let Some(ref combat) = combat {
         if combat.in_combat && state.open {
             state.open = false;
         }
         if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None {
-            if state.is_changed() {
-                if let Ok(mut visibility) = query.get_single_mut() {
-                    *visibility = Visibility::Hidden;
-                }
+            if state.is_changed() && let Ok(mut visibility) = query.get_single_mut() {
+                *visibility = Visibility::Hidden;
             }
             return;
         }
@@ -70,13 +83,11 @@ pub(crate) fn toggle_quest_ui(
         }
     }
 
-    if state.is_changed() {
-        if let Ok(mut visibility) = query.get_single_mut() {
-            if state.open {
-                *visibility = Visibility::Inherited;
-            } else {
-                *visibility = Visibility::Hidden;
-            }
+    if state.is_changed() && let Ok(mut visibility) = query.get_single_mut() {
+        if state.open {
+            *visibility = Visibility::Inherited;
+        } else {
+            *visibility = Visibility::Hidden;
         }
     }
 }
@@ -169,27 +180,10 @@ pub(crate) fn handle_quest_data(
 }
 
 pub(crate) fn handle_quest_selection(
-    mut interaction_query: Query<
-        (&Interaction, &QuestEntry, &mut BackgroundColor),
-        (Changed<Interaction>, With<Button>, With<QuestEntrySlot>),
-    >,
+    mut interaction_query: QuestEntryButtonQuery,
     mut title_q: Query<&mut Text, With<QuestDetailTitle>>,
-    mut desc_q: Query<
-        &mut Text,
-        (
-            With<QuestDetailDescription>,
-            Without<QuestDetailTitle>,
-            Without<QuestDetailObjective>,
-        ),
-    >,
-    mut obj_q: Query<
-        &mut Text,
-        (
-            With<QuestDetailObjective>,
-            Without<QuestDetailTitle>,
-            Without<QuestDetailDescription>,
-        ),
-    >,
+    mut desc_q: QuestDescriptionQuery,
+    mut obj_q: QuestObjectiveQuery,
     mut selected: ResMut<SelectedQuest>,
 ) {
     for (interaction, entry, mut color) in &mut interaction_query {

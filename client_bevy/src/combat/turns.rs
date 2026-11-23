@@ -1,7 +1,5 @@
-use crate::AppState;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::{LocalPlayerName, LocalPlayerSkin};
-use crate::ui::PlayerStats;
+use crate::net::NetworkSender;
+use crate::player::LocalPlayerName;
 use bevy::prelude::*;
 use crate::combat::components::{CombatButtonVisual, CombatCursorVisual};
 use crate::combat::state::{ChargePhase, CombatResource, CombatTransitionPhase, MenuLevel, TurnSequence};
@@ -48,10 +46,8 @@ pub(crate) fn handle_combat_inputs(
     if combat.seq != TurnSequence::Idle {
         return;
     }
-    if let Some(ref c) = console {
-        if c.open || c.terminal_open {
-            return;
-        }
+    if let Some(ref c) = console && (c.open || c.terminal_open) {
+        return;
     }
 
     let num_options: usize = match combat.menu_level {
@@ -202,23 +198,21 @@ pub(crate) fn advance_turn_sequence(
             combat.seq_timer -= dt;
             if combat.seq_timer <= 0.0 {
                 // If enemy is defeated or combat has ended, finish immediately
-                if combat.enemy_hp <= 0 || combat.pending_end.is_some() {
-                    if let Some(reason) = combat.pending_end.take() {
-                        let msg = match reason.as_str() {
-                            "victory" => "Victory! The enemy collapses.".to_string(),
-                            "defeat" => "Defeated... You wake up at the oasis.".to_string(),
-                            _ => "You fled.".to_string(),
-                        };
-                        combat.combat_message = msg;
-                        combat.message_timer = 1.5;
-                        combat.charge_phase = ChargePhase::Idle;
-                        combat.enemy_charge_phase = ChargePhase::Idle;
-                        combat.seq = TurnSequence::Idle;
-                        combat.menu_level = MenuLevel::Main;
-                        combat.selected_action = 0;
-                        combat.phase = CombatTransitionPhase::ExitingToBlack;
-                        return;
-                    }
+                if (combat.enemy_hp <= 0 || combat.pending_end.is_some()) && let Some(reason) = combat.pending_end.take() {
+                    let msg = match reason.as_str() {
+                        "victory" => "Victory! The enemy collapses.".to_string(),
+                        "defeat" => "Defeated... You wake up at the oasis.".to_string(),
+                        _ => "You fled.".to_string(),
+                    };
+                    combat.combat_message = msg;
+                    combat.message_timer = 1.5;
+                    combat.charge_phase = ChargePhase::Idle;
+                    combat.enemy_charge_phase = ChargePhase::Idle;
+                    combat.seq = TurnSequence::Idle;
+                    combat.menu_level = MenuLevel::Main;
+                    combat.selected_action = 0;
+                    combat.phase = CombatTransitionPhase::ExitingToBlack;
+                    return;
                 }
                 // Kick off enemy lunge
                 combat.enemy_charge_phase = ChargePhase::ChargingForward;

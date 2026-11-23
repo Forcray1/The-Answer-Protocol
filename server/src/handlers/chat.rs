@@ -1,3 +1,5 @@
+//! `CHAT`, `WHO` and `STATUS`.
+
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 use serde_json::json;

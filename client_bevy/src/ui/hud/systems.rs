@@ -1,8 +1,5 @@
 use bevy::prelude::*;
-use crate::AppState;
 use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
 use crate::ui::chat::ChatHistory;
 use crate::ui::hud::components::{HpBarFill, HpText, HudUiRoot, PlayerStats, XpBarFill, XpText};
 use crate::ui::inventory::{InventoryState, SelectedItem};
@@ -26,7 +23,7 @@ pub(crate) fn reset_ui_data_on_logout(
 }
 
 pub(crate) fn show_hud(mut q: Query<&mut Visibility, With<HudUiRoot>>, combat: Option<Res<CombatResource>>) {
-    let in_combat = combat.as_ref().map_or(false, |c| c.in_combat);
+    let in_combat = combat.as_ref().is_some_and(|c| c.in_combat);
     for mut vis in q.iter_mut() {
         *vis = if in_combat {
             Visibility::Hidden
@@ -68,7 +65,7 @@ pub(crate) fn handle_player_stats(
 ) {
     for ev in events.read() {
         if let Some(data) = ev.0.strip_prefix("S: EVT PLAYER_STATS ") {
-            let parts: Vec<&str> = data.trim().split_whitespace().collect();
+            let parts: Vec<&str> = data.split_whitespace().collect();
             if parts.len() >= 5 {
                 if let (Ok(hp), Ok(max_hp), Ok(xp), Ok(max_xp), Ok(lvl)) = (
                     parts[0].parse::<i32>(),
@@ -79,8 +76,6 @@ pub(crate) fn handle_player_stats(
                 ) {
                     stats.hp = hp;
                     stats.max_hp = max_hp;
-                    stats.xp = xp;
-                    stats.max_xp = max_xp;
                     stats.level = lvl;
 
                     // Update HP UI

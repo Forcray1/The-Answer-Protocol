@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use crate::AppState;
 use crate::combat::CombatResource;
 use crate::net::{NetworkSender, ServerMessageEvent};
 use crate::player::LocalPlayerName;
@@ -12,10 +11,8 @@ pub(crate) fn toggle_chat(
     mut fade_state: ResMut<ChatFadeState>,
     combat: Option<Res<CombatResource>>,
 ) {
-    if let Some(ref combat) = combat {
-        if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None {
-            return;
-        }
+    if let Some(ref combat) = combat && (combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None) {
+        return;
     }
     if console.terminal_open {
         return;
@@ -48,10 +45,8 @@ pub(crate) fn toggle_terminal(
     mut query: Query<&mut Visibility, With<TerminalUiRoot>>,
     combat: Option<Res<CombatResource>>,
 ) {
-    if let Some(ref combat) = combat {
-        if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None {
-            return;
-        }
+    if let Some(ref combat) = combat && (combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None) {
+        return;
     }
     let toggle_pressed = keys.just_pressed(KeyCode::F1)
         || keys.just_pressed(KeyCode::Backquote)
@@ -78,16 +73,18 @@ pub(crate) fn toggle_terminal(
     }
 }
 
+// Named query types: they keep the system signatures short and readable
+// (a long inline Query type triggers clippy::type_complexity).
+type ChatTabButtonQuery<'w, 's> = Query<'w, 's, (&'static Interaction, &'static ChatTabButton), (Changed<Interaction>, With<Button>)>;
+
 pub(crate) fn handle_tab_clicks(
-    interaction_q: Query<(&Interaction, &ChatTabButton), (Changed<Interaction>, With<Button>)>,
+    interaction_q: ChatTabButtonQuery,
     mut console: ResMut<ChatConsole>,
     mut fade_state: ResMut<ChatFadeState>,
     combat: Option<Res<CombatResource>>,
 ) {
-    if let Some(ref combat) = combat {
-        if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None {
-            return;
-        }
+    if let Some(ref combat) = combat && (combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None) {
+        return;
     }
     for (interaction, btn) in &interaction_q {
         if *interaction == Interaction::Pressed {
@@ -104,10 +101,8 @@ pub(crate) fn handle_input_clicks(
     mut fade_state: ResMut<ChatFadeState>,
     combat: Option<Res<CombatResource>>,
 ) {
-    if let Some(ref combat) = combat {
-        if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None {
-            return;
-        }
+    if let Some(ref combat) = combat && (combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None) {
+        return;
     }
     for interaction in &interaction_q {
         if *interaction == Interaction::Pressed {
@@ -126,10 +121,8 @@ pub(crate) fn handle_terminal_inputs(
     mut log_query: Query<&mut Text, (With<TerminalLogText>, Without<TerminalInputText>)>,
     combat: Option<Res<CombatResource>>,
 ) {
-    if let Some(ref combat) = combat {
-        if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None {
-            return;
-        }
+    if let Some(ref combat) = combat && (combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None) {
+        return;
     }
     if !console.terminal_open {
         return;
@@ -204,10 +197,8 @@ pub(crate) fn handle_inputs(
     local_name: Res<LocalPlayerName>,
     combat: Option<Res<CombatResource>>,
 ) {
-    if let Some(ref combat) = combat {
-        if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None {
-            return;
-        }
+    if let Some(ref combat) = combat && (combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None) {
+        return;
     }
     if !console.open || console.terminal_open {
         return;
@@ -232,8 +223,8 @@ pub(crate) fn handle_inputs(
         let msg = console.input_buffer.trim().to_string();
         if !msg.is_empty() {
             let my_name = local_name.0.clone().unwrap_or_else(|| "Moi".to_string());
-            if msg.starts_with('/') {
-                let cmd = msg[1..].trim();
+            if let Some(rest) = msg.strip_prefix('/') {
+                let cmd = rest.trim();
                 let parts: Vec<&str> = cmd.split_whitespace().collect();
                 let first = parts.first().map(|s| s.to_uppercase()).unwrap_or_default();
 

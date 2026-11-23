@@ -1,7 +1,5 @@
-use crate::AppState;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::{LocalPlayerName, LocalPlayerSkin};
 use crate::ui::PlayerStats;
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
 use crate::combat::components::{CombatBtnSlot, CombatButtonVisual, CombatEnemySpritePos, CombatEnemyVisual, CombatMessageText, CombatPlayerSprite, EnemyHpBarFill, EnemyHpText, PlayerHpBarFill, PlayerHpText};
 use crate::combat::state::{ChargePhase, CombatResource, MenuLevel, TurnSequence};
@@ -52,37 +50,34 @@ pub(crate) fn animate_combat_entities(
     }
 }
 
+// Named query types: they keep the system signatures short and readable
+// (a long inline Query type triggers clippy::type_complexity).
+type EnemyHpTextQuery<'w, 's> = Query<'w, 's, &'static mut Text, ( With<EnemyHpText>, Without<PlayerHpText>, Without<CombatMessageText>, )>;
+type PlayerHpTextQuery<'w, 's> = Query<'w, 's, &'static mut Text, ( With<PlayerHpText>, Without<EnemyHpText>, Without<CombatMessageText>, )>;
+type CombatMessageQuery<'w, 's> = Query<'w, 's, &'static mut Text, ( With<CombatMessageText>, Without<EnemyHpText>, Without<PlayerHpText>, )>;
+
+/// The three text widgets refreshed by `update_combat_hp_bars`, grouped to keep the
+/// system's parameter list short (clippy::too_many_arguments).
+#[derive(SystemParam)]
+pub(crate) struct CombatHpTexts<'w, 's> {
+    enemy_text_q: EnemyHpTextQuery<'w, 's>,
+    player_text_q: PlayerHpTextQuery<'w, 's>,
+    msg_text_q: CombatMessageQuery<'w, 's>,
+}
+
 pub(crate) fn update_combat_hp_bars(
     time: Res<Time>,
     mut combat: ResMut<CombatResource>,
     stats: Res<PlayerStats>,
     mut enemy_fill_q: Query<&mut Style, (With<EnemyHpBarFill>, Without<PlayerHpBarFill>)>,
-    mut enemy_text_q: Query<
-        &mut Text,
-        (
-            With<EnemyHpText>,
-            Without<PlayerHpText>,
-            Without<CombatMessageText>,
-        ),
-    >,
     mut player_fill_q: Query<&mut Style, (With<PlayerHpBarFill>, Without<EnemyHpBarFill>)>,
-    mut player_text_q: Query<
-        &mut Text,
-        (
-            With<PlayerHpText>,
-            Without<EnemyHpText>,
-            Without<CombatMessageText>,
-        ),
-    >,
-    mut msg_text_q: Query<
-        &mut Text,
-        (
-            With<CombatMessageText>,
-            Without<EnemyHpText>,
-            Without<PlayerHpText>,
-        ),
-    >,
+    texts: CombatHpTexts,
 ) {
+    let CombatHpTexts {
+        mut enemy_text_q,
+        mut player_text_q,
+        mut msg_text_q,
+    } = texts;
     if !combat.in_combat {
         return;
     }
@@ -91,10 +86,8 @@ pub(crate) fn update_combat_hp_bars(
         combat.message_timer -= time.delta_seconds();
     }
 
-    if let Ok(mut text) = msg_text_q.get_single_mut() {
-        if !text.sections.is_empty() {
-            text.sections[0].value = combat.combat_message.clone();
-        }
+    if let Ok(mut text) = msg_text_q.get_single_mut() && !text.sections.is_empty() {
+        text.sections[0].value = combat.combat_message.clone();
     }
 
     let e_pct = if combat.enemy_max_hp > 0 {
@@ -105,11 +98,9 @@ pub(crate) fn update_combat_hp_bars(
     if let Ok(mut style) = enemy_fill_q.get_single_mut() {
         style.width = Val::Percent(e_pct);
     }
-    if let Ok(mut text) = enemy_text_q.get_single_mut() {
-        if !text.sections.is_empty() {
-            text.sections[0].value =
-                format!("HP : {} / {}", combat.enemy_hp.max(0), combat.enemy_max_hp);
-        }
+    if let Ok(mut text) = enemy_text_q.get_single_mut() && !text.sections.is_empty() {
+        text.sections[0].value =
+            format!("HP : {} / {}", combat.enemy_hp.max(0), combat.enemy_max_hp);
     }
 
     let p_pct = if stats.max_hp > 0 {
@@ -120,10 +111,8 @@ pub(crate) fn update_combat_hp_bars(
     if let Ok(mut style) = player_fill_q.get_single_mut() {
         style.width = Val::Percent(p_pct);
     }
-    if let Ok(mut text) = player_text_q.get_single_mut() {
-        if !text.sections.is_empty() {
-            text.sections[0].value = format!("HP : {} / {}", stats.hp.max(0), stats.max_hp);
-        }
+    if let Ok(mut text) = player_text_q.get_single_mut() && !text.sections.is_empty() {
+        text.sections[0].value = format!("HP : {} / {}", stats.hp.max(0), stats.max_hp);
     }
 }
 

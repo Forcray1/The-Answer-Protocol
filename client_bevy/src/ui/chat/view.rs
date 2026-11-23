@@ -1,8 +1,5 @@
 use bevy::prelude::*;
-use crate::AppState;
 use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
 use crate::ui::chat::components::{ChatInputContainer, ChatInputPrompt, ChatInputText, ChatMessagesArea, ChatShortcutHelpText, ChatTabButton, ChatTabText, ChatText, ChatUiRoot, TerminalUiRoot};
 use crate::ui::chat::MAX_CHAT_LINES;
 use crate::ui::chat::state::{CHAT_FADE_DURATION, CHAT_INACTIVITY_TIMEOUT, ChatChannel, ChatConsole, ChatFadeState, ChatHistory, ChatMessage};
@@ -15,7 +12,7 @@ pub(crate) fn tick_chat_fade(
     mut chat_root_q: Query<(&mut Visibility, Option<&Interaction>), With<ChatUiRoot>>,
     combat: Option<Res<CombatResource>>,
 ) {
-    if combat.as_ref().map_or(false, |c| c.in_combat) {
+    if combat.as_ref().is_some_and(|c| c.in_combat) {
         return;
     }
 
@@ -25,12 +22,8 @@ pub(crate) fn tick_chat_fade(
     }
 
     // Hovering over the visible chatbox keeps it alive
-    if fade_state.alpha > 0.0 {
-        if let Ok((_, Some(interaction))) = chat_root_q.get_single() {
-            if *interaction == Interaction::Hovered {
-                fade_state.bypass_change_detection().activity_timer = CHAT_INACTIVITY_TIMEOUT;
-            }
-        }
+    if fade_state.alpha > 0.0 && let Ok((_, Some(interaction))) = chat_root_q.get_single() && *interaction == Interaction::Hovered {
+        fade_state.bypass_change_detection().activity_timer = CHAT_INACTIVITY_TIMEOUT;
     }
 
     // While typing, stay completely visible

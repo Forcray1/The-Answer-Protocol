@@ -1,3 +1,5 @@
+//! Magic attack (scales on special damage / special defense).
+
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast::Sender;

@@ -1,4 +1,5 @@
-use crate::state::Player;
+//! Wire-format builders for the player panels (inventory, equipment, stats) and attack totals.
+
 use crate::world::WorldData;
 
 pub(crate) fn is_bevy_inventory_slot(slot: &str) -> bool {

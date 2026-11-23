@@ -1,13 +1,3 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
-#![allow(clippy::collapsible_if)]
-#![allow(clippy::manual_strip)]
-#![allow(clippy::never_loop)]
-#![allow(clippy::too_many_arguments)]
-#![allow(clippy::trim_split_whitespace)]
-#![allow(clippy::type_complexity)]
-#![allow(clippy::unnecessary_map_or)]
-
 use bevy::prelude::*;
 
 mod board_quest_ui;

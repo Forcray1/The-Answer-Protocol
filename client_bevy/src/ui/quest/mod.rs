@@ -8,9 +8,6 @@ pub(crate) use systems::*;
 
 use bevy::prelude::*;
 use crate::AppState;
-use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
 use crate::ui::close_button::handle_close_buttons;
 
 // Quest Journal UI  (U)

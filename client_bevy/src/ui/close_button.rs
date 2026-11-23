@@ -1,19 +1,16 @@
 use bevy::prelude::*;
-use crate::AppState;
-use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
 use crate::ui::inventory::InventoryState;
 use crate::ui::quest::QuestState;
 
 #[derive(Component)]
 pub struct CloseButton(pub String);
 
+// Named query types: they keep the system signatures short and readable
+// (a long inline Query type triggers clippy::type_complexity).
+type CloseButtonQuery<'w, 's> = Query<'w, 's, (&'static Interaction, &'static CloseButton), (Changed<Interaction>, With<Button>)>;
+
 pub(crate) fn handle_close_buttons(
-    mut interaction_query: Query<
-        (&Interaction, &CloseButton),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut interaction_query: CloseButtonQuery,
     mut inv_state: ResMut<InventoryState>,
     mut quest_state: ResMut<QuestState>,
 ) {

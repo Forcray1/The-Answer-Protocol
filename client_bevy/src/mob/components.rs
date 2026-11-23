@@ -1,10 +1,4 @@
-use std::time::Duration;
 use bevy::prelude::*;
-use crate::AppState;
-use crate::map::YSort;
-use crate::net::ServerMessageEvent;
-use crate::player::LocalPlayer;
-use crate::player::PlayerName;
 
 #[derive(Resource, Default)]
 pub struct InteractableTarget(pub Option<String>);
@@ -27,8 +21,6 @@ pub(crate) const SHEET_COLS: usize = 2;
 
 pub(crate) const SHEET_ROWS: usize = 3;
 
-pub(crate) const IDLE_FRAME_COUNT: usize = SHEET_COLS * SHEET_ROWS;
-
 #[derive(Component)]
 pub struct Mob {
     pub npc_id: String,
@@ -40,7 +32,6 @@ pub(crate) struct MobAnimation {
     pub(crate) frames: Vec<Rect>,
     pub(crate) frame_index: usize,
     pub(crate) timer: Timer,
-    pub(crate) sheet_size: Vec2,
 }
 
 #[derive(Resource, Clone)]

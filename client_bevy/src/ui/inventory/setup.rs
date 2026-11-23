@@ -1,8 +1,4 @@
 use bevy::prelude::*;
-use crate::AppState;
-use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
 use crate::ui::close_button::CloseButton;
 use crate::ui::inventory::components::{EquipmentSlot, InventoryActionBtn, InventoryActionText, InventoryDescriptionText, InventoryDropBtn, InventoryGoldText, InventoryGrid, InventoryTab, InventoryTabBtn, InventoryUiRoot, PlayerSilhouette, StatPointsText, StatUpBtn, StatValueText};
 use crate::ui::inventory::style::{BG_DARK, BG_PANEL, BORDER_GOLD, BORDER_INNER, BTN_BG, BTN_BORDER, SLOT_BG, SLOT_BORDER, STAT_GREEN, STAT_RED, TAB_ACTIVE_BG, TAB_IDLE_BG, TEXT_DIM, TEXT_LIGHT, TITLE_COLOR};

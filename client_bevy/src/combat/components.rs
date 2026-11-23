@@ -1,7 +1,3 @@
-use crate::AppState;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::{LocalPlayerName, LocalPlayerSkin};
-use crate::ui::PlayerStats;
 use bevy::prelude::*;
 
 /// Marks the player sprite in the combat arena (for charge animation).
@@ -58,4 +54,4 @@ pub(crate) struct CombatCursorVisual {
 
 /// Marks the outer NodeBundle wrapper of each button slot (for show/hide).
 #[derive(Component)]
-pub(crate) struct CombatBtnSlot(#[allow(dead_code)] pub(crate) usize);
+pub(crate) struct CombatBtnSlot(pub(crate) usize);

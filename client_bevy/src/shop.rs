@@ -248,12 +248,10 @@ fn handle_gold_event(
     mut gold_q: Query<&mut Text, With<ShopGoldText>>,
 ) {
     for ev in events.read() {
-        if let Some(rest) = ev.0.strip_prefix("S: EVT GOLD ") {
-            if let Ok(gold) = rest.trim().parse::<i32>() {
-                shop.player_gold = gold;
-                if let Ok(mut t) = gold_q.get_single_mut() {
-                    t.sections[0].value = format!("{} gold", gold);
-                }
+        if let Some(rest) = ev.0.strip_prefix("S: EVT GOLD ") && let Ok(gold) = rest.trim().parse::<i32>() {
+            shop.player_gold = gold;
+            if let Ok(mut t) = gold_q.get_single_mut() {
+                t.sections[0].value = format!("{} gold", gold);
             }
         }
     }
@@ -385,12 +383,13 @@ fn render_shop_items(
     });
 }
 
+// Named query types: they keep the system signatures short and readable
+// (a long inline Query type triggers clippy::type_complexity).
+type BuyButtonQuery<'w, 's> = Query<'w, 's, (&'static Interaction, &'static BuyButton, &'static mut BackgroundColor), (Changed<Interaction>, With<Button>)>;
+
 /// Sends `BUY <npc_id> <item_id>` when a buy button is pressed.
 fn handle_buy_click(
-    mut btn_q: Query<
-        (&Interaction, &BuyButton, &mut BackgroundColor),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut btn_q: BuyButtonQuery,
     sender: Option<Res<NetworkSender>>,
 ) {
     let Some(sender) = sender else { return };

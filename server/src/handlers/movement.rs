@@ -1,3 +1,5 @@
+//! `LOOK`, `POS` and `MOVE`.
+
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 use serde_json::json;

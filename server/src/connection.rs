@@ -132,6 +132,7 @@ async fn disconnect(
     );
 }
 
+/// Does this connection have to receive a broadcast event?
 /// `target_player` wins over `target_room`, which wins over `target_group`.
 async fn wants_event(event: &GlobalEvent, addr: SocketAddr, state: &Mutex<ServerState>) -> bool {
     if event.sender_addr == Some(addr) {

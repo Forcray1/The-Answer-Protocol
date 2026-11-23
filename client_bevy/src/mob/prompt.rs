@@ -1,10 +1,6 @@
-use std::time::Duration;
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use crate::AppState;
-use crate::map::YSort;
-use crate::net::ServerMessageEvent;
 use crate::player::LocalPlayer;
-use crate::player::PlayerName;
 use crate::mob::components::{BoardNode, GroundItem, GroundItemTarget, INTERACTION_PROMPT_MOB_SPRITE, INTERACTION_PROMPT_PNJ_SPRITE, InteractableTarget, InteractionPrompt, InteractionPromptSprites, Mob};
 
 pub(crate) fn setup_interaction_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -30,27 +26,46 @@ pub(crate) fn setup_interaction_ui(mut commands: Commands, asset_server: Res<Ass
     ));
 }
 
+// Named query types: they keep the system signatures short and readable
+// (a long inline Query type triggers clippy::type_complexity).
+type PromptQuery<'w, 's> = Query<'w, 's, (&'static mut Visibility, &'static mut Transform, &'static mut Handle<Image>), ( With<InteractionPrompt>, Without<LocalPlayer>, Without<Mob>, Without<BoardNode>, Without<GroundItem>, )>;
+
+/// Everything the prompt can point at, grouped to keep the system's parameter list
+/// short (clippy::too_many_arguments).
+#[derive(SystemParam)]
+pub(crate) struct InteractionTargets<'w, 's> {
+    mob_q: Query<'w, 's, (&'static Transform, &'static Mob), Without<InteractionPrompt>>,
+    board_q: Query<'w, 's, (&'static Transform, &'static BoardNode), Without<InteractionPrompt>>,
+    items_q: Query<'w, 's, (&'static Transform, &'static GroundItem), Without<InteractionPrompt>>,
+}
+
+/// Game state that blocks or changes the prompt, grouped to keep the system's
+/// parameter list short (clippy::too_many_arguments).
+#[derive(SystemParam)]
+pub(crate) struct InteractionContext<'w> {
+    combat: Res<'w, crate::combat::CombatResource>,
+    dialogue: Res<'w, crate::interaction::DialogueState>,
+    prompt_sprites: Res<'w, InteractionPromptSprites>,
+}
+
 pub(crate) fn interaction_system(
     player_q: Query<&Transform, With<LocalPlayer>>,
-    mob_q: Query<(&Transform, &Mob), Without<InteractionPrompt>>,
-    board_q: Query<(&Transform, &BoardNode), Without<InteractionPrompt>>,
-    items_q: Query<(&Transform, &GroundItem), Without<InteractionPrompt>>,
-    mut prompt_q: Query<
-        (&mut Visibility, &mut Transform, &mut Handle<Image>),
-        (
-            With<InteractionPrompt>,
-            Without<LocalPlayer>,
-            Without<Mob>,
-            Without<BoardNode>,
-            Without<GroundItem>,
-        ),
-    >,
+    targets: InteractionTargets,
+    mut prompt_q: PromptQuery,
     mut interactable: ResMut<InteractableTarget>,
     ground_target: Res<GroundItemTarget>,
-    combat: Res<crate::combat::CombatResource>,
-    dialogue: Res<crate::interaction::DialogueState>,
-    prompt_sprites: Res<InteractionPromptSprites>,
+    context: InteractionContext,
 ) {
+    let InteractionContext {
+        combat,
+        dialogue,
+        prompt_sprites,
+    } = context;
+    let InteractionTargets {
+        mob_q,
+        board_q,
+        items_q,
+    } = targets;
     if combat.in_combat || dialogue.is_active() {
         if let Ok((mut vis, _, _)) = prompt_q.get_single_mut() {
             *vis = Visibility::Hidden;

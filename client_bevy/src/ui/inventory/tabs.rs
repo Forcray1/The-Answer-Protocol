@@ -1,16 +1,16 @@
 use bevy::prelude::*;
-use crate::AppState;
-use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
 use crate::ui::inventory::components::{InventoryGrid, InventorySlot, InventoryState, InventoryTabBtn};
 use crate::ui::inventory::grid::rebuild_grid;
 use crate::ui::inventory::style::{BORDER_GOLD, TAB_ACTIVE_BG, TAB_IDLE_BG, TEXT_DIM, TITLE_COLOR};
 
+// Named query types: they keep the system signatures short and readable
+// (a long inline Query type triggers clippy::type_complexity).
+type TabButtonQuery<'w, 's> = Query<'w, 's, (&'static Interaction, &'static InventoryTabBtn), (Changed<Interaction>, With<Button>)>;
+
 /// Switches the active tab and re-filters the cached item list.
 /// (The highlight of the tab buttons is handled by `update_tab_highlight`.)
 pub(crate) fn handle_tab_click(
-    tab_btns: Query<(&Interaction, &InventoryTabBtn), (Changed<Interaction>, With<Button>)>,
+    tab_btns: TabButtonQuery,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     grid_query: Query<Entity, With<InventoryGrid>>,
@@ -63,10 +63,8 @@ pub(crate) fn update_tab_highlight(
         *bg = bg_color.into();
         *border = border_color.into();
 
-        if let Some(&child) = children.first() {
-            if let Ok(mut txt) = text_q.get_mut(child) {
-                txt.sections[0].style.color = if active { TITLE_COLOR } else { TEXT_DIM };
-            }
+        if let Some(&child) = children.first() && let Ok(mut txt) = text_q.get_mut(child) {
+            txt.sections[0].style.color = if active { TITLE_COLOR } else { TEXT_DIM };
         }
     }
 }

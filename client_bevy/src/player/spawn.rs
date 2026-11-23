@@ -1,9 +1,6 @@
-use std::time::Duration;
 use bevy::prelude::*;
-use crate::AppState;
-use crate::loading::{RoomTransition, RoomTransitionRequest};
 use crate::map::YSort;
-use crate::net::{NetworkSender, ServerMessageEvent};
+use crate::net::ServerMessageEvent;
 use crate::player::components::{LocalPlayer, LocalPlayerName, LocalPlayerSkin, PendingDeathRespawn, PlayerAnimation, PlayerName, RemotePlayer};
 use crate::player::config::{ANIM_FRAME_TIME, CONNECT_OK_PREFIX, DEFAULT_NAME, DEFAULT_SKIN, DIR_FOLDERS, FRAME_COUNT, NAME_Y_OFFSET, NAME_Z_OFFSET, PLAYER_RENDER_SIZE, SKIN_FOLDER, SPAWN_POINT};
 use crate::player::movement::HeldDirections;
@@ -32,10 +29,8 @@ pub(crate) fn spawn_local_player_on_connect(
             } else if let Some(v) = token.strip_prefix("name=").filter(|v| !v.is_empty()) {
                 name = v;
             } else if let Some(v) = token.strip_prefix("pos=") {
-                if let Some((xs, ys)) = v.split_once(',') {
-                    if let (Ok(x), Ok(y)) = (xs.parse::<f32>(), ys.parse::<f32>()) {
-                        spawn = Vec2::new(x, y);
-                    }
+                if let Some((xs, ys)) = v.split_once(',') && let (Ok(x), Ok(y)) = (xs.parse::<f32>(), ys.parse::<f32>()) {
+                    spawn = Vec2::new(x, y);
                 }
             }
         }

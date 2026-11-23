@@ -1,3 +1,10 @@
+//! World state persistence.
+//!
+//! On clean shutdown (SIGINT / Ctrl-C), all items currently on the ground
+//! (whether originally from world.yaml or dropped by a player) are written
+//! back into the `items:` arrays in world.yaml.  On the next startup they
+//! will be loaded as regular World items and appear on the ground again.
+
 use std::collections::HashMap;
 
 use domain::RoomId;

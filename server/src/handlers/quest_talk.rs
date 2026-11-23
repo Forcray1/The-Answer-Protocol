@@ -1,3 +1,5 @@
+//! Quest progress triggered by talking to an NPC.
+
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use tokio::sync::broadcast::Sender;
@@ -22,7 +24,7 @@ pub(crate) fn resolve_talk_quests(
 ) -> Option<(Vec<String>, Vec<domain::QuestId>)> {
     let player = state.players.get_mut(&addr)?;
     let mut quest_msgs: Vec<String> = Vec::new();
-    // Quests completed during this conversation (selects the "just completed" dialogue).
+    // Quests completed during this very conversation (selects the "just completed" dialogue).
     let mut completed_now: Vec<domain::QuestId> = Vec::new();
     for q in &world.world.quests {
         if player.completed_quests.contains(&q.id) {
@@ -43,7 +45,7 @@ pub(crate) fn resolve_talk_quests(
                     match &stage_def.objective {
                         Some(domain::quest::StageObjective::TalkToNpc { npc: target })
                             if target == &npc.id => {
-                            // Last stage -> complete the quest
+                            // Last stage → complete the quest
                             let is_last = q.stages.iter().all(|s| s.stage <= stage_num);
                             if is_last {
                                 quest_msgs.push(complete_staged_quest(addr, q, player, world, tx));

@@ -1,9 +1,6 @@
-use std::time::Duration;
 use bevy::prelude::*;
-use crate::AppState;
 use crate::map::YSort;
 use crate::net::ServerMessageEvent;
-use crate::player::LocalPlayer;
 use crate::player::PlayerName;
 use crate::mob::components::{IDLE_FRAME_TIME, InteractableTarget, MOB_FOLDER, MOB_RENDER_SIZE, Mob, MobAnimation, SHEET_COLS, SHEET_ROWS};
 
@@ -68,7 +65,6 @@ pub(crate) fn handle_mob_events(
                     frames,
                     frame_index: 0,
                     timer: Timer::from_seconds(IDLE_FRAME_TIME, TimerMode::Repeating),
-                    sheet_size: Vec2::ZERO, // will be filled once image loads
                 },
                 YSort,
             ));
@@ -109,7 +105,6 @@ pub(crate) fn animate_mobs(
             };
             let img_w = image.size().x as f32;
             let img_h = image.size().y as f32;
-            anim.sheet_size = Vec2::new(img_w, img_h);
 
             // If ratio matches a 2x3 spritesheet (e.g. 120x180, 100x150)
             let is_2x3_sheet = (img_w * 3.0 - img_h * 2.0).abs() < 5.0 && img_w != img_h;

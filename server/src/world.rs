@@ -1,15 +1,34 @@
+// serveur/src/world.rs
+//
+// Static CATALOG: world.yaml -> Rust structs. This is the "definition" of
+// things (what an item/npc/location IS), as opposed to their runtime "placement"
+// (serveur/src/state.rs).
+//
+// Since adopting the `domain` model, the catalog no longer uses raw `String`
+// identifiers: it reuses newtypes (ItemId, NpcId, RoomId,
+// QuestId) and the `Direction` enum. YAML keys remain strings —
+// newtypes deserialize transparently from a string, so
+// world.yaml doesn't need to change.
+
 use serde::Deserialize;
 use std::collections::{HashMap, HashSet};
 
 use domain::{Direction, ItemBucket, ItemId, NpcId, QuestId, RoomId};
 
+// ── PNJ ──────────────────────────────────────────────────────────────────
+
 /// A selectable answer option in a multiple-choice dialogue.
 #[derive(Debug, Deserialize, Clone)]
 pub struct DialogueChoice {
+    /// Text displayed to the player in the UI.
     pub text: String,
+    /// Value sent back to the server via `ANSWER <npc_id> <answer>`.
     pub answer: String,
 }
 
+/// NPC dialogue block conditioned on a quest + stage.
+/// `stage` is 0 for NotStarted (before acceptance),
+/// 1..N for `Stage(n)`, and 255 for `Completed`.
 #[derive(Debug, Deserialize, Clone)]
 pub struct QuestDialogue {
     pub quest_id: QuestId,
@@ -20,22 +39,33 @@ pub struct QuestDialogue {
     pub choices: Vec<DialogueChoice>,
 }
 
+// ── QUÊTE ─────────────────────────────────────────────────────────────────
+
 /// Objective associated with a specific quest stage (world.yaml).
+/// Re-exports the domain type so world.rs can use it directly.
 pub use domain::StageObjective as StagedObjective;
 
+/// Behaviour when the player gives a wrong answer to an `AnswerDialogue`.
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct OnWrongAnswer {
+    /// Dialogue lines to send to the player after a rejection.
     #[serde(default)]
     pub dialogue: Vec<String>,
+    /// If `true`, quest progress is removed (reset to NotStarted).
+    /// The player can restart the conversation from scratch.
     #[serde(default)]
     pub reset: bool,
 }
 
+/// Definition of a quest stage in the YAML.
 #[derive(Debug, Deserialize, Clone)]
 pub struct QuestStageDef {
+    /// Stage number (1-based).
     pub stage: u32,
+    /// Objective to fulfill to advance to the next stage (or `null`).
     #[serde(default)]
     pub objective: Option<StagedObjective>,
+    /// Behaviour on wrong answer (only for `AnswerDialogue`).
     #[serde(default)]
     pub on_wrong_answer: Option<OnWrongAnswer>,
 }
@@ -97,6 +127,7 @@ pub struct Npc {
     pub shop: Vec<ShopItem>,
 }
 
+/// One entry in an NPC's shop list (parsed from world.yaml).
 #[derive(Debug, Deserialize, Clone)]
 pub struct ShopItem {
     pub item_id: ItemId,
@@ -159,6 +190,10 @@ pub struct Item {
 }
 
 impl Item {
+    /// Which inventory bag to put this item in when picked up.
+    /// Weapons (slot "weapon") go in the weapon bag; quest items without
+    /// a slot are key items; the rest (including armor) go
+    /// in the generic bag.
     pub fn bucket(&self) -> ItemBucket {
         if self.slot.as_deref() == Some("weapon") {
             ItemBucket::Weapon
@@ -203,6 +238,7 @@ pub struct Quest {
     pub id: QuestId,
     pub name: String,
     pub description: String,
+    /// Single objective (legacy format, compatible with existing YAMLs).
     pub objective: QuestObjective,
     #[serde(default)]
     pub target_id: Option<ItemId>,
@@ -210,8 +246,10 @@ pub struct Quest {
     pub giver_id: Option<NpcId>,
     pub reward_exp: Option<i32>,
     pub reward_item: Option<ItemId>,
+    /// Gold given on completion.
     #[serde(default)]
     pub reward_gold: Option<i32>,
+    /// Extra reward items; list an id N times to give N units.
     #[serde(default)]
     pub reward_items: Vec<ItemId>,
     /// Stage definitions (new multi-step format).
@@ -221,16 +259,19 @@ pub struct Quest {
 }
 
 impl WorldData {
+    /// Catalog item by exact id.
     pub fn item_by_id(&self, id: &ItemId) -> Option<&Item> {
         self.world.items.iter().find(|i| &i.id == id)
     }
 
+    /// Catalog item by id or display name, ignoring case (what players type).
     pub fn find_item(&self, query: &str) -> Option<&Item> {
         self.world.items.iter().find(|i| {
             i.id.as_str().eq_ignore_ascii_case(query) || i.name.eq_ignore_ascii_case(query)
         })
     }
 
+    /// Catalog NPC by exact id.
     pub fn npc_by_id(&self, id: &NpcId) -> Option<&Npc> {
         self.world.npcs.iter().find(|n| &n.id == id)
     }

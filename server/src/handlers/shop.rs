@@ -1,3 +1,5 @@
+//! `BUY` and the merchant listing.
+
 use std::net::SocketAddr;
 use tokio::sync::broadcast::Sender;
 
@@ -15,6 +17,7 @@ pub(crate) fn handle_buy(
     world: &WorldData,
     tx: &Sender<GlobalEvent>,
 ) -> String {
+    // ── 1. Find the NPC and its shop ────────────────────────────────────
     let npc = world
         .world
         .npcs
@@ -37,6 +40,7 @@ pub(crate) fn handle_buy(
         None => return "S: ERR item_unknown\n".to_string(),
     };
 
+    // ── 2. Check player state ────────────────────────────────────────────
     let Some(player) = state.players.get_mut(&addr) else {
         return "S: ERR utilize_connect_first\n".to_string();
     };
@@ -55,6 +59,7 @@ pub(crate) fn handle_buy(
         return "S: ERR not_enough_gold\n".to_string();
     }
 
+    // ── 3. Process the purchase ──────────────────────────────────────────
     player.money -= shop_entry.price as i32;
     let bucket = item_def.bucket();
     player.inventory.add(shop_entry.item_id.clone(), bucket);

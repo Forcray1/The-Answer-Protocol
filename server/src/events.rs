@@ -1,3 +1,10 @@
+//! Broadcast events shared between the connection tasks and the game handlers.
+//!
+//! Every event travels on one `tokio::sync::broadcast` channel. Each connection task
+//! filters it with the `target_*` fields (see `connection.rs`):
+//! `target_player` wins over `target_room`, which wins over `target_group`;
+//! an event with no target goes to everybody. `sender_addr` is never sent its own event.
+
 use std::net::SocketAddr;
 
 use domain::{GroupId, RoomId};
@@ -25,6 +32,8 @@ impl GlobalEvent {
 }
 
 // Send errors only mean "nobody is listening", so they are ignored on purpose.
+// Argument order is (message, target) so that `message` can still borrow a value
+// that the target then moves, exactly like the old struct literals did.
 
 /// Event for one player only.
 pub fn to_player(tx: &Sender<GlobalEvent>, message: String, target: SocketAddr) {

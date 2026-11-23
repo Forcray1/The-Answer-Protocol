@@ -272,16 +272,14 @@ fn handle_dialogue_advance_input(
     mut text_q: Query<&mut Text, With<NpcDialogueText>>,
     combat: Option<Res<crate::combat::CombatResource>>,
 ) {
-    if let Some(ref combat) = combat {
-        if combat.in_combat && dialogue_state.active {
-            close_dialogue(
-                &mut dialogue_state,
-                &mut popup_q,
-                &mut portrait_q,
-                &mut text_q,
-            );
-            return;
-        }
+    if let Some(ref combat) = combat && combat.in_combat && dialogue_state.active {
+        close_dialogue(
+            &mut dialogue_state,
+            &mut popup_q,
+            &mut portrait_q,
+            &mut text_q,
+        );
+        return;
     }
 
     if !dialogue_state.active {
@@ -442,13 +440,14 @@ fn render_dialogue_choices(
         });
 }
 
+// Named query types: they keep the system signatures short and readable
+// (a long inline Query type triggers clippy::type_complexity).
+type ChoiceButtonQuery<'w, 's> = Query<'w, 's, (&'static Interaction, &'static DialogueChoiceBtn), (Changed<Interaction>, With<Button>)>;
+
 /// Handles a click on a choice button: sends `ANSWER <npc> <answer>` to the server
 /// then closes the dialogue.
 fn handle_choice_click(
-    mut interaction_q: Query<
-        (&Interaction, &DialogueChoiceBtn),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut interaction_q: ChoiceButtonQuery,
     sender: Option<Res<NetworkSender>>,
     mut dialogue_state: ResMut<DialogueState>,
     mut popup_q: Query<&mut Visibility, (With<NpcDialoguePopupRoot>, Without<NpcDialoguePortrait>)>,

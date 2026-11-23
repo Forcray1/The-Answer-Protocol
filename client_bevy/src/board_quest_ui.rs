@@ -23,7 +23,6 @@ impl Plugin for BoardQuestPlugin {
 #[derive(Debug, Clone)]
 pub struct BoardSlot {
     pub slot_id: usize,
-    pub mob_id: String,
     pub mob_name: String,
     pub kill_count: u32,
     pub gold_reward: i32,
@@ -50,7 +49,7 @@ pub struct BoardQuestState {
 struct BoardQuestRoot;
 
 #[derive(Component)]
-struct BoardSlotRow(usize);
+struct BoardSlotRow;
 
 // Systems
 
@@ -78,7 +77,6 @@ fn handle_board_quest_event(
                     continue;
                 }
                 let slot_id: usize = parts[0].parse::<usize>().unwrap_or(1).saturating_sub(1);
-                let mob_id = parts[1].to_string();
                 let mob_name = parts[2].replace('_', " ");
                 let kill_count: u32 = parts[3].parse().unwrap_or(1);
                 let gold_reward: i32 = parts[4].parse().unwrap_or(0);
@@ -91,7 +89,6 @@ fn handle_board_quest_event(
                 }
                 bq.slots.push(BoardSlot {
                     slot_id,
-                    mob_id,
                     mob_name,
                     kill_count,
                     gold_reward,
@@ -230,7 +227,7 @@ fn render_board_quest_window(
                         background_color: row_color.into(),
                         ..default()
                     },
-                    BoardSlotRow(slot.slot_id),
+                    BoardSlotRow,
                 ))
                 .with_children(|row| {
                     row.spawn(TextBundle::from_section(
@@ -284,7 +281,7 @@ fn handle_board_quest_input(
             let _ = sender.0.send("BOARD_ABANDON\n".to_string());
         } else {
             // Try to take
-            let slot_available = bq.slots.get(slot_id).map_or(false, |s| !s.is_taken);
+            let slot_available = bq.slots.get(slot_id).is_some_and(|s| !s.is_taken);
             if slot_available {
                 let _ = sender.0.send(format!("BOARD_TAKE {}\n", slot_id + 1));
             }

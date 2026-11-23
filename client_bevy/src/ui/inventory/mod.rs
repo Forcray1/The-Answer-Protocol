@@ -13,14 +13,10 @@ pub(crate) use equipment::*;
 pub(crate) use grid::*;
 pub(crate) use setup::*;
 pub(crate) use stats::*;
-pub(crate) use style::*;
 pub(crate) use tabs::*;
 
 use bevy::prelude::*;
 use crate::AppState;
-use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
 
 pub struct InventoryPlugin;
 

@@ -1,3 +1,5 @@
+//! Command handlers. `process_command` dispatches a parsed command to the module that handles it.
+
 mod board;
 mod chat;
 mod combat;

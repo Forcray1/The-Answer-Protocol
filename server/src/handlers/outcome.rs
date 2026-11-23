@@ -1,3 +1,5 @@
+//! Shared results of a fight: monster death, loot, victory reply, player death and respawn.
+
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 use serde_json::json;

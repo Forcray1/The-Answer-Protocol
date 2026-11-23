@@ -1,8 +1,4 @@
 use bevy::prelude::*;
-use crate::AppState;
-use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
 use crate::ui::close_button::CloseButton;
 use crate::ui::quest::components::{QUEST_BG, QUEST_BORDER, QUEST_DETAIL_TEXT, QUEST_DETAIL_TITLE, QUEST_PARCHMENT, QUEST_TITLE_COLOR, QuestDetailDescription, QuestDetailObjective, QuestDetailTitle, QuestEmptyText, QuestListPanel, QuestUiRoot};
 /// Left side of the journal: the list of quests.

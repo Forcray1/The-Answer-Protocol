@@ -50,15 +50,6 @@ impl QuestTracker {
         // Remove completed quests from the active tracker.
         self.quests.retain(|p| p.stage != QuestStage::Completed);
     }
-
-    /// Returns the current stage of a quest (None if unknown).
-    pub fn stage_of(&self, quest_id: &str) -> Option<&QuestStage> {
-        let id = domain::QuestId::from(quest_id);
-        self.quests
-            .iter()
-            .find(|p| p.quest_id == id)
-            .map(|p| &p.stage)
-    }
 }
 
 // Internal Event 
@@ -68,7 +59,6 @@ impl QuestTracker {
 pub struct QuestUpdatedEvent {
     pub quest_id: String,
     pub stage: QuestStage,
-    pub counter: u32,
 }
 
 // Systems
@@ -109,7 +99,6 @@ fn handle_quest_update_events(
         quest_updated.send(QuestUpdatedEvent {
             quest_id: quest_id.to_string(),
             stage,
-            counter,
         });
     }
 }

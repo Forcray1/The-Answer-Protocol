@@ -1,3 +1,5 @@
+//! Heavy attacks: base hit plus a 75% bonus hit and a stun.
+
 use std::net::SocketAddr;
 use tokio::sync::broadcast::Sender;
 
@@ -22,6 +24,8 @@ pub(crate) fn handle_attack_heavy(
 ) -> String {
     // Delegate to the correct base handler, then multiply final damage
     // We reuse handle_attack / handle_attack_magic but send ATTACK_HEAVY sentinel
+    // Simpler: inline logic is duplication-heavy so we call the base and reprocess.
+    // For clarity, just duplicate the damage formula with ×1.75.
     let base_resp = if magic {
         handle_attack_magic(addr, cible.clone(), state, world, tx)
     } else {
@@ -41,6 +45,11 @@ pub(crate) fn handle_attack_heavy(
     }
     // The base handler already dealt damage. We can't easily undo it.
     // Instead: call get_bonus_hit to deal extra 0.75× portion.
+    // Practical approach: just run the attack command and append note.
+    // For the extra 0.75× bonus we send a second smaller hit.
+    // Simplest correct solution: handle heavy fully inline.
+    // The above handlers already applied full base damage. Append 75% bonus.
+    // We'll call a lightweight extra damage step:
     apply_bonus_hit(addr, &cible, magic, state, world, tx);
     if apply_stun {
         format!("{}S: EVT COMBAT STUN_APPLIED 1\n", base_resp)

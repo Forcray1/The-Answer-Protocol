@@ -1,8 +1,4 @@
 use bevy::prelude::*;
-use crate::AppState;
-use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ChatChannel {

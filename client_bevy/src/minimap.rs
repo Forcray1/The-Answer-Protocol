@@ -141,10 +141,8 @@ fn toggle_minimap(
             Visibility::Hidden => Visibility::Visible,
             _ => Visibility::Hidden,
         };
-        if *visibility == Visibility::Visible {
-            if let Some(sender) = &sender {
-                let _ = sender.0.send("WHO\n".to_string());
-            }
+        if *visibility == Visibility::Visible && let Some(sender) = &sender {
+            let _ = sender.0.send("WHO\n".to_string());
         }
     }
 }
@@ -164,10 +162,8 @@ fn poll_who_while_minimap_open(
     }
 
     refresh.0.tick(time.delta());
-    if refresh.0.just_finished() {
-        if let Some(sender) = &sender {
-            let _ = sender.0.send("WHO\n".to_string());
-        }
+    if refresh.0.just_finished() && let Some(sender) = &sender {
+        let _ = sender.0.send("WHO\n".to_string());
     }
 }
 

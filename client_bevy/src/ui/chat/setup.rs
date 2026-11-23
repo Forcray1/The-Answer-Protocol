@@ -1,8 +1,6 @@
 use bevy::prelude::*;
-use crate::AppState;
 use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
+use crate::net::NetworkSender;
 use crate::ui::chat::components::{ChatInputContainer, ChatInputPrompt, ChatInputText, ChatMessagesArea, ChatShortcutHelpText, ChatTabButton, ChatTabText, ChatText, ChatUiRoot, TerminalInputText, TerminalLogText, TerminalUiRoot};
 use crate::ui::chat::state::{ChatChannel, ChatConsole, ChatFadeState};
 /// One channel tab of the chat. The selected tab uses the channel color, the others are dimmed.
@@ -314,7 +312,7 @@ pub(crate) fn on_enter_ingame(
     combat: Option<Res<CombatResource>>,
     mut fade_state: ResMut<ChatFadeState>,
 ) {
-    let in_combat = combat.as_ref().map_or(false, |c| c.in_combat);
+    let in_combat = combat.as_ref().is_some_and(|c| c.in_combat);
     if let Ok(mut vis) = chat_root_q.get_single_mut() {
         *vis = if in_combat {
             Visibility::Hidden

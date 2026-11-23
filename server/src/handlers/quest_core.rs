@@ -1,8 +1,10 @@
+//! Quest bookkeeping shared by dialogue and combat: progress, stages, rewards.
+
 use std::net::SocketAddr;
 use tokio::sync::broadcast::Sender;
 
 use domain::quest::{QuestProgress, QuestStage};
-use domain::{ItemBucket, ItemId};
+use domain::ItemBucket;
 
 use crate::state::Player;
 use crate::world::WorldData;

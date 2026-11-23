@@ -1,9 +1,7 @@
-use std::time::Duration;
+use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
-use crate::AppState;
 use crate::loading::{RoomTransition, RoomTransitionRequest};
-use crate::map::YSort;
-use crate::net::{NetworkSender, ServerMessageEvent};
+use crate::net::NetworkSender;
 use crate::player::animation::animate;
 use crate::player::arrival::arrival_point;
 use crate::player::components::{LocalPlayer, PlayerAnimation, PosSendTimer};
@@ -53,20 +51,35 @@ pub(crate) const MOVE_KEYS: [Dir; 4] = [Dir::North, Dir::South, Dir::West, Dir::
 #[derive(Resource, Default)]
 pub(crate) struct HeldDirections(pub(crate) Vec<Dir>);
 
+/// Read-only game state that decides whether (and where) the player can move, grouped
+/// to keep the system's parameter list short (clippy::too_many_arguments).
+#[derive(SystemParam)]
+pub(crate) struct MovementContext<'w> {
+    console: Res<'w, crate::ui::ChatConsole>,
+    combat: Res<'w, crate::combat::CombatResource>,
+    dialogue: Res<'w, crate::interaction::DialogueState>,
+    game_state: Res<'w, crate::game::GameState>,
+    transition: Res<'w, RoomTransition>,
+    collision: Res<'w, crate::collision::CollisionMask>,
+}
+
 pub(crate) fn update_local_player(
     keys: Res<ButtonInput<KeyCode>>,
-    console: Res<crate::ui::ChatConsole>,
-    combat: Res<crate::combat::CombatResource>,
-    dialogue: Res<crate::interaction::DialogueState>,
     time: Res<Time>,
-    game_state: Res<crate::game::GameState>,
-    transition: Res<RoomTransition>,
-    collision: Res<crate::collision::CollisionMask>,
+    context: MovementContext,
     mut held: ResMut<HeldDirections>,
     mut last_tp: Local<f32>,
     mut transition_events: EventWriter<RoomTransitionRequest>,
     mut query: Query<(&mut Transform, &mut PlayerAnimation, &mut Handle<Image>), With<LocalPlayer>>,
 ) {
+    let MovementContext {
+        console,
+        combat,
+        dialogue,
+        game_state,
+        transition,
+        collision,
+    } = context;
     let Ok((mut transform, mut anim, mut texture)) = query.get_single_mut() else {
         return;
     };
@@ -198,7 +211,7 @@ pub(crate) fn send_local_position(
         return;
     };
     let pos = transform.translation.truncate();
-    if last_sent.map_or(false, |p| p.distance(pos) < 1.0) {
+    if last_sent.is_some_and(|p| p.distance(pos) < 1.0) {
         return; // Position unchanged: nothing to send.
     }
     *last_sent = Some(pos);

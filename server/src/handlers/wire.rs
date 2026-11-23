@@ -1,3 +1,5 @@
+//! Wire-format builders for room snapshots (exits, mobs, items, presence rosters).
+
 use std::net::SocketAddr;
 
 use domain::RoomId;

@@ -1,3 +1,5 @@
+//! Combat core: start, flee, stunned turns and the physical `ATTACK`.
+
 use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 use tokio::sync::broadcast::Sender;
@@ -255,6 +257,7 @@ pub(crate) fn handle_attack(
                 drop_names.extend(roll_drops(player, monster_drops, world));
                 stat_str = player_stats_event(player);
 
+                // ── Suivi KillMob ──────────────────────────────────────────────
                 let mut quests_to_advance: Vec<domain::QuestId> = Vec::new();
                 let mut quests_to_complete: Vec<domain::QuestId> = Vec::new();
                 for prog in &mut player.quest_progress {

@@ -1,8 +1,5 @@
 use bevy::prelude::*;
-use crate::AppState;
 use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
 use crate::ui::chat::ChatConsole;
 use crate::ui::inventory::components::{InventoryGrid, InventorySlot, InventorySlotInfo, InventoryState, InventoryTab, InventoryUiRoot, RawInvItem};
 use crate::ui::inventory::style::{BORDER_GOLD, SLOT_BG, SLOT_BORDER, TITLE_COLOR};
@@ -22,10 +19,8 @@ pub(crate) fn toggle_inventory(
             state.open = false;
         }
         if combat.in_combat || combat.phase != crate::combat::CombatTransitionPhase::None {
-            if state.is_changed() {
-                if let Ok(mut visibility) = query.get_single_mut() {
-                    *visibility = Visibility::Hidden;
-                }
+            if state.is_changed() && let Ok(mut visibility) = query.get_single_mut() {
+                *visibility = Visibility::Hidden;
             }
             return;
         }
@@ -42,13 +37,11 @@ pub(crate) fn toggle_inventory(
         }
     }
 
-    if state.is_changed() {
-        if let Ok(mut visibility) = query.get_single_mut() {
-            if state.open {
-                *visibility = Visibility::Inherited;
-            } else {
-                *visibility = Visibility::Hidden;
-            }
+    if state.is_changed() && let Ok(mut visibility) = query.get_single_mut() {
+        if state.open {
+            *visibility = Visibility::Inherited;
+        } else {
+            *visibility = Visibility::Hidden;
         }
     }
 }

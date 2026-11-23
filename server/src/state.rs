@@ -1,3 +1,9 @@
+// serveur/src/state.rs
+//
+// Live in-memory game state (placement: who is where, which items are on the ground,
+// current HP). The runtime `Player` mirrors the `domain` model: level, gold, XP bar,
+// stats, structured equipment, three-bag inventory, and combat state.
+
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::net::SocketAddr;
@@ -29,6 +35,7 @@ pub struct RuntimeItem {
     pub item_id: ItemId,
     pub source: ItemSource,
     pub collected_by: HashSet<String>,
+    /// World-space position (used for ground-item rendering by the Bevy client).
     pub pos_x: f32,
     pub pos_y: f32,
 }
@@ -55,6 +62,11 @@ pub struct CombatInstance {
     pub turn_number: u32,
 }
 
+/// The player as it lives in memory during a session.
+///
+/// Persisted fields (hp, xp, level, money, room, inventory, equipment,
+/// quests) are saved/loaded via the `database` crate. Purely runtime fields
+/// (`combat`, `group`, anti-spam timestamps) are not persisted.
 #[derive(Debug, Clone)]
 pub struct Player {
     pub id: PlayerId,
@@ -161,7 +173,7 @@ impl Player {
             self.level += 1;
             levels_gained += 1;
             self.xp_bar.requiered = xp_required_for_level(self.level);
-            self.stat_points += 3;
+            self.stat_points += 3; // 3 stat points per level
         }
         levels_gained
     }
@@ -251,6 +263,7 @@ impl ServerState {
                 .iter()
                 .enumerate()
                 .map(|(i, id)| {
+                    // Distribute items in a circle around the room centre.
                     let angle = if n > 1 {
                         (i as f32 / n as f32) * std::f32::consts::TAU
                     } else {

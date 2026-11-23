@@ -1,3 +1,5 @@
+//! `CONNECT` (login / registration / guest) and player persistence.
+
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;

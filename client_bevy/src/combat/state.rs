@@ -1,7 +1,3 @@
-use crate::AppState;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::{LocalPlayerName, LocalPlayerSkin};
-use crate::ui::PlayerStats;
 use bevy::prelude::*;
 
 pub(crate) const COMBAT_Z_BG: f32 = 2000.0;

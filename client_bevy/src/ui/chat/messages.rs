@@ -1,7 +1,5 @@
 use bevy::prelude::*;
-use crate::AppState;
-use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
+use crate::net::ServerMessageEvent;
 use crate::player::LocalPlayerName;
 use crate::ui::chat::state::{ChatChannel, ChatConsole, ChatHistory};
 
@@ -21,7 +19,7 @@ pub(crate) fn process_chat_events(
                 let sender = parts[0];
                 let message = parts[1..].join(" ");
                 let is_recent_self = local_name.0.as_deref() == Some(sender)
-                    && console.last_sent.as_ref().map_or(false, |(c, m, t)| {
+                    && console.last_sent.as_ref().is_some_and(|(c, m, t)| {
                         *c == ChatChannel::Global && m == &message && t.elapsed().as_secs() < 3
                     });
 
@@ -56,7 +54,7 @@ pub(crate) fn process_chat_events(
                         let sender = parts[4].replace('_', " ");
                         let message = parts[5..].join(" ");
                         let is_recent_self = local_name.0.as_deref() == Some(sender.as_str())
-                            && console.last_sent.as_ref().map_or(false, |(c, m, t)| {
+                            && console.last_sent.as_ref().is_some_and(|(c, m, t)| {
                                 *c == ChatChannel::Room
                                     && m == &message
                                     && t.elapsed().as_secs() < 3
@@ -92,7 +90,7 @@ pub(crate) fn process_chat_events(
                                 let is_room_loading = console
                                     .room_change_time
                                     .as_ref()
-                                    .map_or(false, |t| t.elapsed().as_millis() < 800);
+                                    .is_some_and(|t| t.elapsed().as_millis() < 800);
                                 if !is_room_loading {
                                     history.add(
                                         ChatChannel::Room,
@@ -136,7 +134,7 @@ pub(crate) fn process_chat_events(
                         let sender = parts[4];
                         let message = parts[5..].join(" ");
                         let is_recent_self = local_name.0.as_deref() == Some(sender)
-                            && console.last_sent.as_ref().map_or(false, |(c, m, t)| {
+                            && console.last_sent.as_ref().is_some_and(|(c, m, t)| {
                                 *c == ChatChannel::Group
                                     && m == &message
                                     && t.elapsed().as_secs() < 3

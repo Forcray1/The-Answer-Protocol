@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 
-use crate::AppState;
 use crate::net::ServerMessageEvent;
 
 #[derive(Resource)]
@@ -44,15 +43,13 @@ fn track_current_room(
         let msg = &ev.0;
 
         let room_info = room_from_connect(msg).or_else(|| room_from_move(msg));
-        if let Some((room, exits)) = room_info {
-            if !room.is_empty() && game_state.current_room != room {
-                game_state.current_room = room.to_string();
-                game_state.exits = exits;
-                println!(
-                    "[GAME] 🗺️ Current room: {} (exits: {:?})",
-                    game_state.current_room, game_state.exits
-                );
-            }
+        if let Some((room, exits)) = room_info && !room.is_empty() && game_state.current_room != room {
+            game_state.current_room = room.to_string();
+            game_state.exits = exits;
+            println!(
+                "[GAME] 🗺️ Current room: {} (exits: {:?})",
+                game_state.current_room, game_state.exits
+            );
         }
     }
 }

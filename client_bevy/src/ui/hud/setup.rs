@@ -1,8 +1,4 @@
 use bevy::prelude::*;
-use crate::AppState;
-use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
 use crate::ui::hud::components::{HpBarFill, HpText, HudUiRoot, XpBarFill, XpText};
 
 pub(crate) fn setup_hud_ui(mut commands: Commands) {

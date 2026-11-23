@@ -1,8 +1,4 @@
 use bevy::prelude::*;
-use crate::AppState;
-use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
 
 #[derive(Component)]
 pub struct InventoryDescriptionText;
@@ -75,7 +71,6 @@ pub struct InventoryState {
     pub active_tab: InventoryTab,
     pub cached_items: Vec<RawInvItem>,
     pub player_gold: i32,
-    pub stat_points: i32,
 }
 
 #[derive(Component)]
@@ -83,9 +78,6 @@ pub(crate) struct InventoryUiRoot;
 
 #[derive(Component)]
 pub(crate) struct InventoryGrid;
-
-#[derive(Component)]
-pub struct EquipmentPanel;
 
 #[derive(Component)]
 pub struct EquipmentSlot(pub String);
@@ -126,10 +118,6 @@ pub struct PlayerSilhouette;
 /// Marks a tab button.
 #[derive(Component)]
 pub(crate) struct InventoryTabBtn(pub(crate) InventoryTab);
-
-/// Marks the active-tab highlight bar.
-#[derive(Component)]
-pub(crate) struct ActiveTabUnderline;
 
 #[derive(Resource, Default)]
 pub struct SelectedItem {

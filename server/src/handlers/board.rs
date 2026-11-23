@@ -1,5 +1,6 @@
+//! Quest board: `BOARD_QUESTS`, `BOARD_TAKE`, `BOARD_ABANDON` and kill tracking.
+
 use std::net::SocketAddr;
-use serde_json::json;
 
 use crate::state::ServerState;
 use crate::logging::log_event;
@@ -23,7 +24,7 @@ pub(crate) fn handle_board_take(addr: SocketAddr, slot: usize, state: &mut Serve
     if state.board_quests.player_slot(&player_name).is_some() {
         return "S: ERR You already have an active board quest. Abandon it first.\n".to_string();
     }
-    let idx = slot.wrapping_sub(1);
+    let idx = slot.wrapping_sub(1); // convert 1-based to 0-based
     match state.board_quests.slots.get_mut(idx) {
         Some(s) if s.is_available() => {
             s.taken_by = Some(player_name.clone());

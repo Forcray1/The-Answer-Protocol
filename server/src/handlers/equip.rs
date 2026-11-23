@@ -1,3 +1,5 @@
+//! `EQUIP` / `UNEQUIP` and the conversion catalog item -> equipped weapon/armor.
+
 use std::collections::HashMap;
 use std::net::SocketAddr;
 

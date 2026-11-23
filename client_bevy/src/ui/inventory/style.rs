@@ -1,8 +1,4 @@
 use bevy::prelude::*;
-use crate::AppState;
-use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
 
 pub(crate) const BG_DARK: Color = Color::rgba(0.12, 0.09, 0.07, 0.97);
 

@@ -99,7 +99,8 @@ fn start_transition(
         return;
     }
 
-    for req in events.read() {
+    // one at a time
+    if let Some(req) = events.read().next() {
         // Don't send MOVE yet — wait until the screen is fully black.
         transition.phase = TransitionPhase::FadingOut {
             timer: 0.0,
@@ -111,7 +112,6 @@ fn start_transition(
             "[LOADING] Transition started → direction '{}' (from '{}')",
             req.direction, game_state.current_room
         );
-        break; // one at a time
     }
 }
 

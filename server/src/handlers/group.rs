@@ -1,3 +1,5 @@
+//! `GROUP` commands.
+
 use std::net::SocketAddr;
 use tokio::sync::broadcast::Sender;
 

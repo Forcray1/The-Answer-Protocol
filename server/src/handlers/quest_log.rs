@@ -1,10 +1,11 @@
+//! `QUEST` / `QUESTS`: the quest log texts.
+
 use std::net::SocketAddr;
 use serde_json::json;
 
 use domain::quest::QuestProgress;
-use domain::ItemId;
 
-use crate::state::{Player, ServerState};
+use crate::state::ServerState;
 use crate::world::WorldData;
 use crate::handlers::quest_core::{group_item_ids, quest_progress_for};
 use crate::handlers::util::ci_eq;

@@ -1,3 +1,5 @@
+// serveur/src/commands.rs
+
 #[derive(Debug, PartialEq)]
 pub enum GameCommand {
     Connect {
@@ -35,6 +37,7 @@ pub enum GameCommand {
     GroupInfo,
     Quit,
     Flee,
+    /// Reply to a multiple-choice dialogue: `ANSWER <npc_id> <answer>`
     Answer {
         npc: String,
         answer: String,

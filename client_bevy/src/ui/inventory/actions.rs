@@ -1,21 +1,17 @@
 use bevy::prelude::*;
-use crate::AppState;
-use crate::combat::CombatResource;
-use crate::net::{NetworkSender, ServerMessageEvent};
-use crate::player::LocalPlayerName;
+use crate::net::NetworkSender;
 use crate::ui::inventory::components::{InventoryActionBtn, InventoryActionText, InventoryDescriptionText, InventoryDropBtn, InventorySlotInfo, SelectedItem, UseItemBtn};
 use crate::ui::inventory::style::{BORDER_GOLD, SLOT_BG, SLOT_BORDER};
 
+// Named query types: they keep the system signatures short and readable
+// (a long inline Query type triggers clippy::type_complexity).
+type SlotButtonQuery<'w, 's> = Query<'w, 's, ( &'static Interaction, &'static InventorySlotInfo, &'static mut BackgroundColor, &'static mut BorderColor, ), (Changed<Interaction>, With<Button>)>;
+type ActionButtonQuery<'w, 's> = Query<'w, 's, (&'static Interaction, &'static mut BackgroundColor), (Changed<Interaction>, With<InventoryActionBtn>)>;
+type DropButtonQuery<'w, 's> = Query<'w, 's, (&'static Interaction, &'static mut BackgroundColor), (Changed<Interaction>, With<InventoryDropBtn>)>;
+type UseItemButtonQuery<'w, 's> = Query<'w, 's, (&'static Interaction, &'static UseItemBtn), (Changed<Interaction>, With<Button>)>;
+
 pub(crate) fn handle_slot_interactions(
-    mut interaction_query: Query<
-        (
-            &Interaction,
-            &InventorySlotInfo,
-            &mut BackgroundColor,
-            &mut BorderColor,
-        ),
-        (Changed<Interaction>, With<Button>),
-    >,
+    mut interaction_query: SlotButtonQuery,
     mut text_query: Query<&mut Text, With<InventoryDescriptionText>>,
     mut action_btn_q: Query<&mut Style, (With<InventoryActionBtn>, Without<InventoryDropBtn>)>,
     mut drop_btn_q: Query<&mut Style, (With<InventoryDropBtn>, Without<InventoryActionBtn>)>,
@@ -93,10 +89,7 @@ pub(crate) fn handle_slot_interactions(
 }
 
 pub(crate) fn handle_action_btn(
-    mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<InventoryActionBtn>),
-    >,
+    mut interaction_query: ActionButtonQuery,
     selected_item: Res<SelectedItem>,
     sender: Res<crate::net::NetworkSender>,
 ) {
@@ -128,10 +121,7 @@ pub(crate) fn handle_action_btn(
 }
 
 pub(crate) fn handle_drop_btn(
-    mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<InventoryDropBtn>),
-    >,
+    mut interaction_query: DropButtonQuery,
     selected_item: Res<SelectedItem>,
     sender: Res<crate::net::NetworkSender>,
 ) {
@@ -154,7 +144,7 @@ pub(crate) fn handle_drop_btn(
 }
 
 pub(crate) fn handle_use_item_btn(
-    mut btn_q: Query<(&Interaction, &UseItemBtn), (Changed<Interaction>, With<Button>)>,
+    mut btn_q: UseItemButtonQuery,
     sender: Option<Res<NetworkSender>>,
 ) {
     let Some(sender) = sender else { return };

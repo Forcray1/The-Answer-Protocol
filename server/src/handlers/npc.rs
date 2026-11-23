@@ -1,3 +1,5 @@
+//! NPC interaction: `INTERACT`, `TALK` and `ANSWER`.
+
 use std::net::SocketAddr;
 use serde_json::json;
 use tokio::sync::broadcast::Sender;
@@ -5,8 +7,8 @@ use tokio::sync::broadcast::Sender;
 use domain::quest::QuestStage;
 use domain::{CombatState, ItemId};
 
-use crate::state::{Player, ServerState};
-use crate::world::{Npc, WorldData};
+use crate::state::ServerState;
+use crate::world::WorldData;
 use crate::events::{to_player, GlobalEvent};
 use crate::handlers::board::handle_board_quests;
 use crate::handlers::combat::{handle_attack, start_combat};
@@ -38,7 +40,7 @@ pub(crate) fn pick_quest_dialogue<'a>(
     // block for the player's current state wins.
     for q in &world.world.quests {
         // The NPC takes part in a quest if it gives it, is its target, or declares dialogue
-        // blocks for it.
+        // blocks for it (e.g. an NPC whose text changes with the main story line).
         let is_giver = q.giver_id.as_ref() == Some(&npc.id);
         let is_target = is_npc_quest_target(npc, q);
         let has_blocks = npc.quest_dialogues.iter().any(|qd| qd.quest_id == q.id);
@@ -109,6 +111,7 @@ pub(crate) fn handle_talk(
     world: &WorldData,
     tx: &Sender<GlobalEvent>,
 ) -> String {
+    // ── 1. Find the NPC ─────────────────────────────────────────────────
     let current_room_id;
     let npc_trouve: Option<crate::world::Npc>;
     {
@@ -138,6 +141,7 @@ pub(crate) fn handle_talk(
         return "S: ERR utilize_connect_first\n".to_string();
     };
 
+    // ── 2. Quest resolution (legacy: DeliverItem / TalkToNpc) ──────────
     if npc.id == domain::NpcId::from("Temple_guard") {
         let has_pass = player.inventory.contains(&ItemId::from("temple_pass"));
         let lines = if has_pass {
@@ -158,6 +162,7 @@ pub(crate) fn handle_talk(
         return "S: ERR utilize_connect_first\n".to_string();
     };
 
+    // ── 3. Pick the right dialogue (conditional or default) ─────────────
     //    The text is chosen BEFORE this NPC starts its quests, so the "not started"
     //    block (stage 0) is what the player sees on a first meeting.
     let Some(player) = state.players.get(&addr) else {
@@ -212,6 +217,7 @@ pub(crate) fn handle_talk(
         );
     }
 
+    // ── 4. Start the quests this NPC gives (if not started / not completed) ──
     {
         let Some(player) = state.players.get_mut(&addr) else {
             return "S: ERR utilize_connect_first\n".to_string();
@@ -247,7 +253,9 @@ pub(crate) fn handle_talk(
     }
 
     // RFC 42TAP: OK { "npc": "guard", "dialogue": "Stay safe, traveler." }
+    // (the paged dialogue itself is pushed to the client with EVT DIALOGUE / DIALOGUE_CHOICE)
 
+    // ── 5. If NPC is a merchant, push the shop listing ───────────────────
     if !npc.shop.is_empty() {
         if let Some(player) = state.players.get(&addr) {
             to_player(
