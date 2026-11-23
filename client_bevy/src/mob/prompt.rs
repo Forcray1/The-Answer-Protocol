@@ -109,13 +109,18 @@ pub(crate) fn interaction_system(
     // Show the prompt icon for nearby ground items (use PNJ bubble).
     if closest_npc.is_none() {
         if ground_target.0.is_some() {
-            // Find the item entity position to float the bubble over it.
+            // Float the bubble over the closest copy of the targeted item.
+            let player_xy = player_transform.translation.truncate();
+            let mut closest_item_dist = f32::MAX;
             for (tf, gi) in &items_q {
                 if ground_target.0.as_deref() == Some(&gi.item_id) {
-                    // Use only x/y from the item; override z so the bubble renders on top.
-                    closest_pos = Vec3::new(tf.translation.x, tf.translation.y, 0.0);
-                    closest_is_enemy = false;
-                    break;
+                    let dist = player_xy.distance(tf.translation.truncate());
+                    if dist < closest_item_dist {
+                        closest_item_dist = dist;
+                        // Use only x/y from the item; override z so the bubble renders on top.
+                        closest_pos = Vec3::new(tf.translation.x, tf.translation.y, 0.0);
+                        closest_is_enemy = false;
+                    }
                 }
             }
         }
@@ -147,10 +152,14 @@ pub(crate) fn handle_interaction_input(
     combat: Res<crate::combat::CombatResource>,
     dialogue: Res<crate::interaction::DialogueState>,
     sender: Res<crate::net::NetworkSender>,
+    shop: Res<crate::shop::ShopState>,
 ) {
+    // `is_changed`: the E press that just closed a dialogue must not reopen it.
     if combat.in_combat
         || combat.phase != crate::combat::CombatTransitionPhase::None
         || dialogue.is_active()
+        || dialogue.is_changed()
+        || shop.open
     {
         return;
     }

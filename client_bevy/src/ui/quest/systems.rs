@@ -98,83 +98,131 @@ pub(crate) fn handle_quest_data(
     list_query: Query<Entity, With<QuestListPanel>>,
     existing_entries: Query<Entity, With<QuestEntrySlot>>,
     mut empty_text: Query<&mut Style, With<QuestEmptyText>>,
+    mut selected: ResMut<SelectedQuest>,
+    texts: QuestDetailTexts,
 ) {
-    for ev in events.read() {
-        if let Some(data) = ev.0.strip_prefix("S: EVT QUEST_DATA ") {
-            let Ok(list) = list_query.get_single() else {
-                continue;
-            };
+    let QuestDetailTexts {
+        mut title_q,
+        mut desc_q,
+        mut obj_q,
+    } = texts;
+    // Each event is a full list, so only the latest one of this frame matters.
+    let Some(data) = events
+        .read()
+        .filter_map(|ev| ev.0.strip_prefix("S: EVT QUEST_DATA "))
+        .last()
+    else {
+        return;
+    };
+    let Ok(list) = list_query.get_single() else {
+        return;
+    };
 
-            // Remove old entries
-            for entity in existing_entries.iter() {
-                commands.entity(entity).despawn_recursive();
+    // Remove old entries
+    for entity in existing_entries.iter() {
+        commands.entity(entity).despawn_recursive();
+    }
+
+    let data = data.trim();
+    let entries: Vec<&str> = if data == "empty" {
+        Vec::new()
+    } else {
+        data.split('|').collect()
+    };
+    if let Ok(mut style) = empty_text.get_single_mut() {
+        style.display = if entries.is_empty() {
+            Display::Flex
+        } else {
+            Display::None
+        };
+    }
+
+    let mut selected_still_listed = false;
+    for item in entries {
+        // <id>:<name>:<description>:<objective>:<stage>:<counter>
+        let parts: Vec<&str> = item.splitn(6, ':').collect();
+        if parts.len() < 4 {
+            continue;
+        }
+        let quest_id = parts[0].to_string();
+        let quest_name = parts[1].to_string();
+        let quest_desc = parts[2].to_string();
+        let quest_obj = parts[3].to_string();
+        let label = match parts.get(5).copied() {
+            Some(counter) if !counter.is_empty() => format!("{}  ({})", quest_name, counter),
+            _ => quest_name.clone(),
+        };
+
+        // Keep the open detail panel in sync with the new counters.
+        let is_selected = selected.id.as_deref() == Some(quest_id.as_str());
+        if is_selected {
+            selected_still_listed = true;
+            if let Ok(mut text) = desc_q.get_single_mut() {
+                text.sections[0].value = quest_desc.clone();
             }
-
-            if data.trim() == "empty" {
-                // Show "No active quests"
-                if let Ok(mut style) = empty_text.get_single_mut() {
-                    style.display = Display::Flex;
-                }
-                continue;
+            if let Ok(mut text) = obj_q.get_single_mut() {
+                text.sections[0].value = quest_obj.clone();
             }
+        }
 
-            // Hide empty text
-            if let Ok(mut style) = empty_text.get_single_mut() {
-                style.display = Display::None;
-            }
+        let entry_entity = commands
+            .spawn((
+                ButtonBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        min_height: Val::Px(44.0),
+                        justify_content: JustifyContent::Center,
+                        align_items: AlignItems::Center,
+                        padding: UiRect::new(
+                            Val::Px(12.0),
+                            Val::Px(12.0),
+                            Val::Px(8.0),
+                            Val::Px(8.0),
+                        ),
+                        border: UiRect::all(Val::Px(1.0)),
+                        ..default()
+                    },
+                    background_color: if is_selected {
+                        QUEST_ENTRY_SELECTED.into()
+                    } else {
+                        QUEST_ENTRY_BG.into()
+                    },
+                    border_color: QUEST_ENTRY_BORDER.into(),
+                    ..default()
+                },
+                QuestEntrySlot,
+                QuestEntry {
+                    id: quest_id,
+                    name: quest_name,
+                    description: quest_desc,
+                    objective: quest_obj,
+                },
+            ))
+            .with_children(|btn| {
+                btn.spawn(TextBundle::from_section(
+                    label,
+                    TextStyle {
+                        font_size: 17.0,
+                        color: QUEST_ENTRY_TEXT,
+                        ..default()
+                    },
+                ));
+            })
+            .id();
+        commands.entity(list).add_child(entry_entity);
+    }
 
-            for item in data.trim().split('|') {
-                let parts: Vec<&str> = item.splitn(5, ':').collect();
-                if parts.len() >= 4 {
-                    let quest_id = parts[0].to_string();
-                    let quest_name = parts[1].to_string();
-                    let quest_desc = parts[2].to_string();
-                    // parts[3] = objective text, parts[4] = stage wire (drop it from display)
-                    let quest_obj = parts[3].to_string();
-
-                    let entry_entity = commands
-                        .spawn((
-                            ButtonBundle {
-                                style: Style {
-                                    width: Val::Percent(100.0),
-                                    min_height: Val::Px(44.0),
-                                    justify_content: JustifyContent::Center,
-                                    align_items: AlignItems::Center,
-                                    padding: UiRect::new(
-                                        Val::Px(12.0),
-                                        Val::Px(12.0),
-                                        Val::Px(8.0),
-                                        Val::Px(8.0),
-                                    ),
-                                    border: UiRect::all(Val::Px(1.0)),
-                                    ..default()
-                                },
-                                background_color: QUEST_ENTRY_BG.into(),
-                                border_color: QUEST_ENTRY_BORDER.into(),
-                                ..default()
-                            },
-                            QuestEntrySlot,
-                            QuestEntry {
-                                id: quest_id,
-                                name: quest_name.clone(),
-                                description: quest_desc,
-                                objective: quest_obj,
-                            },
-                        ))
-                        .with_children(|btn| {
-                            btn.spawn(TextBundle::from_section(
-                                quest_name,
-                                TextStyle {
-                                    font_size: 17.0,
-                                    color: QUEST_ENTRY_TEXT,
-                                    ..default()
-                                },
-                            ));
-                        })
-                        .id();
-                    commands.entity(list).add_child(entry_entity);
-                }
-            }
+    // The selected quest just ended: back to the default detail panel.
+    if selected.id.is_some() && !selected_still_listed {
+        selected.id = None;
+        if let Ok(mut text) = title_q.get_single_mut() {
+            text.sections[0].value = "Select a quest".to_string();
+        }
+        if let Ok(mut text) = desc_q.get_single_mut() {
+            text.sections[0].value = String::new();
+        }
+        if let Ok(mut text) = obj_q.get_single_mut() {
+            text.sections[0].value = String::new();
         }
     }
 }

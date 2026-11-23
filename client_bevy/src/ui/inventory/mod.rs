@@ -30,6 +30,7 @@ impl Plugin for InventoryPlugin {
                 (
                     toggle_inventory,
                     handle_inventory_data,
+                    clear_stale_selection.after(handle_inventory_data),
                     handle_equip_data,
                     handle_slot_interactions,
                     handle_action_btn,

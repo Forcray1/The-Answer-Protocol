@@ -32,6 +32,8 @@ pub enum ItemSource {
 
 #[derive(Debug, Clone)]
 pub struct RuntimeItem {
+    /// Unique id of this item on the ground (several can share the same `item_id`).
+    pub uid: u64,
     pub item_id: ItemId,
     pub source: ItemSource,
     pub collected_by: HashSet<String>,
@@ -87,7 +89,7 @@ pub struct Player {
     pub completed_quests: Vec<domain::QuestId>,
     /// Active quests with their stage and progress counter.
     pub quest_progress: Vec<domain::QuestProgress>,
-    /// Currently equipped medaillon (stays in inventory, just flagged).
+    /// Currently equipped medaillon (removed from the inventory while worn).
     pub equipped_medaillon_id: Option<domain::ItemId>,
     /// Unspent stat allocation points (+3 per level up).
     pub stat_points: i32,
@@ -140,7 +142,7 @@ impl Player {
         }
     }
 
-    /// Adds XP and levels up as many times as needed.
+    /// Adds XP and levels up as many times as needed. A level up restores all HP.
     /// Returns the number of levels gained.
     pub fn add_xp(&mut self, amount: i32) -> i32 {
         self.xp_bar.current += amount;
@@ -151,6 +153,9 @@ impl Player {
             levels_gained += 1;
             self.xp_bar.requiered = xp_required_for_level(self.level);
             self.stat_points += 3; // 3 stat points per level
+        }
+        if levels_gained > 0 {
+            self.hp = self.max_hp;
         }
         levels_gained
     }
@@ -165,17 +170,7 @@ impl Player {
                 }
             }
         }
-
-        self.xp_bar.current += xp_gain;
-        let mut levels_gained = 0;
-        while self.xp_bar.current >= self.xp_bar.requiered {
-            self.xp_bar.current -= self.xp_bar.requiered;
-            self.level += 1;
-            levels_gained += 1;
-            self.xp_bar.requiered = xp_required_for_level(self.level);
-            self.stat_points += 3; // 3 stat points per level
-        }
-        levels_gained
+        self.add_xp(xp_gain)
     }
 
     pub fn add_money(&mut self, amount: i32) {
@@ -207,6 +202,8 @@ pub struct ServerState {
     pub dead_npcs: Vec<DeadNpc>,
     pub groups: HashMap<GroupId, Group>,
     pub group_counter: u64,
+    /// Last uid given to an item on the ground.
+    pub next_item_uid: u64,
     /// Shared board quest pool for all notice boards.
     pub board_quests: BoardQuestPool,
 }
@@ -222,6 +219,7 @@ impl ServerState {
             dead_npcs: Vec::new(),
             groups: HashMap::new(),
             group_counter: 0,
+            next_item_uid: 0,
             board_quests: BoardQuestPool::new(),
         }
     }
@@ -270,7 +268,9 @@ impl ServerState {
                         0.0
                     };
                     let radius = 280.0_f32;
+                    self.next_item_uid += 1;
                     RuntimeItem {
+                        uid: self.next_item_uid,
                         item_id: id.clone(),
                         source: ItemSource::World,
                         collected_by: HashSet::new(),

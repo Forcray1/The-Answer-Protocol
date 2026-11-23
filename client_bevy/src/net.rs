@@ -1,7 +1,6 @@
 use bevy::prelude::*;
-use crossbeam_channel::{Receiver, Sender, TryRecvError, bounded};
+use crossbeam_channel::{Receiver, Sender, bounded};
 use std::thread;
-use std::time::Duration;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpStream;
 
@@ -85,6 +84,8 @@ fn spawn_connection(commands: &mut Commands) {
                 let _ = tx_to_bevy.send(MSG_UNREACHABLE.to_string());
                 return;
             };
+            // Send small commands right away instead of letting TCP group them.
+            let _ = stream.set_nodelay(true);
             println!("[NETWORK] Connected to the server");
             let _ = tx_to_bevy.send(MSG_CONNECTED.to_string());
 
@@ -114,20 +115,21 @@ fn spawn_connection(commands: &mut Commands) {
                 }
             });
 
-            loop {
-                loop {
-                    match rx_in_tokio.try_recv() {
-                        Ok(message) => {
-                            if writer.write_all(message.as_bytes()).await.is_err() {
-                                return;
-                            }
-                        }
-                        Err(TryRecvError::Empty) => break,
-                        // The Bevy side replaced/dropped its sender: this connection is obsolete.
-                        Err(TryRecvError::Disconnected) => return,
+            // The crossbeam `recv` blocks, so a small thread hands commands to the async
+            // writer as soon as they are sent. When the Bevy side replaces or drops its
+            // sender, this chain ends and the connection is closed.
+            let (write_tx, mut write_rx) = tokio::sync::mpsc::channel::<String>(100);
+            thread::spawn(move || {
+                while let Ok(message) = rx_in_tokio.recv() {
+                    if write_tx.blocking_send(message).is_err() {
+                        break;
                     }
                 }
-                tokio::time::sleep(Duration::from_millis(10)).await;
+            });
+            while let Some(message) = write_rx.recv().await {
+                if writer.write_all(message.as_bytes()).await.is_err() {
+                    return;
+                }
             }
         });
     });

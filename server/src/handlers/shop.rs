@@ -50,7 +50,8 @@ pub(crate) fn handle_buy(
             .equipement
             .equipped()
             .iter()
-            .any(|(_, id, _)| id.as_str() == item_id);
+            .any(|(_, id, _)| id.as_str() == item_id)
+            || player.equipped_medaillon_id.as_ref() == Some(&shop_entry.item_id);
         if player.inventory.contains(&shop_entry.item_id) || already_equipped {
             return "S: ERR already_owned\n".to_string();
         }
@@ -111,7 +112,8 @@ pub(crate) fn shop_event(
                     .equipement
                     .equipped()
                     .iter()
-                    .any(|(_, id, _)| id == &si.item_id);
+                    .any(|(_, id, _)| id == &si.item_id)
+                    || player.equipped_medaillon_id.as_ref() == Some(&si.item_id);
                 if player.inventory.contains(&si.item_id) || already_equipped {
                     0
                 } else {

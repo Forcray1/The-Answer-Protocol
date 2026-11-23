@@ -107,6 +107,9 @@ pub struct Npc {
     pub special_defense: Option<i32>,
     #[serde(default)]
     pub exp_reward: Option<i32>,
+    /// Gold given to the player who kills this mob.
+    #[serde(default)]
+    pub gold_reward: Option<i32>,
     #[serde(default)]
     pub drops: Vec<DropChance>,
     #[serde(default)]

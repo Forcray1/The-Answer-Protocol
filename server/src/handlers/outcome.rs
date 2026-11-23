@@ -14,6 +14,8 @@ use crate::events::{to_player_from, to_room, to_all, GlobalEvent};
 use crate::logging::log_event;
 use crate::handlers::board::process_board_quest_kill;
 use crate::handlers::player_events::player_stats_event;
+use crate::handlers::quest_core::record_kill_for_quests;
+use crate::handlers::quest_log::quest_data_event;
 use crate::handlers::wire::presence_roster_line;
 
 #[allow(dead_code)]
@@ -174,6 +176,37 @@ pub(crate) fn roll_drops(
     drop_names
 }
 
+/// Gold given for killing this mob (`gold_reward` in world.yaml).
+fn kill_gold(m_id: &domain::NpcId, world: &WorldData) -> i32 {
+    world
+        .npc_by_id(m_id)
+        .and_then(|npc| npc.gold_reward)
+        .unwrap_or(0)
+        .max(0)
+}
+
+/// Gives the rewards of a kill (XP, gold, loot, quest progress), whatever the attack type.
+/// Returns the names of the drops and the stats and quest lines for the reply.
+pub(crate) fn reward_kill(
+    addr: SocketAddr,
+    m_id: &domain::NpcId,
+    exp_gained: i32,
+    drops: Vec<crate::world::DropChance>,
+    state: &mut ServerState,
+    world: &WorldData,
+    tx: &Sender<GlobalEvent>,
+) -> (Vec<String>, String) {
+    let Some(player) = state.players.get_mut(&addr) else {
+        return (Vec::new(), String::new());
+    };
+    player.add_xp_with_world(exp_gained, world);
+    player.add_money(kill_gold(m_id, world));
+    let drop_names = roll_drops(player, drops, world);
+    let quest_lines = record_kill_for_quests(addr, m_id, player, world, tx);
+    let reply = format!("{}{}", player_stats_event(player), quest_lines);
+    (drop_names, reply)
+}
+
 /// Final step of a won fight: despawns the mob for the room, settles the board quest
 /// and builds the reply. `headline` is the first sentence ("You dealt 12 damage").
 #[allow(clippy::too_many_arguments)]
@@ -188,6 +221,7 @@ pub(crate) fn announce_victory(
     drop_names: &[String],
     mut stat_str: String,
     state: &mut ServerState,
+    world: &WorldData,
     tx: &Sender<GlobalEvent>,
 ) -> String {
     to_room(
@@ -197,16 +231,20 @@ pub(crate) fn announce_victory(
         room.clone(),
     );
     let board_bonus = process_board_quest_kill(player_name, m_id.as_str(), state);
-    // If a board quest completed, refresh the HUD gold and remove it from the quest log.
-    if !board_bonus.is_empty() {
-        if let Some(p) = state.players.get(&addr) {
-            stat_str.push_str(&format!("S: EVT GOLD {}\n", p.money));
-            stat_str.push_str("S: EVT QUEST_DATA empty\n");
-        }
+    // Keep the HUD gold and the quest journal counters up to date after every kill.
+    if let Some(p) = state.players.get(&addr) {
+        stat_str.push_str(&format!("S: EVT GOLD {}\n", p.money));
+        stat_str.push_str(&quest_data_event(p, state, world));
     }
+    let gold = kill_gold(m_id, world);
+    let gold_text = if gold > 0 {
+        format!(", +{} gold", gold)
+    } else {
+        String::new()
+    };
     let mut msg = format!(
-        "S: EVT COMBAT END victory\nS: OK {}. {} collapses! (+{} EXP){}\n",
-        headline, monster_name, exp_gained, board_bonus
+        "S: EVT COMBAT END victory\nS: OK {}. {} collapses! (+{} EXP{}){}\n",
+        headline, monster_name, exp_gained, gold_text, board_bonus
     );
     if !drop_names.is_empty() {
         msg.push_str(&format!("You obtain: {}\n", drop_names.join(", ")));

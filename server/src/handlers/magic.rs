@@ -9,8 +9,8 @@ use domain::RoomId;
 use crate::state::{ServerState, START_ROOM};
 use crate::world::WorldData;
 use crate::events::GlobalEvent;
-use crate::handlers::combat::{damage_after_defense, handle_stunned_turn};
-use crate::handlers::outcome::{announce_victory, kill_player, remove_dead_monster, roll_drops};
+use crate::handlers::combat::{damage_after_defense, handle_stunned_turn, heavy_bonus_damage};
+use crate::handlers::outcome::{announce_victory, kill_player, remove_dead_monster, reward_kill};
 use crate::handlers::player_events::{player_special_attack_total, player_stats_event};
 use crate::handlers::util::ci_eq;
 use crate::handlers::wire::room_change_snapshot;
@@ -25,8 +25,20 @@ pub(crate) fn handle_attack_magic(
     if let Some(stunned_response) = handle_stunned_turn(addr, state, world, tx) {
         return stunned_response;
     }
-    // Same as handle_attack but scales on special_damage / hits special_defense
+    resolve_magic_attack(addr, cible, false, state, world, tx)
+}
+
+/// Same as `resolve_attack` but scales on special_damage / hits special_defense.
+pub(crate) fn resolve_magic_attack(
+    addr: SocketAddr,
+    cible: String,
+    heavy: bool,
+    state: &mut ServerState,
+    world: &WorldData,
+    tx: &Sender<GlobalEvent>,
+) -> String {
     let current_room_id;
+    let attack_total;
     let mut player_spe_dmg = 5;
     let mut player_armor = 0;
     let mut monster_id_found = None;
@@ -54,7 +66,8 @@ pub(crate) fn handle_attack_magic(
         current_room_id = player.current_room.clone();
         player_name = player.username.clone();
         player.last_attack = Some(Instant::now());
-        player_spe_dmg += player_special_attack_total(player, world);
+        attack_total = player_special_attack_total(player, world);
+        player_spe_dmg += attack_total;
         player_armor += player.stats.special_defense + player.equipement.total_defense();
     } else {
         return "S: ERR utilize_connect_first\n".to_string();
@@ -79,7 +92,10 @@ pub(crate) fn handle_attack_magic(
     }
 
     if let Some(m_id) = monster_id_found {
-        let final_damage = (player_spe_dmg - monster_spe_def).max(1);
+        let mut final_damage = (player_spe_dmg - monster_spe_def).max(1);
+        if heavy {
+            final_damage += heavy_bonus_damage(attack_total, monster_spe_def);
+        }
         let mut monster_dead = false;
         let mut monster_hp_left = 0;
         if let Some(hp) = state.npc_hps.get_mut(&m_id) {
@@ -91,13 +107,8 @@ pub(crate) fn handle_attack_magic(
         }
         if monster_dead {
             remove_dead_monster(addr, &m_id, &current_room_id, state, world);
-            let mut drop_names = Vec::new();
-            let mut stat_str = String::new();
-            if let Some(player) = state.players.get_mut(&addr) {
-                player.add_xp_with_world(exp_gained, world);
-                drop_names.extend(roll_drops(player, monster_drops, world));
-                stat_str = player_stats_event(player);
-            }
+            let (drop_names, stat_str) =
+                reward_kill(addr, &m_id, exp_gained, monster_drops, state, world, tx);
             announce_victory(
                 addr,
                 &player_name,
@@ -109,6 +120,7 @@ pub(crate) fn handle_attack_magic(
                 &drop_names,
                 stat_str,
                 state,
+                world,
                 tx,
             )
         } else {
@@ -130,7 +142,7 @@ pub(crate) fn handle_attack_magic(
                     "S: EVT COMBAT END defeat\nS: OK Magic deals {}. {} retaliates and finishes you off. DEAD! You wake up at the oasis.\n{}\n{}",
                     final_damage,
                     monster_name,
-                    room_change_snapshot(&RoomId::from(START_ROOM), state, world),
+                    room_change_snapshot(addr, &RoomId::from(START_ROOM), state, world),
                     final_stats
                 )
             } else {

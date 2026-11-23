@@ -7,3 +7,10 @@ members = [
     "database",
     "domain"
 ]
+
+# Keep `cargo run` playable: light optimization for our crates, full for dependencies.
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3

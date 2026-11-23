@@ -5,7 +5,7 @@ use crate::net::NetworkSender;
 use crate::player::animation::animate;
 use crate::player::arrival::arrival_point;
 use crate::player::components::{LocalPlayer, PlayerAnimation, PosSendTimer};
-use crate::player::config::{FOOT_HALF_H, FOOT_HALF_W, FOOT_OFFSET_Y, MAP_HALF_H, MAP_HALF_W, PLAYER_SPEED};
+use crate::player::config::{COLLISION_STEP, FOOT_HALF_H, FOOT_HALF_W, FOOT_OFFSET_Y, MAP_HALF_H, MAP_HALF_W, PLAYER_SPEED};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Dir {
@@ -63,6 +63,27 @@ pub(crate) struct MovementContext<'w> {
     collision: Res<'w, crate::collision::CollisionMask>,
 }
 
+/// Moves from `start` by `motion` in small steps and stops right before the first obstacle.
+/// From inside a wall (e.g. a room arrival point), only the destination is checked so the
+/// player can still walk out.
+fn walk(start: Vec2, motion: Vec2, is_blocked: impl Fn(Vec2) -> bool) -> Vec2 {
+    if is_blocked(start) {
+        let end = start + motion;
+        return if is_blocked(end) { start } else { end };
+    }
+    let steps = (motion.length() / COLLISION_STEP).ceil().max(1.0) as u32;
+    let step = motion / steps as f32;
+    let mut position = start;
+    for _ in 0..steps {
+        let next = position + step;
+        if is_blocked(next) {
+            break;
+        }
+        position = next;
+    }
+    position
+}
+
 pub(crate) fn update_local_player(
     keys: Res<ButtonInput<KeyCode>>,
     time: Res<Time>,
@@ -107,28 +128,15 @@ pub(crate) fn update_local_player(
     }
 
     if let Some(&d) = held.0.first() {
-        let delta = d.vec() * PLAYER_SPEED * time.delta_seconds();
-        let cur_x = transform.translation.x;
-        let cur_y = transform.translation.y;
-
+        let motion = d.vec() * PLAYER_SPEED * time.delta_seconds();
         let half = Vec2::new(FOOT_HALF_W, FOOT_HALF_H);
-        let foot = |x: f32, y: f32| Vec2::new(x, y + FOOT_OFFSET_Y);
+        let foot_offset = Vec2::new(0.0, FOOT_OFFSET_Y);
+        let moved = walk(transform.translation.truncate(), motion, |position| {
+            collision.blocks_box(position + foot_offset, half)
+        });
 
-        let try_x = cur_x + delta.x;
-        let res_x = if collision.blocks_box(foot(try_x, cur_y), half) {
-            cur_x
-        } else {
-            try_x
-        };
-        let try_y = cur_y + delta.y;
-        let res_y = if collision.blocks_box(foot(res_x, try_y), half) {
-            cur_y
-        } else {
-            try_y
-        };
-
-        let mut new_x = res_x;
-        let mut new_y = res_y;
+        let mut new_x = moved.x;
+        let mut new_y = moved.y;
 
         let can_tp = time.elapsed_seconds() - *last_tp > 1.0;
 

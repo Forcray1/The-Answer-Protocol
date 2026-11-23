@@ -181,7 +181,7 @@ Le joueur clique → client envoie `ANSWER <npc_id> <answer>` → serveur vérif
 
 `S: EVT QUEST_DATA` utilise le format :
 ```
-<id>:<name>:<description>:<objective_text>:<stage_wire>|<id2>:…
+<id>:<name>:<description>:<objective_text>:<stage_wire>:<counter>|<id2>:…
 ```
 
 ---

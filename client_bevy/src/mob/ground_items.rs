@@ -1,6 +1,10 @@
+use std::collections::HashMap;
+
 use bevy::prelude::*;
 use crate::mob::components::{GROUND_ITEM_SIZE, GROUND_ITEM_Z, GroundItem, GroundItemTarget, ITEM_INTERACT_DIST};
 
+/// Applies ground item events in the order they arrived. Identical items are told apart
+/// by their `uid`, and a room change clears everything before the new room's items spawn.
 pub(crate) fn handle_ground_item_events(
     mut commands: Commands,
     mut events: EventReader<crate::net::ServerMessageEvent>,
@@ -8,19 +12,36 @@ pub(crate) fn handle_ground_item_events(
     existing: Query<(Entity, &GroundItem)>,
     mut ground_target: ResMut<GroundItemTarget>,
 ) {
+    if events.is_empty() {
+        return;
+    }
+    let mut on_ground: HashMap<u64, Entity> =
+        existing.iter().map(|(entity, item)| (item.uid, entity)).collect();
+
     for ev in events.read() {
+        if ev.0.starts_with("S: OK room=loc.") {
+            for (_, entity) in on_ground.drain() {
+                commands.entity(entity).despawn_recursive();
+            }
+            ground_target.0 = None;
+            continue;
+        }
+
         let parts: Vec<&str> = ev.0.split_whitespace().collect();
 
-        // S: EVT ROOM ITEM_SPAWN <item_id> <name> <sprite> <x> <y>
-        if parts.len() >= 9
+        // S: EVT ROOM ITEM_SPAWN <item_id> <name> <sprite> <x> <y> <uid>
+        if parts.len() >= 10
             && parts[0] == "S:"
             && parts[1] == "EVT"
             && parts[2] == "ROOM"
             && parts[3] == "ITEM_SPAWN"
         {
             let item_id = parts[4];
+            let Ok(uid) = parts[9].parse::<u64>() else {
+                continue;
+            };
             // Skip if already in scene
-            if existing.iter().any(|(_, gi)| gi.item_id == item_id) {
+            if on_ground.contains_key(&uid) {
                 continue;
             }
 
@@ -39,36 +60,41 @@ pub(crate) fn handle_ground_item_events(
                 asset_server.load("UI/QuestUI.png")
             };
 
-            commands.spawn((
-                SpriteBundle {
-                    texture,
-                    sprite: Sprite {
-                        custom_size: Some(Vec2::splat(GROUND_ITEM_SIZE)),
+            let entity = commands
+                .spawn((
+                    SpriteBundle {
+                        texture,
+                        sprite: Sprite {
+                            custom_size: Some(Vec2::splat(GROUND_ITEM_SIZE)),
+                            ..default()
+                        },
+                        transform: Transform::from_xyz(x, y, GROUND_ITEM_Z),
                         ..default()
                     },
-                    transform: Transform::from_xyz(x, y, GROUND_ITEM_Z),
-                    ..default()
-                },
-                GroundItem {
-                    item_id: item_id.to_string(),
-                },
-            ));
+                    GroundItem {
+                        uid,
+                        item_id: item_id.to_string(),
+                    },
+                ))
+                .id();
+            on_ground.insert(uid, entity);
         }
 
-        // S: EVT ROOM ITEM_DESPAWN <item_id>
-        if parts.len() >= 5
+        // S: EVT ROOM ITEM_DESPAWN <item_id> <uid>
+        if parts.len() >= 6
             && parts[0] == "S:"
             && parts[1] == "EVT"
             && parts[2] == "ROOM"
             && parts[3] == "ITEM_DESPAWN"
         {
-            let item_id = parts[4];
-            for (entity, gi) in &existing {
-                if gi.item_id == item_id {
-                    commands.entity(entity).despawn_recursive();
-                }
+            let Ok(uid) = parts[5].parse::<u64>() else {
+                continue;
+            };
+            if let Some(entity) = on_ground.remove(&uid) {
+                commands.entity(entity).despawn_recursive();
             }
-            if ground_target.0.as_deref() == Some(item_id) {
+            // The closest item is recomputed next frame.
+            if ground_target.0.as_deref() == Some(parts[4]) {
                 ground_target.0 = None;
             }
         }
@@ -105,22 +131,5 @@ pub(crate) fn update_ground_item_target_impl(
     }
     if ground_target.0 != closest_id {
         ground_target.0 = closest_id;
-    }
-}
-
-/// Clear all ground items when entering a new room.
-pub(crate) fn cleanup_items_on_room_change(
-    mut commands: Commands,
-    mut events: EventReader<crate::net::ServerMessageEvent>,
-    items: Query<Entity, With<GroundItem>>,
-    mut ground_target: ResMut<GroundItemTarget>,
-) {
-    for ev in events.read() {
-        if ev.0.starts_with("S: OK room=loc.") {
-            for entity in &items {
-                commands.entity(entity).despawn_recursive();
-            }
-            ground_target.0 = None;
-        }
     }
 }

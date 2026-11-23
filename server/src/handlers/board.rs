@@ -3,7 +3,9 @@
 use std::net::SocketAddr;
 
 use crate::state::ServerState;
+use crate::world::WorldData;
 use crate::logging::log_event;
+use crate::handlers::quest_log::quest_data_event;
 
 /// `BOARD_QUESTS` — return the 6 board quest slots to the requesting player.
 pub(crate) fn handle_board_quests(addr: SocketAddr, state: &ServerState) -> String {
@@ -15,7 +17,12 @@ pub(crate) fn handle_board_quests(addr: SocketAddr, state: &ServerState) -> Stri
 }
 
 /// `BOARD_TAKE <slot>` — player accepts the quest in the given 1-based slot.
-pub(crate) fn handle_board_take(addr: SocketAddr, slot: usize, state: &mut ServerState) -> String {
+pub(crate) fn handle_board_take(
+    addr: SocketAddr,
+    slot: usize,
+    state: &mut ServerState,
+    world: &WorldData,
+) -> String {
     let player_name = match state.players.get(&addr) {
         Some(p) => p.username.clone(),
         None => return "S: ERR utilize_connect_first\n".to_string(),
@@ -33,25 +40,21 @@ pub(crate) fn handle_board_take(addr: SocketAddr, slot: usize, state: &mut Serve
             let count = s.kill_count;
             let loc = s.location_hint.clone();
             let gold = s.gold_reward;
-            let slot_idx = s.slot_id;
             log_event(
                 "BOARD_TAKE",
                 &player_name,
                 serde_json::json!({"slot": slot, "mob": mob, "count": count}),
             );
             let wire = state.board_quests.to_wire();
-            // Build quest data entry so the quest log updates immediately.
-            let quest_desc = format!("Kill {} {} {}. Reward: {} gold.", count, mob, loc, gold);
-            let quest_obj = format!("Kill {} {} (0/{})", count, mob, count);
-            let quest_data = format!(
-                "board_quest_{}:Board Quest:{}:{}:1",
-                slot_idx + 1,
-                quest_desc,
-                quest_obj
-            );
+            // Send the full journal so the other active quests stay listed.
+            let quest_data = state
+                .players
+                .get(&addr)
+                .map(|p| quest_data_event(p, state, world))
+                .unwrap_or_default();
             format!(
-                "S: OK Board quest accepted: kill {} {} {}.\nS: EVT BOARD_QUESTS {}\nS: EVT QUEST_DATA {}\n",
-                count, mob, loc, wire, quest_data
+                "S: OK Board quest accepted: kill {} {} {} ({} gold).\nS: EVT BOARD_QUESTS {}\n{}",
+                count, mob, loc, gold, wire, quest_data
             )
         }
         Some(_) => "S: ERR This quest is already taken by another player.\n".to_string(),
@@ -60,7 +63,11 @@ pub(crate) fn handle_board_take(addr: SocketAddr, slot: usize, state: &mut Serve
 }
 
 /// `BOARD_ABANDON` — player abandons their current board quest; slot becomes available again.
-pub(crate) fn handle_board_abandon(addr: SocketAddr, state: &mut ServerState) -> String {
+pub(crate) fn handle_board_abandon(
+    addr: SocketAddr,
+    state: &mut ServerState,
+    world: &WorldData,
+) -> String {
     let player_name = match state.players.get(&addr) {
         Some(p) => p.username.clone(),
         None => return "S: ERR utilize_connect_first\n".to_string(),
@@ -70,10 +77,15 @@ pub(crate) fn handle_board_abandon(addr: SocketAddr, state: &mut ServerState) ->
         slot.kills_done = 0;
         let wire = state.board_quests.to_wire();
         log_event("BOARD_ABANDON", &player_name, serde_json::json!({}));
-        // Empty QUEST_DATA so the board quest disappears from the quest log.
+        // Send the full journal: only the board quest disappears from it.
+        let quest_data = state
+            .players
+            .get(&addr)
+            .map(|p| quest_data_event(p, state, world))
+            .unwrap_or_default();
         format!(
-            "S: OK Board quest abandoned.\nS: EVT BOARD_QUESTS {}\nS: EVT QUEST_DATA empty\n",
-            wire
+            "S: OK Board quest abandoned.\nS: EVT BOARD_QUESTS {}\n{}",
+            wire, quest_data
         )
     } else {
         "S: ERR You have no active board quest.\n".to_string()
@@ -98,6 +110,11 @@ pub fn process_board_quest_kill(
             if slot.kills_done >= slot.kill_count {
                 completed_slot_idx = Some(slot.slot_id);
                 gold_reward = slot.gold_reward;
+            } else {
+                extra = format!(
+                    " [BOARD QUEST] {} {}/{}",
+                    slot.mob_name, slot.kills_done, slot.kill_count
+                );
             }
         }
     }

@@ -14,8 +14,8 @@ pub(crate) fn update_silhouette(
     let Ok(mut img) = silhouette_q.get_single_mut() else {
         return;
     };
-    // Use the first forward-facing frame as a static portrait.
-    img.texture = asset_server.load(format!("skin/{}/forward/f1.png", skin.0));
+    // The `backward` folder holds the sprites facing the camera.
+    img.texture = asset_server.load(format!("skin/{}/backward/f1.png", skin.0));
 }
 
 pub(crate) fn handle_equip_data(

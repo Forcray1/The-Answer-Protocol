@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use crate::net::NetworkSender;
-use crate::ui::inventory::components::{InventoryActionBtn, InventoryActionText, InventoryDescriptionText, InventoryDropBtn, InventorySlotInfo, SelectedItem, UseItemBtn};
+use crate::ui::inventory::components::{InventoryActionBtn, InventoryActionText, InventoryDescriptionText, InventoryDropBtn, InventorySlotInfo, InventoryState, SelectedItem, UseItemBtn};
 use crate::ui::inventory::style::{BORDER_GOLD, SLOT_BG, SLOT_BORDER};
 
 // Named query types: they keep the system signatures short and readable
@@ -85,6 +85,37 @@ pub(crate) fn handle_slot_interactions(
                 *border = base_border.into();
             }
         }
+    }
+}
+
+/// After an inventory update, forgets a selection whose item moved or left the grid,
+/// so the action buttons can't target an item that is no longer there.
+pub(crate) fn clear_stale_selection(
+    mut events: EventReader<crate::net::ServerMessageEvent>,
+    inv_state: Res<InventoryState>,
+    mut selected_item: ResMut<SelectedItem>,
+    mut text_query: Query<&mut Text, With<InventoryDescriptionText>>,
+    mut action_btn_q: Query<&mut Style, (With<InventoryActionBtn>, Without<InventoryDropBtn>)>,
+    mut drop_btn_q: Query<&mut Style, (With<InventoryDropBtn>, Without<InventoryActionBtn>)>,
+) {
+    if !events.read().any(|ev| ev.0.starts_with("S: EVT INV_DATA ")) {
+        return;
+    }
+    let Some(id) = selected_item.id.as_ref() else {
+        return;
+    };
+    if !selected_item.is_equipped && inv_state.cached_items.iter().any(|item| &item.id == id) {
+        return;
+    }
+    *selected_item = SelectedItem::default();
+    if let Ok(mut text) = text_query.get_single_mut() {
+        text.sections[0].value = "Select an item...".to_string();
+    }
+    if let Ok(mut style) = action_btn_q.get_single_mut() {
+        style.display = Display::None;
+    }
+    if let Ok(mut style) = drop_btn_q.get_single_mut() {
+        style.display = Display::None;
     }
 }
 

@@ -17,6 +17,7 @@ world:
     special_damage: 30
     special_defense: 30
     exp_reward: 1000
+    gold_reward: 250
     respawn_time: 2400
     dialogue:
     - null
@@ -39,6 +40,7 @@ world:
     special_damage: 20
     special_defense: 10
     exp_reward: 500
+    gold_reward: 100
     respawn_time: 240
     dialogue:
     - null
@@ -61,6 +63,7 @@ world:
     special_damage: 0
     special_defense: 0
     exp_reward: 100000
+    gold_reward: 100000
     respawn_time: 1
     dialogue:
     - null
@@ -80,6 +83,7 @@ world:
     special_damage: 4
     special_defense: 4
     exp_reward: 115
+    gold_reward: 8
     respawn_time: 20
     dialogue:
     - null
@@ -104,6 +108,7 @@ world:
     special_damage: 4
     special_defense: 4
     exp_reward: 115
+    gold_reward: 8
     respawn_time: 20
     dialogue:
     - null
@@ -128,6 +133,7 @@ world:
     special_damage: 4
     special_defense: 4
     exp_reward: 115
+    gold_reward: 8
     respawn_time: 20
     dialogue:
     - null
@@ -152,6 +158,7 @@ world:
     special_damage: 3
     special_defense: 1
     exp_reward: 65
+    gold_reward: 5
     respawn_time: 10
     dialogue:
     - null
@@ -174,6 +181,7 @@ world:
     special_damage: 3
     special_defense: 1
     exp_reward: 65
+    gold_reward: 5
     respawn_time: 10
     dialogue:
     - null
@@ -196,6 +204,7 @@ world:
     special_damage: 3
     special_defense: 1
     exp_reward: 65
+    gold_reward: 5
     respawn_time: 10
     dialogue:
     - null
@@ -218,6 +227,7 @@ world:
     special_damage: 20
     special_defense: 10
     exp_reward: 265
+    gold_reward: 20
     respawn_time: 20
     dialogue:
     - null
@@ -242,6 +252,7 @@ world:
     special_damage: 25
     special_defense: 20
     exp_reward: 400
+    gold_reward: 25
     respawn_time: 30
     dialogue:
     - null
@@ -261,6 +272,7 @@ world:
     special_damage: 25
     special_defense: 20
     exp_reward: 400
+    gold_reward: 25
     respawn_time: 30
     dialogue:
     - null
@@ -280,6 +292,7 @@ world:
     special_damage: 25
     special_defense: 20
     exp_reward: 400
+    gold_reward: 25
     respawn_time: 30
     dialogue:
     - null
@@ -299,6 +312,7 @@ world:
     special_damage: 3
     special_defense: 5
     exp_reward: 100
+    gold_reward: 8
     respawn_time: 10
     dialogue:
     - null
@@ -321,6 +335,7 @@ world:
     special_damage: 3
     special_defense: 5
     exp_reward: 100
+    gold_reward: 8
     respawn_time: 10
     dialogue:
     - null
@@ -343,6 +358,7 @@ world:
     special_damage: 5
     special_defense: 5
     exp_reward: 150
+    gold_reward: 12
     respawn_time: 15
     dialogue:
     - null
@@ -365,6 +381,7 @@ world:
     special_damage: 5
     special_defense: 5
     exp_reward: 150
+    gold_reward: 12
     respawn_time: 15
     dialogue:
     - null
@@ -828,6 +845,9 @@ world:
     sprite: sword/Excalibur
   - id: urbosas_cimeter
     name: Urbosa's Cimeter
+    damage: 25
+    defense: 5
+    slot: weapon
     obtainable: true
     type: quest
     description: A sacred blade from the royal treasury.

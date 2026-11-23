@@ -96,8 +96,8 @@ pub fn process_command(
             false,
         ),
         GameCommand::BoardQuests => (handle_board_quests(addr, state), false),
-        GameCommand::BoardTake(slot) => (handle_board_take(addr, slot, state), false),
-        GameCommand::BoardAbandon => (handle_board_abandon(addr, state), false),
+        GameCommand::BoardTake(slot) => (handle_board_take(addr, slot, state, world), false),
+        GameCommand::BoardAbandon => (handle_board_abandon(addr, state, world), false),
         GameCommand::Quit => ("S: OK goodbye\n".to_string(), true),
         GameCommand::Unknown => ("S: ERR malformed_command\n".to_string(), false),
     }

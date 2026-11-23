@@ -12,9 +12,12 @@ pub(crate) const DIR_FOLDERS: [&str; 4] = ["backward", "forward", "left", "right
 
 pub(crate) const FRAME_COUNT: usize = 4;
 
-pub(crate) const ANIM_FRAME_TIME: f32 = 0.12;
+pub(crate) const ANIM_FRAME_TIME: f32 = 0.10;
 
-pub(crate) const PLAYER_SPEED: f32 = 400.0;
+pub(crate) const PLAYER_SPEED: f32 = 480.0;
+
+/// Longest distance moved between two collision checks, so a slow frame can't skip a wall.
+pub(crate) const COLLISION_STEP: f32 = 4.0;
 
 pub(crate) const PLAYER_RENDER_SIZE: f32 = 128.0;
 

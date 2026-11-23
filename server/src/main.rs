@@ -25,6 +25,9 @@ use world::WorldData;
 // SqlitePool is already thread-safe, so no Mutex is needed around it.
 pub type DbPool = Arc<sqlx::SqlitePool>;
 
+/// Events kept for connections that are momentarily behind (positions, chat, spawns...).
+const BROADCAST_CAPACITY: usize = 4096;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if std::env::args().any(|arg| arg == "--logs") {
@@ -54,7 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     initial_state.initialize_from_world(&shared_world);
     let shared_state = Arc::new(Mutex::new(initial_state));
 
-    let (tx, _rx) = broadcast::channel::<GlobalEvent>(32);
+    let (tx, _rx) = broadcast::channel::<GlobalEvent>(BROADCAST_CAPACITY);
     let shared_tx = Arc::new(tx);
 
     tasks::spawn_respawn_loop(

@@ -30,19 +30,15 @@ pub(crate) fn get_inv_data_event(player: &crate::state::Player, world: &WorldDat
         let sprite = item_opt
             .and_then(|i| i.sprite.clone())
             .unwrap_or_else(|| "none".to_string());
-        let equipped = if player.equipped_medaillon_id.as_ref() == Some(id) {
-            1u8
-        } else {
-            0u8
-        };
         let consumable = if item_opt.map(|i| i.consumable).unwrap_or(false) {
             1u8
         } else {
             0u8
         };
+        // Equipped items are never in the inventory, so the equipped flag is always 0.
         data_objets.push(format!(
-            "{}:{}:{}:{}:{}:{}:{}:{}",
-            id, count, slot, name, damage, sprite, equipped, consumable
+            "{}:{}:{}:{}:{}:{}:0:{}",
+            id, count, slot, name, damage, sprite, consumable
         ));
     }
     if data_objets.is_empty() {
@@ -80,23 +76,16 @@ pub(crate) fn get_equip_data_event(player: &crate::state::Player, world: &WorldD
             )
         })
         .unwrap_or_else(|| "none".to_string());
-    let medaillon = if player.equipped_medaillon_id.is_some() {
-        let sprite = player
-            .equipped_medaillon_id
-            .as_ref()
-            .and_then(|mid| {
-                world.item_by_id(mid)
-                    .and_then(|item| item.sprite.as_deref())
-            })
-            .unwrap_or("none");
-        player
-            .equipped_medaillon_id
-            .as_ref()
-            .map(|mid| format!("{}:equipped:0:{}", mid, sprite))
-            .unwrap_or_else(|| "none".to_string())
-    } else {
-        "none".to_string()
-    };
+    let medaillon = player
+        .equipped_medaillon_id
+        .as_ref()
+        .map(|mid| {
+            let item = world.item_by_id(mid);
+            let name = item.map(|i| i.name.clone()).unwrap_or_else(|| mid.to_string());
+            let sprite = item.and_then(|i| i.sprite.as_deref()).unwrap_or("none");
+            format!("{}:{}:0:{}", mid, name, sprite)
+        })
+        .unwrap_or_else(|| "none".to_string());
     format!(
         "S: EVT EQUIP_DATA chest:{}|weapon:{}|medaillon:{}\n",
         chest, weapon, medaillon

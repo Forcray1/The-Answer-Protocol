@@ -9,6 +9,7 @@ use crate::world::WorldData;
 use crate::events::{to_player, to_room, GlobalEvent};
 use crate::logging::log_event;
 use crate::handlers::player_events::{get_char_stats_event_with_world, get_equip_data_event, get_inv_data_event, player_stats_event};
+use crate::handlers::quest_core::quest_item_collected;
 
 pub(crate) fn handle_inventory(addr: SocketAddr, state: &ServerState, world: &WorldData) -> String {
     let Some(player) = state.players.get(&addr) else {
@@ -98,53 +99,69 @@ pub(crate) fn handle_take(
     let Some(items_in_room) = state.room_items.get_mut(&current_room_id) else {
         return "S: ERR room_error\n".to_string();
     };
-    let Some(index) = items_in_room.iter().position(|ri| ri.item_id == item.id) else {
-        return "S: ERR This item is not here.\n".to_string();
-    };
-    let mut deja_ramasse = false;
-    match item.r#type {
-        crate::world::ItemType::Standard => {
-            items_in_room.remove(index);
+    // Among identical items, take the closest one this player can still collect.
+    let mut item_is_here = false;
+    let mut closest: Option<(usize, f32)> = None;
+    for (index, ri) in items_in_room.iter().enumerate() {
+        if ri.item_id != item.id {
+            continue;
         }
-        crate::world::ItemType::Quest => {
-            let runtime_item = &mut items_in_room[index];
-            if runtime_item.collected_by.contains(&player.username) {
-                deja_ramasse = true;
-            } else {
-                runtime_item.collected_by.insert(player.username.clone());
-            }
+        item_is_here = true;
+        if quest_item_collected(player, ri, world) {
+            continue;
+        }
+        let distance = (ri.pos_x - player.pos_x).powi(2) + (ri.pos_y - player.pos_y).powi(2);
+        if closest.is_none_or(|(_, best)| distance < best) {
+            closest = Some((index, distance));
         }
     }
-    if deja_ramasse {
-        "S: ERR You have already taken this quest item.\n".to_string()
+    let Some((index, _)) = closest else {
+        return if item_is_here {
+            "S: ERR You have already taken this quest item.\n".to_string()
+        } else {
+            "S: ERR This item is not here.\n".to_string()
+        };
+    };
+    let uid = items_in_room[index].uid;
+    let is_quest_item = item.r#type == crate::world::ItemType::Quest;
+    if is_quest_item {
+        items_in_room[index].collected_by.insert(player.username.clone());
     } else {
-        player.inventory.add(item.id.clone(), item.bucket());
-        log_event("TAKE", &player.username, json!({"item_id": item.id}));
-        let mut quest_msg = String::new();
-        for q in &world.world.quests {
-            if let crate::world::QuestObjective::FetchItem { item: target_id } =
-                &q.objective {
-                if target_id == &item.id && !player.completed_quests.contains(&q.id) {
-                    player.completed_quests.push(q.id.clone());
-                    if let Some(xp) = q.reward_exp {
-                        player.add_xp_with_world(xp, world);
-                        quest_msg =
-                            format!(" [QUEST COMPLETE] {}! (+{} EXP)", q.name, xp);
-                    }
+        items_in_room.remove(index);
+    }
+
+    player.inventory.add(item.id.clone(), item.bucket());
+    log_event("TAKE", &player.username, json!({"item_id": item.id}));
+    let mut quest_msg = String::new();
+    for q in &world.world.quests {
+        if let crate::world::QuestObjective::FetchItem { item: target_id } =
+            &q.objective {
+            if target_id == &item.id && !player.completed_quests.contains(&q.id) {
+                player.completed_quests.push(q.id.clone());
+                if let Some(xp) = q.reward_exp {
+                    player.add_xp_with_world(xp, world);
+                    quest_msg =
+                        format!(" [QUEST COMPLETE] {}! (+{} EXP)", q.name, xp);
                 }
             }
         }
-        // Broadcast despawn to all players in the room (standard items disappear).
-        if item.r#type == crate::world::ItemType::Standard {
-            to_room(
-                tx,
-                None,
-                format!("S: EVT ROOM ITEM_DESPAWN {}\n", item.id),
-                current_room_id,
-            );
-        }
-        format!("S: OK taken={}{}\n", item.id, quest_msg)
     }
+    // A quest item only disappears for its collector: others can still take their copy.
+    let despawn = format!("S: EVT ROOM ITEM_DESPAWN {} {}\n", item.id, uid);
+    let own_despawn = if is_quest_item {
+        despawn
+    } else {
+        to_room(tx, None, despawn, current_room_id);
+        String::new()
+    };
+    format!(
+        "S: OK taken={}{}\n{}{}{}",
+        item.id,
+        quest_msg,
+        own_despawn,
+        get_inv_data_event(player, world),
+        player_stats_event(player)
+    )
 }
 
 pub(crate) fn handle_drop(
@@ -171,11 +188,14 @@ pub(crate) fn handle_drop(
             let sprite = item.sprite.as_deref().unwrap_or("none").to_string();
             let item_name = item.name.replace(' ', "_");
             let item_id = item.id.clone();
+            state.next_item_uid += 1;
+            let uid = state.next_item_uid;
             state
                 .room_items
                 .entry(current_room_id.clone())
                 .or_default()
                 .push(crate::state::RuntimeItem {
+                    uid,
                     item_id: item_id.clone(),
                     source: crate::state::ItemSource::PlayerDrop,
                     collected_by: std::collections::HashSet::new(),
@@ -199,12 +219,16 @@ pub(crate) fn handle_drop(
                 tx,
                 None,
                 format!(
-                    "S: EVT ROOM ITEM_SPAWN {} {} {} {} {}\n",
-                    item_id, item_name, sprite, drop_x as i32, drop_y as i32
+                    "S: EVT ROOM ITEM_SPAWN {} {} {} {} {} {}\n",
+                    item_id, item_name, sprite, drop_x as i32, drop_y as i32, uid
                 ),
                 current_room_id,
             );
-            format!("S: OK dropped={}\n", item_id)
+            format!(
+                "S: OK dropped={}\n{}",
+                item_id,
+                get_inv_data_event(player, world)
+            )
         }
     } else {
         format!("S: ERR You don't have the item \"{}\".\n", item.name)
@@ -237,6 +261,10 @@ pub(crate) fn handle_use(
     }
     if !player.inventory.contains(&item_def.id) {
         return "S: ERR item_not_in_inventory\n".to_string();
+    }
+    // Keep the item: healing at full HP would waste it.
+    if player.hp >= player.max_hp {
+        return "S: ERR Your HP is already full!\n".to_string();
     }
     player.inventory.remove_one(&item_def.id);
     let heal_pct = item_def.heal_percent.unwrap_or(50) as i32;

@@ -6,6 +6,7 @@ use domain::RoomId;
 
 use crate::state::ServerState;
 use crate::world::{Npc, WorldData};
+use crate::handlers::quest_core::quest_item_collected;
 
 pub(crate) fn format_exits(world: &WorldData, room: &RoomId) -> String {
     let mut exits_str = String::new();
@@ -18,14 +19,19 @@ pub(crate) fn format_exits(world: &WorldData, room: &RoomId) -> String {
     exits_str
 }
 
-pub(crate) fn room_change_snapshot(room: &RoomId, state: &ServerState, world: &WorldData) -> String {
+pub(crate) fn room_change_snapshot(
+    addr: SocketAddr,
+    room: &RoomId,
+    state: &ServerState,
+    world: &WorldData,
+) -> String {
     let exits = format_exits(world, room);
     format!(
         "S: OK room=loc.{}{}\n{}{}",
         room,
         exits,
         room_mob_roster(room, state, world),
-        room_item_roster(room, state, world)
+        room_item_roster(addr, room, state, world)
     )
 }
 
@@ -47,20 +53,31 @@ pub(crate) fn presence_roster_line(username: &str, skin: &str, x: i64, y: i64) -
     format!("S: EVT ROOM PRESENCE ROSTER {} {} {} {}\n", username, skin, x, y)
 }
 
-/// Build the `ITEM_SPAWN` events for every item currently on the ground in `room`.
-pub(crate) fn room_item_roster(room: &RoomId, state: &ServerState, world: &WorldData) -> String {
+/// Build the `ITEM_SPAWN` events for the items on the ground in `room` that the player
+/// at `addr` can see (quest items they already collected are hidden).
+pub(crate) fn room_item_roster(
+    addr: SocketAddr,
+    room: &RoomId,
+    state: &ServerState,
+    world: &WorldData,
+) -> String {
+    let viewer = state.players.get(&addr);
     let mut out = String::new();
     if let Some(items_in_room) = state.room_items.get(room) {
         for ri in items_in_room {
+            if viewer.is_some_and(|player| quest_item_collected(player, ri, world)) {
+                continue;
+            }
             if let Some(item) = world.item_by_id(&ri.item_id) {
                 let sprite = item.sprite.as_deref().unwrap_or("none");
                 out.push_str(&format!(
-                    "S: EVT ROOM ITEM_SPAWN {} {} {} {} {}\n",
+                    "S: EVT ROOM ITEM_SPAWN {} {} {} {} {} {}\n",
                     item.id,
                     item.name.replace(' ', "_"),
                     sprite,
                     ri.pos_x as i32,
                     ri.pos_y as i32,
+                    ri.uid,
                 ));
             }
         }

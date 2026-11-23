@@ -7,7 +7,7 @@ use serde_json::json;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::Mutex;
 
-use domain::{xp_required_for_level, ItemId, RoomId};
+use domain::{xp_required_for_level, ItemBucket, ItemId, RoomId};
 
 use crate::state::{Player, ServerState, START_ROOM};
 use crate::world::WorldData;
@@ -27,9 +27,12 @@ pub async fn save_player_to_db(pool: &DbPool, player: &Player) {
     for (slot, id, _name) in player.equipement.equipped() {
         equipment.insert(slot.to_string(), id);
     }
-    // Persist equipped medaillon id in the equipment map
+    // Persist the equipped medaillon. The saved inventory still counts it, which keeps
+    // existing saves valid: loading removes exactly one copy from the inventory.
+    let mut inventory = player.inventory.clone();
     if let Some(mid) = &player.equipped_medaillon_id {
         equipment.insert("medaillon".to_string(), mid.clone());
+        inventory.add(mid.clone(), ItemBucket::Item);
     }
 
     let result = database::save_player(
@@ -40,7 +43,7 @@ pub async fn save_player_to_db(pool: &DbPool, player: &Player) {
         player.level,
         player.money,
         player.current_room.as_str(),
-        &player.inventory,
+        &inventory,
         &equipment,
         &player.completed_quests,
         &player.skin,
@@ -161,6 +164,7 @@ pub async fn process_connect(
             player.stat_points = player.level * 3;
         }
         if let Some(mid) = data.equipment.get("medaillon") {
+            player.inventory.remove_one(mid);
             player.equipped_medaillon_id = Some(mid.clone());
         }
         if let Some((x, y)) = saved_pos {
@@ -191,7 +195,7 @@ pub async fn process_connect(
             skin, pseudo, enter_room, exits, pos_str,
             room_presence_roster(addr, &guard, &enter_room),
             room_mob_roster(&enter_room, &guard, world),
-            room_item_roster(&enter_room, &guard, world),
+            room_item_roster(addr, &enter_room, &guard, world),
             p.hp, p.max_hp, p.xp_bar.current, p.xp_bar.requiered, p.level,
             p.money, p.stat_points,
             get_inv_data_event(p, world),
@@ -221,7 +225,7 @@ pub async fn process_connect(
     let exits = format_exits(world, &enter_room);
     let pos_str = format!(" pos={},{}", px, py);
     format!(
-        "S: OK connected skin={} name={} room={}{}{}\n{}{}{}\nS: EVT PLAYER_STATS {} {} {} {} {}\n",
+        "S: OK connected skin={} name={} room={}{}{}\n{}{}{}\nS: EVT PLAYER_STATS {} {} {} {} {}\nS: EVT GOLD {}\n",
         skin,
         pseudo,
         enter_room,
@@ -229,12 +233,13 @@ pub async fn process_connect(
         pos_str,
         room_presence_roster(addr, &guard, &enter_room),
         room_mob_roster(&enter_room, &guard, world),
-        room_item_roster(&enter_room, &guard, world),
+        room_item_roster(addr, &enter_room, &guard, world),
         player.hp,
         player.max_hp,
         player.xp_bar.current,
         player.xp_bar.requiered,
-        player.level
+        player.level,
+        player.money
     )
 }
 

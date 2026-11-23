@@ -95,10 +95,8 @@ pub(crate) fn handle_combat_inputs(
                     combat.selected_action = 0;
                 }
                 1 => {
-                    // Item — use healing potion
+                    // Item — use healing potion (the server's reply sets the message)
                     let _ = sender.0.send("USE healing_potion\n".to_string());
-                    combat.combat_message = "Used a Healing Potion!".to_string();
-                    combat.message_timer = 1.5;
                 }
                 _ => {
                     // Flee

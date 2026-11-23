@@ -9,6 +9,7 @@ use serde_json::json;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::tcp::OwnedReadHalf;
 use tokio::net::TcpStream;
+use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::{Receiver, Sender};
 use tokio::sync::{mpsc, Mutex};
 
@@ -205,6 +206,8 @@ pub async fn handle_client(
     pool: DbPool,
     mut rx: Receiver<GlobalEvent>,
 ) {
+    // Send small messages right away instead of letting TCP group them.
+    let _ = socket.set_nodelay(true);
     let (reader, mut writer) = socket.into_split();
     let mut line_rx = spawn_line_reader(reader);
     let mut recent_commands: VecDeque<Instant> = VecDeque::new();
@@ -237,9 +240,18 @@ pub async fn handle_client(
                     break;
                 }
             }
-            Ok(event) = rx.recv() => {
-                if wants_event(&event, addr, &state).await {
-                    let _ = writer.write_all(event.message.as_bytes()).await;
+            received = rx.recv() => {
+                match received {
+                    Ok(event) => {
+                        if wants_event(&event, addr, &state).await {
+                            let _ = writer.write_all(event.message.as_bytes()).await;
+                        }
+                    }
+                    // Too far behind: skip what was lost and keep listening.
+                    Err(RecvError::Lagged(missed)) => {
+                        eprintln!("[NETWORK] {} missed {} broadcast events.", addr, missed);
+                    }
+                    Err(RecvError::Closed) => break,
                 }
             }
         }

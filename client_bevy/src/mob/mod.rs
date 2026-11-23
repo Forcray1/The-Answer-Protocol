@@ -29,7 +29,6 @@ impl Plugin for MobPlugin {
                     animate_mobs,
                     cleanup_mobs_on_room_change,
                     handle_ground_item_events,
-                    cleanup_items_on_room_change,
                     update_ground_item_target_impl,
                     interaction_system,
                     handle_interaction_input,

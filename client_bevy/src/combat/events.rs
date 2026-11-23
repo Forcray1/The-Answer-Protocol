@@ -96,16 +96,6 @@ pub(crate) fn listen_combat_events(
             }
         }
 
-        if let Some(rest) = line.strip_prefix("S: EVT COMBAT BONUS_HIT ") {
-            let parts: Vec<&str> = rest.split_whitespace().collect();
-            if parts.len() >= 3 {
-                let bonus = parts[0].parse::<i32>().unwrap_or(0);
-                combat.enemy_hp = parts[1].parse().unwrap_or(combat.enemy_hp);
-                combat.enemy_max_hp = parts[2].parse().unwrap_or(combat.enemy_max_hp);
-                combat.pending_dealt += bonus.max(0);
-            }
-        }
-
         if let Some(rest) = line.strip_prefix("S: EVT COMBAT STUN_APPLIED ") {
             let turns = rest.trim().parse::<u32>().unwrap_or(0);
             combat.skip_next_player_turn = turns > 0;
@@ -124,6 +114,21 @@ pub(crate) fn listen_combat_events(
                 combat.enemy_hp = parts[0].parse().unwrap_or(combat.enemy_hp);
                 combat.enemy_max_hp = parts[1].parse().unwrap_or(combat.enemy_max_hp);
                 combat.pending_taken = parts[2].parse().unwrap_or(0);
+            }
+        }
+
+        // Result of the "Item" button: only the server knows if a potion was available.
+        if combat.in_combat {
+            if line.starts_with("S: ERR item_not_in_inventory") {
+                combat.combat_message = "You don't have any Healing Potion!".to_string();
+                combat.message_timer = 1.5;
+            } else if line.starts_with("S: ERR Your HP is already full") {
+                combat.combat_message = "Your HP is already full!".to_string();
+                combat.message_timer = 1.5;
+            } else if let Some(rest) = line.strip_prefix("S: OK Used ") {
+                let summary = rest.split(" (HP:").next().unwrap_or(rest);
+                combat.combat_message = format!("Used {}", summary);
+                combat.message_timer = 1.5;
             }
         }
 

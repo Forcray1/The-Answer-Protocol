@@ -10,6 +10,7 @@ use domain::{Direction, ItemId};
 use crate::state::ServerState;
 use crate::world::WorldData;
 use crate::events::{to_room, GlobalEvent};
+use crate::handlers::quest_core::quest_item_collected;
 use crate::handlers::wire::{presence_roster_line, room_change_snapshot, room_presence_roster};
 
 pub(crate) fn handle_look(addr: SocketAddr, state: &ServerState, world: &WorldData) -> String {
@@ -27,17 +28,10 @@ pub(crate) fn handle_look(addr: SocketAddr, state: &ServerState, world: &WorldDa
         .map(|ground| {
             ground
                 .iter()
-                .filter(
-                    |ri| match world.item_by_id(&ri.item_id) {
-                        Some(item) => match item.r#type {
-                            crate::world::ItemType::Standard => true,
-                            crate::world::ItemType::Quest => {
-                                !ri.collected_by.contains(&player.username)
-                            }
-                        },
-                        None => false,
-                    },
-                )
+                .filter(|ri| {
+                    world.item_by_id(&ri.item_id).is_some()
+                        && !quest_item_collected(player, ri, world)
+                })
                 .map(|ri| ri.item_id.to_string())
                 .collect()
         })
@@ -160,7 +154,7 @@ pub(crate) fn handle_move(
     );
     format!(
         "{}{}",
-        room_change_snapshot(&next_room, state, world),
+        room_change_snapshot(addr, &next_room, state, world),
         room_presence_roster(addr, state, &next_room)
     )
 }

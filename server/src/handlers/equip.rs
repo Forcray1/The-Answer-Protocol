@@ -69,10 +69,11 @@ pub(crate) fn handle_equip(
     };
 
     if slot == "medaillon" {
-        // Medaillon stays in inventory — just flag it as equipped.
-        // If another medaillon is already equipped, unequip it first.
+        // The medaillon leaves the inventory; a previously equipped one goes back to it.
         let old_id = player.equipped_medaillon_id.replace(item.id.clone());
-        let msg = if old_id.is_some() {
+        player.inventory.remove_one(&item.id);
+        let msg = if let Some(old) = old_id {
+            player.inventory.add(old, ItemBucket::Item);
             format!("S: OK Swapped medaillon for {}.\n", item.name)
         } else {
             format!("S: OK You equipped {} in slot [medaillon].\n", item.name)
@@ -130,10 +131,11 @@ pub(crate) fn handle_unequip(
     let Some(player) = state.players.get_mut(&addr) else {
         return "S: ERR utilize_connect_first\n".to_string();
     };
-    // Medaillon unequip: just clear the flag, item stays in inventory.
-    if let Some(mid) = &player.equipped_medaillon_id.clone() {
+    // Medaillon unequip: it goes back to the inventory.
+    if let Some(mid) = player.equipped_medaillon_id.clone() {
         if ci_eq(mid.as_str(), &cible) {
             player.equipped_medaillon_id = None;
+            player.inventory.add(mid, ItemBucket::Item);
             return format!(
                 "S: OK You unequipped the medaillon.\n{}{}{}",
                 get_inv_data_event(player, world),

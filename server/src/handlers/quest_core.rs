@@ -6,9 +6,107 @@ use tokio::sync::broadcast::Sender;
 use domain::quest::{QuestProgress, QuestStage};
 use domain::ItemBucket;
 
-use crate::state::Player;
-use crate::world::WorldData;
+use crate::state::{Player, RuntimeItem};
+use crate::world::{ItemType, WorldData};
 use crate::events::{to_player, GlobalEvent};
+use crate::handlers::player_events::player_stats_event;
+use crate::handlers::util::ci_eq;
+
+/// Tells the client a quest ended and refreshes the gold, XP and HP its rewards changed.
+fn quest_completed_event(q: &crate::world::Quest, player: &Player) -> String {
+    format!(
+        "S: EVT QUEST_UPDATE {} completed 0\nS: EVT GOLD {}\n{}",
+        q.id,
+        player.money,
+        player_stats_event(player)
+    )
+}
+
+/// True when this quest item on the ground is already done for `player`: taken, held,
+/// worn or handed in. Survives a server restart, unlike `collected_by` alone.
+pub(crate) fn quest_item_collected(
+    player: &Player,
+    ground_item: &RuntimeItem,
+    world: &WorldData,
+) -> bool {
+    let id = &ground_item.item_id;
+    if world.item_by_id(id).is_none_or(|item| item.r#type != ItemType::Quest) {
+        return false;
+    }
+    ground_item.collected_by.contains(&player.username)
+        || player.inventory.contains(id)
+        || player.equipped_medaillon_id.as_ref() == Some(id)
+        || player.equipement.equipped().iter().any(|(_, worn, _)| worn == id)
+        || world.world.quests.iter().any(|q| {
+            player.completed_quests.contains(&q.id) && quest_requires_item(q, id)
+        })
+}
+
+fn quest_requires_item(q: &crate::world::Quest, id: &domain::ItemId) -> bool {
+    use crate::world::QuestObjective as Legacy;
+    use domain::quest::StageObjective;
+    let in_objective = match &q.objective {
+        Legacy::FetchItem { item } | Legacy::DeliverItem { item, .. } => item == id,
+        Legacy::DeliverItems { items, .. } => items.contains(id),
+        _ => false,
+    };
+    in_objective
+        || q.stages.iter().any(|stage| {
+            matches!(&stage.objective, Some(StageObjective::FetchItem { item }) if item == id)
+        })
+}
+
+/// Counts a kill for the player's active "kill" stages, advancing or completing them.
+/// Returns the lines to send back (`S: OK [QUEST] <name> 7/9`, reward messages).
+pub(crate) fn record_kill_for_quests(
+    addr: SocketAddr,
+    mob_id: &domain::NpcId,
+    player: &mut Player,
+    world: &WorldData,
+    tx: &Sender<GlobalEvent>,
+) -> String {
+    let mut out = String::new();
+    let mut to_advance: Vec<domain::QuestId> = Vec::new();
+    let mut to_complete: Vec<domain::QuestId> = Vec::new();
+    for prog in &mut player.quest_progress {
+        let QuestStage::Stage(stage_num) = prog.stage else {
+            continue;
+        };
+        let Some(q) = world.world.quests.iter().find(|q| q.id == prog.quest_id) else {
+            continue;
+        };
+        let objective = q
+            .stages
+            .iter()
+            .find(|s| s.stage == stage_num)
+            .and_then(|s| s.objective.as_ref());
+        let Some(domain::quest::StageObjective::KillMob { npc, count }) = objective else {
+            continue;
+        };
+        if !ci_eq(npc.as_str(), mob_id.as_str()) {
+            continue;
+        }
+        prog.counter += 1;
+        out.push_str(&format!("S: OK [QUEST] {} {}/{}\n", q.name, prog.counter, count));
+        if prog.counter >= *count {
+            if q.stages.iter().all(|s| s.stage <= stage_num) {
+                to_complete.push(prog.quest_id.clone());
+            } else {
+                to_advance.push(prog.quest_id.clone());
+            }
+        }
+    }
+    for qid in to_advance {
+        advance_quest_stage(addr, &qid, player, tx);
+    }
+    for qid in to_complete {
+        if let Some(q) = world.world.quests.iter().find(|q| q.id == qid) {
+            let msg = complete_staged_quest(addr, q, player, world, tx);
+            out.push_str(&format!("S: OK {}\n", msg));
+        }
+    }
+    out
+}
 
 pub(crate) fn reward_quest(player: &mut Player, q: &crate::world::Quest, world: &WorldData) -> String {
     if !player.completed_quests.contains(&q.id) {
@@ -67,7 +165,7 @@ pub(crate) fn complete_legacy_quest(
     let msg = reward_quest(player, q, world);
     to_player(
         tx,
-        format!("S: EVT QUEST_UPDATE {} completed 0\n", q.id),
+        quest_completed_event(q, player),
         addr,
     );
     msg
@@ -167,7 +265,7 @@ pub(crate) fn complete_staged_quest(
     let msg = reward_quest(player, q, world);
     to_player(
         tx,
-        format!("S: EVT QUEST_UPDATE {} completed 0\n", q.id),
+        quest_completed_event(q, player),
         addr,
     );
     msg

@@ -49,6 +49,8 @@ pub struct BoardNode {
 /// A ground item rendered in the game world.
 #[derive(Component)]
 pub struct GroundItem {
+    /// Unique id of this item on the ground (several can share the same `item_id`).
+    pub uid: u64,
     pub item_id: String,
 }
 

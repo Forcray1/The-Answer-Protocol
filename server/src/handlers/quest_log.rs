@@ -118,6 +118,108 @@ pub(crate) fn delivery_progress(
         .join(", ")
 }
 
+/// Short counter shown in the journal: kills (`7/9`) or items to bring (`4/10`).
+/// Empty for quests without anything to count.
+fn quest_progress_label(
+    q: &crate::world::Quest,
+    prog: &QuestProgress,
+    player: &crate::state::Player,
+) -> String {
+    use crate::world::QuestObjective as Legacy;
+    use domain::quest::StageObjective as Obj;
+
+    if q.stages.is_empty() {
+        let needed = match &q.objective {
+            Legacy::DeliverItem { item, .. } => vec![(item.clone(), 1)],
+            Legacy::DeliverItems { items, .. } => group_item_ids(items),
+            _ => return String::new(),
+        };
+        let total: u32 = needed.iter().map(|(_, need)| *need).sum();
+        let have: u32 = needed
+            .iter()
+            .map(|(id, need)| player.inventory.count(id).min(*need))
+            .sum();
+        return format!("{}/{}", have, total);
+    }
+    let Some(stage_num) = prog.stage.stage_num() else {
+        return String::new();
+    };
+    match q
+        .stages
+        .iter()
+        .find(|s| s.stage == stage_num)
+        .and_then(|s| s.objective.as_ref()) {
+        Some(Obj::KillMob { count, .. }) => format!("{}/{}", prog.counter, count),
+        _ => String::new(),
+    }
+}
+
+/// One `EVT QUEST_DATA` entry per active quest, board quest included:
+/// `<id>:<name>:<description>:<objective>:<stage>:<counter>`.
+fn quest_log_entries(
+    player: &crate::state::Player,
+    state: &ServerState,
+    world: &WorldData,
+) -> Vec<String> {
+    let mut parts = Vec::new();
+    for prog in &player.quest_progress {
+        if let Some(q) = world.world.quests.iter().find(|q| q.id == prog.quest_id) {
+            let mut objective_str = quest_objective_text(q, Some(prog), world);
+            let progress = delivery_progress(q, player, world);
+            if !progress.is_empty() {
+                objective_str.push_str(&format!(" - you have {}", progress));
+            }
+            parts.push(format!(
+                "{}:{}:{}:{}:{}:{}",
+                q.id,
+                q.name,
+                q.description,
+                objective_str,
+                prog.stage.to_wire(),
+                quest_progress_label(q, prog, player)
+            ));
+        }
+    }
+
+    // Append active board quest if the player holds one.
+    if let Some(slot) = state.board_quests.player_slot(&player.username) {
+        let desc = format!(
+            "Kill {} {} {}. Reward: {} gold.",
+            slot.kill_count, slot.mob_name, slot.location_hint, slot.gold_reward
+        );
+        let objective = format!(
+            "Kill {} {} ({}/{})",
+            slot.kill_count, slot.mob_name, slot.kills_done, slot.kill_count
+        );
+        parts.push(format!(
+            "board_quest_{}:Board Quest:{}:{}:1:{}/{}",
+            slot.slot_id + 1,
+            desc,
+            objective,
+            slot.kills_done,
+            slot.kill_count
+        ));
+    }
+    parts
+}
+
+fn format_quest_data(entries: &[String]) -> String {
+    if entries.is_empty() {
+        "S: EVT QUEST_DATA empty\n".to_string()
+    } else {
+        format!("S: EVT QUEST_DATA {}\n", entries.join("|"))
+    }
+}
+
+/// The player's full quest journal, ready to send.
+pub(crate) fn quest_data_event(
+    player: &crate::state::Player,
+    state: &ServerState,
+    world: &WorldData,
+) -> String {
+    format_quest_data(&quest_log_entries(player, state, world))
+}
+
 /// `QUEST <id or name>`: details and status of one quest.
 /// RFC 42TAP: OK { "id": ..., "name": ..., "status": ..., ... } or ERR unknown_quest.
 pub(crate) fn handle_quest(addr: SocketAddr, query: String, state: &ServerState, world: &WorldData) -> String {
@@ -186,51 +288,6 @@ pub(crate) fn handle_quests(addr: SocketAddr, state: &ServerState, world: &World
     let Some(player) = state.players.get(&addr) else {
         return "S: ERR utilize_connect_first\n".to_string();
     };
-
-    let mut parts = Vec::new();
-    for prog in &player.quest_progress {
-        if let Some(q) = world.world.quests.iter().find(|q| q.id == prog.quest_id) {
-            let mut objective_str = quest_objective_text(q, Some(prog), world);
-            let progress = delivery_progress(q, player, world);
-            if !progress.is_empty() {
-                objective_str.push_str(&format!(" - you have {}", progress));
-            }
-            parts.push(format!(
-                "{}:{}:{}:{}:{}",
-                q.id,
-                q.name,
-                q.description,
-                objective_str,
-                prog.stage.to_wire()
-            ));
-        }
-    }
-
-    // Append active board quest if the player holds one.
-    if let Some(slot) = state.board_quests.player_slot(&player.username) {
-        let desc = format!(
-            "Kill {} {} {}. Reward: {} gold.",
-            slot.kill_count, slot.mob_name, slot.location_hint, slot.gold_reward
-        );
-        let objective = format!(
-            "Kill {} {} ({}/{})",
-            slot.kill_count, slot.mob_name, slot.kills_done, slot.kill_count
-        );
-        parts.push(format!(
-            "board_quest_{}:Board Quest:{}:{}:1",
-            slot.slot_id + 1,
-            desc,
-            objective
-        ));
-    }
-
-    if parts.is_empty() {
-        "S: OK quests=0\nS: EVT QUEST_DATA empty\n".to_string()
-    } else {
-        format!(
-            "S: OK quests={}\nS: EVT QUEST_DATA {}\n",
-            parts.len(),
-            parts.join("|")
-        )
-    }
+    let entries = quest_log_entries(player, state, world);
+    format!("S: OK quests={}\n{}", entries.len(), format_quest_data(&entries))
 }

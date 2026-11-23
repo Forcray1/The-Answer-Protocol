@@ -25,10 +25,14 @@ impl Plugin for ShopPlugin {
                     handle_shop_events,
                     render_shop_items,
                     handle_buy_click,
-                    handle_shop_close_input,
                     handle_gold_event,
                 )
                     .run_if(in_state(AppState::InGame)),
+            )
+            // After Update, so the E press was already seen by dialogue and interaction.
+            .add_systems(
+                PostUpdate,
+                update_shop_window.run_if(in_state(AppState::InGame)),
             );
     }
 }
@@ -54,6 +58,8 @@ pub struct ShopState {
     pub items: Vec<ShopEntry>,
     /// Set to true whenever items changed so `render_shop_items` rebuilds.
     pub dirty: bool,
+    /// The window still has to be shown (it waits for the merchant's dialogue to end).
+    reveal_pending: bool,
 }
 
 // Components
@@ -194,7 +200,6 @@ fn setup_shop_ui(mut commands: Commands) {
 fn handle_shop_events(
     mut events: EventReader<ServerMessageEvent>,
     mut shop: ResMut<ShopState>,
-    mut window_q: Query<&mut Visibility, With<ShopWindowRoot>>,
 ) {
     for ev in events.read() {
         if let Some(rest) = ev.0.strip_prefix("S: EVT SHOP ") {
@@ -233,10 +238,7 @@ fn handle_shop_events(
             shop.items = items;
             shop.open = true;
             shop.dirty = true;
-
-            if let Ok(mut vis) = window_q.get_single_mut() {
-                *vis = Visibility::Inherited;
-            }
+            shop.reveal_pending = true;
         }
     }
 }
@@ -249,7 +251,11 @@ fn handle_gold_event(
 ) {
     for ev in events.read() {
         if let Some(rest) = ev.0.strip_prefix("S: EVT GOLD ") && let Ok(gold) = rest.trim().parse::<i32>() {
-            shop.player_gold = gold;
+            // A new amount can change which items are affordable.
+            if shop.player_gold != gold {
+                shop.player_gold = gold;
+                shop.dirty = true;
+            }
             if let Ok(mut t) = gold_q.get_single_mut() {
                 t.sections[0].value = format!("{} gold", gold);
             }
@@ -282,6 +288,7 @@ fn render_shop_items(
 
     let npc_id = shop.npc_id.clone();
     let items = shop.items.clone();
+    let player_gold = shop.player_gold;
 
     commands.entity(container).with_children(|parent| {
         for entry in &items {
@@ -342,12 +349,20 @@ fn render_shop_items(
                         ));
 
                         // Buy button
-                        let btn_color = if entry.can_buy {
+                        let affordable = entry.price as i32 <= player_gold;
+                        let purchasable = entry.can_buy && affordable;
+                        let btn_color = if purchasable {
                             Color::rgba(0.2, 0.55, 0.2, 0.95)
                         } else {
                             Color::rgba(0.3, 0.3, 0.3, 0.7)
                         };
-                        let label = if entry.can_buy { "Buy" } else { "Owned" };
+                        let label = if !entry.can_buy {
+                            "Owned"
+                        } else if affordable {
+                            "Buy"
+                        } else {
+                            "No gold"
+                        };
                         right
                             .spawn((
                                 ButtonBundle {
@@ -364,7 +379,7 @@ fn render_shop_items(
                                 BuyButton {
                                     npc_id: npc_id.clone(),
                                     item_id: entry.item_id.clone(),
-                                    can_buy: entry.can_buy,
+                                    can_buy: purchasable,
                                 },
                             ))
                             .with_children(|btn| {
@@ -413,20 +428,33 @@ fn handle_buy_click(
     }
 }
 
-/// Closes the shop when E is pressed.
-fn handle_shop_close_input(
+/// Shows the shop once the merchant's dialogue is over, and closes it when E is pressed.
+fn update_shop_window(
     input: Res<ButtonInput<KeyCode>>,
+    dialogue: Res<crate::interaction::DialogueState>,
     mut shop: ResMut<ShopState>,
     mut window_q: Query<&mut Visibility, With<ShopWindowRoot>>,
 ) {
     if !shop.open {
         return;
     }
+    let Ok(mut vis) = window_q.get_single_mut() else {
+        return;
+    };
+    if dialogue.is_active() {
+        *vis = Visibility::Hidden;
+        shop.reveal_pending = true;
+        return;
+    }
+    // The key press that dismissed the dialogue must not close the shop as well.
+    if shop.reveal_pending {
+        shop.reveal_pending = false;
+        *vis = Visibility::Inherited;
+        return;
+    }
     if input.just_pressed(KeyCode::KeyE) {
         shop.open = false;
         shop.items.clear();
-        if let Ok(mut vis) = window_q.get_single_mut() {
-            *vis = Visibility::Hidden;
-        }
+        *vis = Visibility::Hidden;
     }
 }
