@@ -36,7 +36,7 @@ use crate::handlers::combat::{handle_attack, handle_flee};
 use crate::handlers::equip::{handle_equip, handle_unequip};
 use crate::handlers::group::{handle_group_accept, handle_group_create, handle_group_info, handle_group_invite, handle_group_leave};
 use crate::handlers::heavy::handle_attack_heavy;
-use crate::handlers::inventory::{handle_drop, handle_equipment, handle_info, handle_inventory, handle_statup, handle_take, handle_use};
+use crate::handlers::inventory::{handle_drop, handle_equipment, handle_info, handle_inventory, handle_statreset, handle_statup, handle_take, handle_use};
 use crate::handlers::magic::handle_attack_magic;
 use crate::handlers::movement::{handle_look, handle_move, handle_pos};
 use crate::handlers::npc::{handle_answer, handle_interact, handle_talk};
@@ -84,6 +84,7 @@ pub fn process_command(
         GameCommand::Buy { npc, item } => (handle_buy(addr, npc, item, state, world, tx), false),
         GameCommand::Use(item) => (handle_use(addr, item, state, world, tx), false),
         GameCommand::StatUp(stat) => (handle_statup(addr, stat, state, world), false),
+        GameCommand::StatReset => (handle_statreset(addr, state, world), false),
         GameCommand::AttackMagic(target) => {
             (handle_attack_magic(addr, target, state, world, tx), false)
         }

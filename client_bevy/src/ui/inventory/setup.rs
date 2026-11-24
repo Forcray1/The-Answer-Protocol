@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use crate::ui::close_button::CloseButton;
-use crate::ui::inventory::components::{EquipmentSlot, InventoryActionBtn, InventoryActionText, InventoryDescriptionText, InventoryDropBtn, InventoryGoldText, InventoryGrid, InventoryTab, InventoryTabBtn, InventoryUiRoot, PlayerSilhouette, StatPointsText, StatUpBtn, StatValueText};
+use crate::ui::inventory::components::{EquipmentSlot, InventoryActionBtn, InventoryActionText, InventoryDescriptionText, InventoryDropBtn, InventoryGoldText, InventoryGrid, InventoryTab, InventoryTabBtn, InventoryUiRoot, PlayerSilhouette, StatPointsText, StatResetBtn, StatUpBtn, StatValueText};
 use crate::ui::inventory::style::{BG_DARK, BG_PANEL, BORDER_GOLD, BORDER_INNER, BTN_BG, BTN_BORDER, SLOT_BG, SLOT_BORDER, STAT_GREEN, STAT_RED, TAB_ACTIVE_BG, TAB_IDLE_BG, TEXT_DIM, TEXT_LIGHT, TITLE_COLOR};
 
 pub(crate) fn spawn_equip_slot(parent: &mut ChildBuilder, slot: &str, label: &str) {
@@ -380,7 +380,45 @@ fn spawn_stat_block(stats: &mut ChildBuilder) {
                 });
             });
     }
+    // Reset button: refunds all the points spent above
+    stats
+        .spawn(NodeBundle {
+            style: Style {
+                width: Val::Percent(100.0),
+                justify_content: JustifyContent::FlexEnd,
+                margin: UiRect::top(Val::Px(6.0)),
+                ..default()
+            },
+            ..default()
+        })
+        .with_children(|r| {
+            r.spawn((
+                ButtonBundle {
+                    style: Style {
+                        padding: UiRect::axes(Val::Px(8.0), Val::Px(2.0)),
+                        align_items: AlignItems::Center,
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    },
+                    background_color: STAT_RESET_BG.into(),
+                    ..default()
+                },
+                StatResetBtn,
+            ))
+            .with_children(|btn| {
+                btn.spawn(TextBundle::from_section(
+                    "Reset points",
+                    TextStyle {
+                        font_size: 13.0,
+                        color: Color::rgb(1.0, 0.6, 0.5),
+                        ..default()
+                    },
+                ));
+            });
+        });
 }
+
+const STAT_RESET_BG: Color = Color::rgba(0.5, 0.15, 0.1, 0.5);
 
 /// Left half of the window: equipment slots, action buttons and stats.
 fn spawn_left_panel(left: &mut ChildBuilder) {

@@ -107,6 +107,10 @@ pub(crate) struct StatPointsText;
 #[derive(Component)]
 pub(crate) struct StatUpBtn(pub String);
 
+/// "Reset" button that refunds every allocated stat point (`STATRESET`).
+#[derive(Component)]
+pub(crate) struct StatResetBtn;
+
 /// Marks a "Use" button on a consumable item slot; contains the item id.
 #[derive(Component)]
 pub(crate) struct UseItemBtn(pub String);

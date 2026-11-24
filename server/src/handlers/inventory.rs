@@ -1,10 +1,11 @@
-//! Inventory commands: `INVENTORY`, `INFO`, `EQUIPMENT`, `TAKE`, `DROP`, `USE`, `STATUP`.
+//! Inventory commands: `INVENTORY`, `INFO`, `EQUIPMENT`, `TAKE`, `DROP`, `USE`, `STATUP`, `STATRESET`.
 
 use std::net::SocketAddr;
 use serde_json::json;
 use tokio::sync::broadcast::Sender;
 
 use crate::state::ServerState;
+use domain::CombatState;
 use crate::world::WorldData;
 use crate::events::{to_player, to_room, GlobalEvent};
 use crate::logging::log_event;
@@ -314,5 +315,43 @@ pub(crate) fn handle_statup(
     format!(
         "S: OK Stat '{}' increased! ({} points left)\n{}{}",
         stat, player.stat_points, stats_evt, char_stats
+    )
+}
+
+/// Refunds every stat point spent with STATUP: base stats go back to 0,
+/// max HP back to its base value, and the points become spendable again.
+pub(crate) fn handle_statreset(
+    addr: SocketAddr,
+    state: &mut ServerState,
+    world: &WorldData,
+) -> String {
+    let Some(player) = state.players.get_mut(&addr) else {
+        return "S: ERR utilize_connect_first\n".to_string();
+    };
+    // Changing max HP mid-fight would be an exploit.
+    if matches!(player.combat, CombatState::InCombat { .. }) {
+        return "S: ERR cannot_reset_in_combat\n".to_string();
+    }
+    let hp_points = (player.max_hp - player.base_max_hp).max(0) / 5;
+    let refunded = player.stats.damage
+        + player.stats.special_damage
+        + player.stats.defense
+        + player.stats.special_defense
+        + hp_points;
+    if refunded <= 0 {
+        return "S: ERR nothing_to_reset\n".to_string();
+    }
+    player.stats.damage = 0;
+    player.stats.special_damage = 0;
+    player.stats.defense = 0;
+    player.stats.special_defense = 0;
+    player.max_hp = player.base_max_hp;
+    player.hp = player.hp.min(player.max_hp);
+    player.stat_points += refunded;
+    let char_stats = get_char_stats_event_with_world(player, world);
+    let stats_evt = player_stats_event(player);
+    format!(
+        "S: OK Stats reset! {} points refunded ({} points available)\n{}{}",
+        refunded, player.stat_points, stats_evt, char_stats
     )
 }

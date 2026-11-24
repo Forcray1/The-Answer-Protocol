@@ -51,6 +51,8 @@ pub enum GameCommand {
     Use(String),
     /// Spend a stat point: `STATUP <stat>` (damage|special_damage|defense|special_defense|max_hp)
     StatUp(String),
+    /// Refund every allocated stat point: `STATRESET`
+    StatReset,
     /// Magic attack: `ATTACK_MAGIC <target>`
     AttackMagic(String),
     /// Heavy physical (1.75× damage, 1-turn cooldown): `ATTACK_HEAVY <target>`
@@ -116,6 +118,7 @@ impl GameCommand {
             },
             "USE" if parts.len() > 1 => GameCommand::Use(parts[1..].join("_")),
             "STATUP" if parts.len() > 1 => GameCommand::StatUp(parts[1].to_lowercase()),
+            "STATRESET" => GameCommand::StatReset,
             "ATTACK_MAGIC" if parts.len() > 1 => GameCommand::AttackMagic(parts[1..].join(" ")),
             "ATTACK_HEAVY" if parts.len() > 1 => GameCommand::AttackHeavy(parts[1..].join(" ")),
             "ATTACK_MAGIC_HEAVY" if parts.len() > 1 => {

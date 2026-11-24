@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use crate::net::NetworkSender;
-use crate::ui::inventory::components::{InventoryGoldText, InventoryState, StatPointsText, StatUpBtn, StatValueText};
+use crate::ui::inventory::components::{InventoryGoldText, InventoryState, StatPointsText, StatResetBtn, StatUpBtn, StatValueText};
 
 pub(crate) fn handle_char_stats(
     mut events: EventReader<crate::net::ServerMessageEvent>,
@@ -91,6 +91,24 @@ pub(crate) fn handle_statup_click(
             }
             Interaction::Hovered => *bg = Color::rgba(0.2, 0.5, 0.2, 0.9).into(),
             Interaction::None => *bg = Color::rgba(0.2, 0.5, 0.2, 0.0).into(),
+        }
+    }
+}
+
+type StatResetButtonQuery<'w, 's> = Query<'w, 's, (&'static Interaction, &'static mut BackgroundColor), (Changed<Interaction>, With<StatResetBtn>)>;
+
+pub(crate) fn handle_statreset_click(
+    mut btn_q: StatResetButtonQuery,
+    sender: Option<Res<NetworkSender>>,
+) {
+    let Some(sender) = sender else { return };
+    for (interaction, mut bg) in &mut btn_q {
+        match *interaction {
+            Interaction::Pressed => {
+                let _ = sender.0.try_send("STATRESET\n".to_string());
+            }
+            Interaction::Hovered => *bg = Color::rgba(0.7, 0.2, 0.15, 0.9).into(),
+            Interaction::None => *bg = Color::rgba(0.5, 0.15, 0.1, 0.5).into(),
         }
     }
 }

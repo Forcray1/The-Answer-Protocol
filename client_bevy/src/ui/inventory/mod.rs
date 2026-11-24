@@ -42,6 +42,7 @@ impl Plugin for InventoryPlugin {
                     handle_gold_event,
                     handle_stat_points_event,
                     handle_statup_click,
+                    handle_statreset_click,
                     handle_use_item_btn,
                 )
                     .run_if(in_state(AppState::InGame)),
