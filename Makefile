@@ -84,13 +84,13 @@ build-gui: check-toolchain ## Build the GUI client only
 # ----------------------------------------------------------------------------
 #  Run
 # ----------------------------------------------------------------------------
-run-server: check-toolchain ## Run the server (listens on 127.0.0.1:4243)
+run-server: check-toolchain ## Run the server (listens on 0.0.0.0:4243, open to the LAN)
 	$(CARGO) run -p $(SERVER_PKG) $(CARGO_FLAGS) -- $(SERVER_ARGS)
 
-run-client: check-toolchain ## Run the CLI client (connects to 127.0.0.1:4243)
+run-client: check-toolchain ## Run the CLI client (SERVER_ADDR=ip:4243, default 127.0.0.1:4243)
 	$(CARGO) run -p $(CLI_PKG) $(CARGO_FLAGS)
 
-run-client-gui: check-toolchain ## Run the Bevy GUI client (connects to 127.0.0.1:4243)
+run-client-gui: check-toolchain ## Run the Bevy GUI client (SERVER_ADDR=ip:4243, default 127.0.0.1:4243)
 	@test -d $(GUI_PKG)/assets || echo "warning: $(GUI_PKG)/assets not found - sprites will be missing"
 	$(CARGO) run -p $(GUI_PKG) $(CARGO_FLAGS)
 

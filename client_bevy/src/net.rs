@@ -7,7 +7,13 @@ use tokio::net::TcpStream;
 use crate::AppState;
 use crate::menu::LoginData;
 
-const SERVER_ADDR: &str = "127.0.0.1:4243";
+/// Server used when the `SERVER_ADDR` environment variable is not set.
+/// Example to join another machine: `SERVER_ADDR=10.13.3.9:4243 make run-client-gui`
+const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:4243";
+
+fn server_addr() -> String {
+    std::env::var("SERVER_ADDR").unwrap_or_else(|_| DEFAULT_SERVER_ADDR.to_string())
+}
 
 /// Seconds between two connection attempts while the login screen is shown
 /// and the server is not connected.
@@ -79,7 +85,7 @@ fn spawn_connection(commands: &mut Commands) {
             }
         };
         rt.block_on(async move {
-            let Ok(stream) = TcpStream::connect(SERVER_ADDR).await else {
+            let Ok(stream) = TcpStream::connect(server_addr()).await else {
                 println!("[NETWORK] Unable to reach the server.");
                 let _ = tx_to_bevy.send(MSG_UNREACHABLE.to_string());
                 return;

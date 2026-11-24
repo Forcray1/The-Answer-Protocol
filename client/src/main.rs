@@ -5,10 +5,12 @@ use tokio::net::TcpStream;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("[CLIENT] Connecting to the server 127.0.0.1:4243...");
+    // Server address, overridable with SERVER_ADDR=<ip>:4243
+    let addr = std::env::var("SERVER_ADDR").unwrap_or_else(|_| "127.0.0.1:4243".to_string());
+    println!("[CLIENT] Connecting to the server {}...", addr);
 
     // Connexion au serveur
-    let mut stream = TcpStream::connect("127.0.0.1:4243").await?;
+    let mut stream = TcpStream::connect(&addr).await?;
     let (reader, mut writer) = stream.split();
 
     let mut server_reader = BufReader::new(reader);

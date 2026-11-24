@@ -66,8 +66,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Arc::clone(&shared_tx),
     );
 
-    let listener = TcpListener::bind("127.0.0.1:4243").await?;
-    println!("[SERVER] Listening on 4243...");
+    // 0.0.0.0 = listen on every network interface, so other machines on the
+    // local network can connect (127.0.0.1 would only accept this machine).
+    let listener = TcpListener::bind("0.0.0.0:4243").await?;
+    println!("[SERVER] Listening on 0.0.0.0:4243 (reachable from the local network)...");
 
     tasks::spawn_shutdown_handler(Arc::clone(&shared_state), Arc::clone(&shared_pool));
 
